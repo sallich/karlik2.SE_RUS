@@ -1,0 +1,112 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Roguelike MCP Contract (Stage 1)",
+  "description": "Контракт MCP-сервера для LLM-агентов. game-service не экспонируется агенту напрямую.",
+  "protocol": "MCP over stdio (JSON-RPC 2.0)",
+  "server": {
+    "name": "roguelike-mcp-server",
+    "version": "0.1.0"
+  },
+  "transport": {
+    "primary": "stdio",
+    "httpBridge": {
+      "listTools": "GET /mcp/tools",
+      "callTool": "POST /mcp/tools/call",
+      "jsonRpc": "POST /mcp/jsonrpc"
+    }
+  },
+  "tools": [
+    {
+      "name": "game_new_session",
+      "description": "Create a new roguelike session with optional deterministic seed.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "seed": {
+            "type": "integer",
+            "description": "Optional RNG seed for reproducible runs (AI benchmark)."
+          }
+        },
+        "additionalProperties": false
+      },
+      "mapsTo": {
+        "service": "game-service",
+        "method": "POST",
+        "path": "/api/v1/sessions"
+      }
+    },
+    {
+      "name": "game_observe",
+      "description": "Return agent-visible observation (fog-of-war). Stub on stage 1.",
+      "inputSchema": {
+        "type": "object",
+        "required": ["sessionId"],
+        "properties": {
+          "sessionId": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "game_act",
+      "description": "Apply a player/agent action in the session.",
+      "inputSchema": {
+        "type": "object",
+        "required": ["sessionId", "action"],
+        "properties": {
+          "sessionId": { "type": "string" },
+          "action": {
+            "type": "string",
+            "description": "e.g. move_north, attack, use_item, wait"
+          }
+        },
+        "additionalProperties": false
+      },
+      "mapsTo": {
+        "service": "game-service",
+        "method": "POST",
+        "path": "/api/v1/sessions/{sessionId}/actions"
+      }
+    }
+  ],
+  "jsonRpcExamples": {
+    "toolsList": {
+      "request": { "jsonrpc": "2.0", "id": 1, "method": "tools/list" },
+      "response": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": {
+          "tools": [
+            { "name": "game_new_session", "description": "..." },
+            { "name": "game_observe", "description": "..." },
+            { "name": "game_act", "description": "..." }
+          ]
+        }
+      }
+    },
+    "toolsCall": {
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "tools/call",
+        "params": {
+          "name": "game_new_session",
+          "arguments": { "seed": 42 }
+        }
+      },
+      "response": {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "result": {
+          "content": [{ "type": "text", "text": "{\"sessionId\":\"...\",\"seed\":42}" }],
+          "isError": false
+        }
+      }
+    }
+  },
+  "agentRunnerConstraints": [
+    "No direct HTTP access to game-service from agent-runner",
+    "All game interaction via MCP tools only",
+    "LLM API keys only in agent-runner environment"
+  ]
+}
