@@ -4,7 +4,6 @@ import ru.course.roguelike.shared.dto.InputSyncRequest
 import ru.course.roguelike.shared.model.FpsConstants
 import ru.course.roguelike.shared.model.GridPos
 import ru.course.roguelike.shared.model.PlayerPose
-import ru.course.roguelike.shared.model.TileType
 import kotlin.math.ceil
 import kotlin.math.cos
 import kotlin.math.floor
@@ -302,7 +301,7 @@ object FpsMovementSystem {
         for (cy in minCellY..maxCellY) {
             for (cx in minCellX..maxCellX) {
                 val tile = map.get(GridPos(cx, cy))
-                if (tile == null || tile == TileType.FLOOR) continue
+                if (tile == null || tile.walkable) continue
                 if (circleOverlapsCell(x, y, r, cx, cy)) {
                     hits?.add(GridPos(cx, cy))
                     blocked = true

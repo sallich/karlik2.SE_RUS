@@ -8,6 +8,7 @@ import ru.course.roguelike.game.domain.event.GameEventListener
 import ru.course.roguelike.game.domain.level.LevelGenerator
 import ru.course.roguelike.game.domain.session.GameSession
 import ru.course.roguelike.game.infrastructure.level.LevelGeneratorFactory
+import ru.course.roguelike.game.infrastructure.level.TwoLevelLabyrinthGenerator
 import ru.course.roguelike.shared.dto.GameSnapshot
 import ru.course.roguelike.shared.dto.InputSyncRequest
 import ru.course.roguelike.shared.dto.PlayerActionResponse
@@ -31,20 +32,41 @@ class GameEngine(
         eventBus.subscribe(loggingListener)
     }
 
-    fun createSession(seed: Long?): GameSnapshot {
+    fun createSession(seed: Long?, twoLevel: Boolean = false): GameSnapshot {
         val resolvedSeed = seed ?: Random.nextLong()
         val sessionId = UUID.randomUUID().toString()
-        val level = levelGenerator.generate(resolvedSeed)
-        val session = GameSession(
+        val session = if (twoLevel) {
+            buildTwoLevelSession(sessionId, resolvedSeed)
+        } else {
+            buildSession(sessionId, resolvedSeed)
+        }
+        sessions[sessionId] = session
+        eventBus.publish(listOf(GameEvent.SessionCreated(sessionId, resolvedSeed)))
+        return session.toSnapshot()
+    }
+
+    private fun buildSession(sessionId: String, seed: Long): GameSession {
+        val level = levelGenerator.generate(seed)
+        return GameSession(
             sessionId = sessionId,
-            seed = resolvedSeed,
+            seed = seed,
             phase = SessionPhase.EXPLORATION,
             map = level.map,
             playerPose = PlayerPose.fromGridCell(level.playerSpawn),
         )
-        sessions[sessionId] = session
-        eventBus.publish(listOf(GameEvent.SessionCreated(sessionId, resolvedSeed)))
-        return session.toSnapshot()
+    }
+
+    private fun buildTwoLevelSession(sessionId: String, seed: Long): GameSession {
+        val dungeon = TwoLevelLabyrinthGenerator.generate(seed)
+        val ground = dungeon.levels[0]
+        return GameSession(
+            sessionId = sessionId,
+            seed = seed,
+            phase = SessionPhase.EXPLORATION,
+            map = ground.map,
+            playerPose = PlayerPose.fromGridCell(ground.playerSpawn),
+            secondLevel = dungeon.levels[1].map,
+        )
     }
 
     fun getSnapshot(sessionId: String): GameSnapshot? = sessions[sessionId]?.toSnapshot()

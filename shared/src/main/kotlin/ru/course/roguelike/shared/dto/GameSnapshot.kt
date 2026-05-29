@@ -16,6 +16,8 @@ data class GameSnapshot(
     val tick: Long,
     /** Серверное время снимка (мс), для интерполяции на клиенте. */
     val serverTimeMs: Long = 0L,
+    /** Активный уровень локации (0 — нижний). Меняется при использовании лифта. */
+    val currentLevel: Int = 0,
 )
 
 @Serializable

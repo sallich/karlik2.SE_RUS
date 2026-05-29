@@ -81,7 +81,8 @@ class RoguelikeGame : ApplicationAdapter() {
         val pose = simulateFrame(delta)
         drawWorldFrame()
         drawCollisionOverlay(pose)
-        hud.draw(statusLine, pose, fpsSmoothed, lastCollisionDebug, showCollisionDebug)
+        val onLava = pose != null && tileMap?.getTileAt(pose.x, pose.y)?.damaging == true
+        hud.draw(statusLine, pose, fpsSmoothed, lastCollisionDebug, showCollisionDebug, onLava = onLava)
     }
 
     private var syncAccum = 0f

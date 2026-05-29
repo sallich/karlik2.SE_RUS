@@ -1,6 +1,7 @@
 package ru.course.roguelike.client
 
 import com.badlogic.gdx.Gdx
+import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.g2d.BitmapFont
 import com.badlogic.gdx.graphics.g2d.SpriteBatch
 import ru.course.roguelike.shared.engine.CollisionDebug
@@ -16,14 +17,24 @@ class RoguelikeHud(
         fpsSmoothed: Float,
         debug: CollisionDebug?,
         showCollisionDebug: Boolean,
+        onLava: Boolean = false,
     ) {
         batch.begin()
         font.draw(batch, statusLine, 12f, Gdx.graphics.height - 12f)
         pose?.let { drawPoseHud(it, fpsSmoothed) }
+        if (onLava) {
+            drawLavaWarning()
+        }
         if (showCollisionDebug && debug != null) {
             drawCollisionHud(debug)
         }
         batch.end()
+    }
+
+    private fun drawLavaWarning() {
+        font.color = Color.SCARLET
+        font.draw(batch, "!! LAVA - taking damage !!", Gdx.graphics.width / 2f - 90f, Gdx.graphics.height / 2f - 40f)
+        font.color = Color.WHITE
     }
 
     private fun drawPoseHud(pose: PlayerPose, fpsSmoothed: Float) {

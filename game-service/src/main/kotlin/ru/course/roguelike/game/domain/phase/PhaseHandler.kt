@@ -29,6 +29,12 @@ class ExplorationPhaseHandler : PhaseHandler {
         } else {
             CommandValidation(true)
         }
+
+    override fun onCommandExecuted(
+        session: GameSession,
+        command: GameCommand,
+        result: CommandExecutionResult,
+    ): SessionPhase? = if (session.playerHp <= 0) SessionPhase.GAME_OVER else null
 }
 
 class CombatPhaseHandler : PhaseHandler {
@@ -42,6 +48,12 @@ class CombatPhaseHandler : PhaseHandler {
             else -> CommandValidation(false, "Action not allowed during combat: ${command.name}")
         }
     }
+
+    override fun onCommandExecuted(
+        session: GameSession,
+        command: GameCommand,
+        result: CommandExecutionResult,
+    ): SessionPhase? = if (session.playerHp <= 0) SessionPhase.GAME_OVER else null
 }
 
 class ChoicePhaseHandler : PhaseHandler {
