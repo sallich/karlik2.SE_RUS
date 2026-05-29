@@ -11,11 +11,11 @@ import io.ktor.server.testing.testApplication
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import ru.course.roguelike.shared.dto.InputSyncRequest
 import ru.course.roguelike.shared.engine.FpsMovementSystem
 import ru.course.roguelike.shared.engine.TileMap
 import ru.course.roguelike.shared.model.PlayerPose
 import ru.course.roguelike.shared.model.TileType
-import ru.course.roguelike.shared.dto.InputSyncRequest
 
 class GameServiceTest {
     @Test

@@ -23,7 +23,7 @@ object TestLevelGenerator : LevelGenerator {
         val tiles = Array(width * height) { TileType.FLOOR }
         for (x in 0 until width) {
             for (y in 0 until height) {
-                if (x == 0 || y == 0 || x == width - 1 || y == height - 1) {
+                if (isPerimeterWall(x, y, width, height)) {
                     tiles[y * width + x] = TileType.WALL
                 }
             }
@@ -32,6 +32,9 @@ object TestLevelGenerator : LevelGenerator {
         val spawn = findSpawn(tiles, width, height)
         return GeneratedLevel(TileMap(width, height, tiles), spawn)
     }
+
+    private fun isPerimeterWall(x: Int, y: Int, width: Int, height: Int): Boolean =
+        x == 0 || y == 0 || x == width - 1 || y == height - 1
 
     private fun scatterWalls(random: Random, tiles: Array<TileType>, width: Int, height: Int, count: Int) {
         repeat(count) {

@@ -39,15 +39,18 @@ class CommandRegistryTest {
     @Test
     fun `custom action can be registered in builder`() {
         val registry = CommandRegistry.defaultBuilder()
-            .register("ping") { object : GameCommand {
-                override val name = "ping"
-                override fun validate(session: GameSession) = CommandValidation(true)
-                override fun execute(session: GameSession) =
-                    CommandExecutionResult(true, "pong")
-            } }
+            .register("ping") { PingCommand() }
             .build()
 
         assertTrue("ping" in registry.knownActions())
         assertEquals("ping", registry.commandFor("ping", session)?.name)
+    }
+
+    private class PingCommand : GameCommand {
+        override val name = "ping"
+
+        override fun validate(session: GameSession) = CommandValidation(true)
+
+        override fun execute(session: GameSession) = CommandExecutionResult(true, "pong")
     }
 }
