@@ -9,11 +9,14 @@
 | `game-service` | 8080 | Игровой движок (state, карта, бой) |
 | `mcp-server` | 8081 | MCP tools + JSON-RPC, прокси к game-service |
 | `agent-runner` | 8082 | Agent loop, LLM, budget, логи tool calls |
+| `game-client` | — | libGDX 2.5D клиент (desktop), ходит через HTTP API |
+| `shared` | — | DTO, TileMap, изометрия (без libGDX) |
 
 Документация:
 
 - [docs/game-design.md](docs/game-design.md) — механики, core loop, открытые вопросы
 - [docs/game-engine.md](docs/game-engine.md) — движок на Kotlin, рендер, ассеты
+- [docs/game-service-architecture.md](docs/game-service-architecture.md) — слои game-service, паттерны
 - [docs/architecture.md](docs/architecture.md) — сервисы и деплой
 - [docs/mcp-contract.json](docs/mcp-contract.json) — контракт MCP для агентов
 
@@ -25,7 +28,12 @@
 ./gradlew check          # тесты + detekt + JaCoCo (порог 10%)
 ./gradlew jacocoRootReport
 ./gradlew :game-service:run
+
+# В другом терминале — FPS клиент (raycasting, ~60 FPS локально)
+./gradlew :game-client:run
 ```
+
+Управление: **WASD**, **мышь** / **ПКМ** / **←→** — поворот, **↑↓** — pitch, **Esc** — отпустить мышь.
 
 ## Docker
 

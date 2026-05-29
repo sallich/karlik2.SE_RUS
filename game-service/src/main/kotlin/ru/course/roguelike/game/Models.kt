@@ -9,14 +9,6 @@ data class HealthResponse(
 )
 
 @Serializable
-data class GameSessionResponse(
-    val sessionId: String,
-    val seed: Long,
-    val phase: String,
-    val message: String,
-)
-
-@Serializable
 data class CreateSessionRequest(
     val seed: Long? = null,
 )
@@ -24,10 +16,4 @@ data class CreateSessionRequest(
 @Serializable
 data class PlayerActionRequest(
     val action: String,
-)
-
-@Serializable
-data class PlayerActionResponse(
-    val accepted: Boolean,
-    val message: String,
 )

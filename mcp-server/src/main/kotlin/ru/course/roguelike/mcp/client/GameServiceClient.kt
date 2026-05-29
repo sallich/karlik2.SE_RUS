@@ -15,19 +15,12 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import ru.course.roguelike.shared.dto.GameSnapshot
 
 @Serializable
 data class GameHealthDto(
     val status: String,
     val service: String,
-)
-
-@Serializable
-data class GameSessionDto(
-    val sessionId: String,
-    val seed: Long,
-    val phase: String,
-    val message: String,
 )
 
 class GameServiceClient(
@@ -37,11 +30,14 @@ class GameServiceClient(
     suspend fun health(): GameHealthDto =
         http.get("$baseUrl/health").body()
 
-    suspend fun createSession(seed: Long?): GameSessionDto =
+    suspend fun createSession(seed: Long?): GameSnapshot =
         http.post("$baseUrl/api/v1/sessions") {
             contentType(ContentType.Application.Json)
             setBody(buildJsonObject { seed?.let { put("seed", it) } })
         }.body()
+
+    suspend fun observe(sessionId: String): GameSnapshot =
+        http.get("$baseUrl/api/v1/sessions/$sessionId/observe").body()
 
     suspend fun applyAction(sessionId: String, action: String): JsonElement =
         http.post("$baseUrl/api/v1/sessions/$sessionId/actions") {

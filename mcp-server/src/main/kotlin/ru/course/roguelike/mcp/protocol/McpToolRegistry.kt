@@ -34,9 +34,8 @@ class McpToolRegistry(
             "game_observe" -> {
                 val sessionId = arguments["sessionId"]?.jsonPrimitive?.content
                     ?: return errorResponse("sessionId is required")
-                textResponse(
-                    """{"sessionId":"$sessionId","observation":"stub — full fog-of-war view in later milestones"}""",
-                )
+                val snapshot = gameClient.observe(sessionId)
+                textResponse(json.encodeToString(snapshot))
             }
             "game_act" -> {
                 val sessionId = arguments["sessionId"]?.jsonPrimitive?.content

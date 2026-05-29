@@ -18,6 +18,8 @@ dependencyResolutionManagement {
 
 rootProject.name = "roguelike"
 
+include("shared")
 include("game-service")
 include("mcp-server")
 include("agent-runner")
+include("game-client")

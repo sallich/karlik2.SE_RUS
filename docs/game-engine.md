@@ -244,18 +244,33 @@ modelBatch.render(instance, environment)
 
 ---
 
-## Структура модулей (предложение)
+## Структура модулей (текущая)
 
 ```text
 roguelike/
-  game-service/     # simulation + REST (уже есть)
-  game-client/      # libGDX desktop (добавить позже)
-  shared/           # DTO, enums, protocol (опционально)
+  shared/           # TileMap, GameSnapshot, SessionPhase, FpsMovementSystem
+  game-service/     # слои api / application / domain / infrastructure — см. game-service-architecture.md
+  game-client/      # libGDX FPS raycast
   mcp-server/
   agent-runner/
 ```
 
-`shared` избавляет от дублирования `GameSnapshot` между сервисом и клиентом.
+Подробная схема движка: [game-service-architecture.md](game-service-architecture.md).
+
+**MVP FPS (реализовано):**
+
+| Термин | Значение |
+|--------|----------|
+| **2D** | Карта — сетка тайлов (логика на сервере). |
+| **2.5D / псевдо-3D** | Отрисовка **raycasting** (как Doom): нет 3D-моделей, только вертикальные полосы стен. |
+| **Полноценный 3D** | Меши + камера — не в MVP. |
+
+- Позиция `PlayerPose` (float x/y, yaw, pitch).
+- Клиент: **60 FPS** raycast локально + **prediction** (`FpsMovementSystem` в `shared`).
+- Сеть: `POST …/sync` ~**20 Hz**, не запрос на каждый кадр.
+- Управление: WASD, Q/E pitch, стрелки поворот, мышь — yaw.
+
+Расширение: TextureAtlas для стен, звук, entity-спрайты в raycast-сцене.
 
 ---
 

@@ -37,7 +37,7 @@
     },
     {
       "name": "game_observe",
-      "description": "Return agent-visible observation (fog-of-war). Stub on stage 1.",
+      "description": "Return agent-visible GameSnapshot (grid, tiles, player position). Fog-of-war in later milestones.",
       "inputSchema": {
         "type": "object",
         "required": ["sessionId"],
@@ -45,6 +45,11 @@
           "sessionId": { "type": "string" }
         },
         "additionalProperties": false
+      },
+      "mapsTo": {
+        "service": "game-service",
+        "method": "GET",
+        "path": "/api/v1/sessions/{sessionId}/observe"
       }
     },
     {
@@ -66,6 +71,32 @@
         "service": "game-service",
         "method": "POST",
         "path": "/api/v1/sessions/{sessionId}/actions"
+      }
+    },
+    {
+      "name": "game_sync",
+      "description": "Apply held input for deltaMs (FPS). Preferred for human client at ~20Hz.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "sessionId": { "type": "string" },
+          "forward": { "type": "boolean" },
+          "backward": { "type": "boolean" },
+          "strafeLeft": { "type": "boolean" },
+          "strafeRight": { "type": "boolean" },
+          "turnLeft": { "type": "boolean" },
+          "turnRight": { "type": "boolean" },
+          "lookUp": { "type": "boolean" },
+          "lookDown": { "type": "boolean" },
+          "deltaMs": { "type": "integer" }
+        },
+        "required": ["sessionId"],
+        "additionalProperties": false
+      },
+      "mapsTo": {
+        "service": "game-service",
+        "method": "POST",
+        "path": "/api/v1/sessions/{sessionId}/sync"
       }
     }
   ],

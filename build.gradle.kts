@@ -5,6 +5,9 @@ import org.gradle.testing.jacoco.tasks.JacocoReport
 plugins {
     base
     jacoco
+    alias(libs.plugins.kotlin.jvm) apply false
+    alias(libs.plugins.kotlin.serialization) apply false
+    alias(libs.plugins.detekt) apply false
 }
 
 allprojects {
@@ -16,14 +19,15 @@ tasks.register<JacocoReport>("jacocoRootReport") {
     group = "verification"
     description = "Aggregated JaCoCo coverage report for all subprojects"
 
-    dependsOn(subprojects.map { it.tasks.named<JacocoReport>("jacocoTestReport") })
+    val jacocoProjects = subprojects.filter { it.plugins.hasPlugin("jacoco") }
+    dependsOn(jacocoProjects.map { it.tasks.named<JacocoReport>("jacocoTestReport") })
 
     executionData.setFrom(
-        subprojects.map { it.layout.buildDirectory.file("jacoco/test.exec") },
+        jacocoProjects.map { it.layout.buildDirectory.file("jacoco/test.exec") },
     )
 
     sourceDirectories.setFrom(
-        subprojects.flatMap { sub ->
+        jacocoProjects.flatMap { sub ->
             sub.extensions.findByType<SourceSetContainer>()
                 ?.getByName("main")
                 ?.allSource
@@ -33,7 +37,7 @@ tasks.register<JacocoReport>("jacocoRootReport") {
     )
 
     classDirectories.setFrom(
-        subprojects.map { it.layout.buildDirectory.dir("classes/kotlin/main") },
+        jacocoProjects.map { it.layout.buildDirectory.dir("classes/kotlin/main") },
     )
 
     reports {

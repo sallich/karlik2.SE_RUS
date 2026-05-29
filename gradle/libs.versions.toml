@@ -5,6 +5,8 @@ logback = "1.5.18"
 detekt = "1.23.8"
 junit = "5.12.0"
 mockk = "1.13.16"
+libgdx = "1.12.1"
+coroutines = "1.10.1"
 
 [libraries]
 ktor-server-core = { module = "io.ktor:ktor-server-core", version.ref = "ktor" }
@@ -28,6 +30,11 @@ ktor-server-test-host = { module = "io.ktor:ktor-server-test-host", version.ref 
 mockk = { module = "io.mockk:mockk", version.ref = "mockk" }
 
 detekt-formatting = { module = "io.gitlab.arturbosch.detekt:detekt-formatting", version.ref = "detekt" }
+
+gdx = { module = "com.badlogicgames.gdx:gdx", version.ref = "libgdx" }
+gdx-backend-lwjgl3 = { module = "com.badlogicgames.gdx:gdx-backend-lwjgl3", version.ref = "libgdx" }
+gdx-platform = { module = "com.badlogicgames.gdx:gdx-platform", version.ref = "libgdx" }
+kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
