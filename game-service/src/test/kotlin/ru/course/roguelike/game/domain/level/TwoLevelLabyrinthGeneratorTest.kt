@@ -39,6 +39,18 @@ class TwoLevelLabyrinthGeneratorTest {
     }
 
     @Test
+    fun `upper tier reuses the same location layout, not a different maze`() {
+        // Лифт поднимает на 2-й ярус той же локации, поэтому раскладка обоих
+        // ярусов (включая лифты в общих координатах) полностью совпадает.
+        val dungeon = TwoLevelLabyrinthGenerator.generate(7L)
+        assertEquals(
+            dungeon.levels[0].map.toFlatList(),
+            dungeon.levels[1].map.toFlatList(),
+            "верхний ярус должен повторять раскладку нижнего (та же локация)",
+        )
+    }
+
+    @Test
     fun `same seed is deterministic`() {
         val a = TwoLevelLabyrinthGenerator.generate(42L)
         val b = TwoLevelLabyrinthGenerator.generate(42L)

@@ -8,27 +8,23 @@ import ru.course.roguelike.shared.model.TileType
 import kotlin.random.Random
 
 /**
- * Двухуровневая лабиринтная локация (issue #3, стретч-цель).
+ * Двухуровневая локация (issue #3, стретч-цель).
  *
- * Генерирует два независимых лабиринта одинакового размера (нижний и верхний),
- * затем ставит несколько лифтов в общих проходимых клетках — на обоих уровнях
- * в одних и тех же координатах. Лифты проходимы, поэтому связность каждого
- * уровня сохраняется.
+ * Это не два разных лабиринта, а один и тот же ярус, поднятый на второй уровень:
+ * верхний ярус повторяет раскладку нижнего (та же локация, тот же seed). Лифт —
+ * открытая платформа: наступив на неё, герой поднимается на 2-й ярус той же
+ * локации в тех же координатах. Лифты ставятся в общих проходимых клетках на
+ * обоих ярусах, поэтому связность каждого яруса сохраняется.
  */
 object TwoLevelLabyrinthGenerator {
-    /** Сдвиг seed для верхнего уровня — другой раскладки относительно нижнего. */
-    private const val UPPER_SEED_SALT = 0x9E3779B9L
-
     /** Сколько пар лифтов разместить между уровнями. */
     private const val ELEVATOR_COUNT = 4
 
     fun generate(seed: Long): GeneratedDungeon {
-        val ground = LabyrinthLevelGenerator.generate(seed)
-        val upper = LabyrinthLevelGenerator.generate(seed xor UPPER_SEED_SALT)
-        require(ground.map.width == upper.map.width && ground.map.height == upper.map.height) {
-            "уровни лабиринта должны быть одного размера для общих координат лифтов"
-        }
-        return linkWithElevators(seed, ground, upper)
+        // Верхний ярус — та же локация, что и нижний (тот же layout), а не
+        // отдельный лабиринт с другим seed: лифт лишь поднимает героя на 2-й ярус.
+        val location = LabyrinthLevelGenerator.generate(seed)
+        return linkWithElevators(seed, location, location)
     }
 
     private fun linkWithElevators(seed: Long, ground: GeneratedLevel, upper: GeneratedLevel): GeneratedDungeon {

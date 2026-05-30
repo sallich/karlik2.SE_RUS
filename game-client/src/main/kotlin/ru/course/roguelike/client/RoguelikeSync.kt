@@ -19,6 +19,8 @@ class RoguelikeSync(
     private val poseAccessor: () -> PlayerPose?,
     private val poseMutator: (PlayerPose?) -> Unit,
     private val authoritativeMutator: (PlayerPose?) -> Unit,
+    /** HP/maxHP с сервера (источник правды по урону, напр. от лавы). */
+    private val vitalsMutator: (Int, Int) -> Unit = { _, _ -> },
 ) {
     var sessionId: String? = null
         private set
@@ -36,7 +38,8 @@ class RoguelikeSync(
                     onSnapshot(created)
                 }
                 onStatusLine(
-                    "WASD — ходьба, мышь/ПКМ — поворот, ←→ — поворот, ↑↓ — pitch. Esc — мышь. F3 — коллизии.",
+                    "WASD — ходьба, мышь/ПКМ — поворот, ←→ — поворот, ↑↓ — pitch. " +
+                        "Esc — мышь. F3 — коллизии. F4 — карта локации.",
                 )
             } catch (ex: Exception) {
                 onStatusLine("Server error: ${ex.message}. Run :game-service:run")
@@ -57,6 +60,7 @@ class RoguelikeSync(
         val pose = snap.player.pose
         poseMutator(pose)
         authoritativeMutator(pose)
+        vitalsMutator(snap.player.hp, snap.player.maxHp)
     }
 
     @Suppress("TooGenericExceptionCaught")
@@ -67,8 +71,11 @@ class RoguelikeSync(
             if (seq < syncAppliedSeq.get()) return
             syncAppliedSeq.set(seq)
             val auth = snap.player.pose
+            val hp = snap.player.hp
+            val maxHp = snap.player.maxHp
             Gdx.app.postRunnable {
                 applyServerCorrection(auth)
+                vitalsMutator(hp, maxHp)
             }
         } catch (ex: Exception) {
             onStatusLine("Sync failed: ${ex.message}")
