@@ -28,11 +28,14 @@ class RoguelikeSync(
     private val syncOutboundSeq = AtomicInteger(0)
     private val syncAppliedSeq = AtomicInteger(0)
 
+    /** Активный ярус локации по последнему снимку — для уведомления о смене лифтом. */
+    private var currentLevel = 0
+
     @Suppress("TooGenericExceptionCaught")
-    fun connect(seed: Long = 42) {
+    fun connect(seed: Long? = null) {
         scope.launch {
             try {
-                val created = api.createSession(seed = seed)
+                val created = api.createSession(seed = seed, twoLevel = true)
                 Gdx.app.postRunnable {
                     applySnapshot(created)
                     onSnapshot(created)
@@ -61,6 +64,16 @@ class RoguelikeSync(
         poseMutator(pose)
         authoritativeMutator(pose)
         vitalsMutator(snap.player.hp, snap.player.maxHp)
+        currentLevel = snap.currentLevel
+    }
+
+    /** Сообщает о смене яруса лифтом, если активный уровень в снимке изменился. */
+    private fun notifyLevelChange(level: Int) {
+        if (level == currentLevel) return
+        currentLevel = level
+        onStatusLine(
+            if (level == 1) "Elevator: went up to the 2nd floor" else "Elevator: went down to the 1st floor",
+        )
     }
 
     @Suppress("TooGenericExceptionCaught")
@@ -73,9 +86,11 @@ class RoguelikeSync(
             val auth = snap.player.pose
             val hp = snap.player.hp
             val maxHp = snap.player.maxHp
+            val level = snap.currentLevel
             Gdx.app.postRunnable {
                 applyServerCorrection(auth)
                 vitalsMutator(hp, maxHp)
+                notifyLevelChange(level)
             }
         } catch (ex: Exception) {
             onStatusLine("Sync failed: ${ex.message}")
