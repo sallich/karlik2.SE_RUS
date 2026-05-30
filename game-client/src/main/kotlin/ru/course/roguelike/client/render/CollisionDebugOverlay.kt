@@ -44,15 +44,22 @@ class CollisionDebugOverlay(
             for (dx in -half..half) {
                 val gx = layout.centerGx + dx
                 val gy = layout.centerGy + dy
-                if (map.get(GridPos(gx, gy)) != TileType.WALL) {
-                    continue
-                }
+                val cellColor = miniMapCellColor(map.get(GridPos(gx, gy))) ?: continue
                 val x0 = layout.originX + dx * layout.cellPx - layout.cellPx / 2f
                 val y0 = layout.originY + dy * layout.cellPx - layout.cellPx / 2f
-                shapeRenderer.color = Color.DARK_GRAY
+                shapeRenderer.color = cellColor
                 shapeRenderer.rect(x0, y0, layout.cellPx, layout.cellPx)
             }
         }
+    }
+
+    /** Цвет клетки миникарты: стены/колонны — серый, лава — красная, пол — не рисуем. */
+    private fun miniMapCellColor(tile: TileType?): Color? = when (tile) {
+        TileType.WALL -> Color.DARK_GRAY
+        TileType.COLUMN -> Color.GRAY
+        TileType.LAVA -> Color.RED
+        TileType.ELEVATOR -> Color.CYAN
+        else -> null
     }
 
     private fun drawHitCells(debug: CollisionDebug, layout: MiniMapLayout) {

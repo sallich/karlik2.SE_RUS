@@ -30,7 +30,6 @@ object Raycaster {
         if (screenWidth <= 0) return emptyArray()
 
         val distances = FloatArray(screenWidth)
-        val sides = IntArray(screenWidth)
         val colors = IntArray(screenWidth)
 
         val posX = pose.x
@@ -76,6 +75,7 @@ object Raycaster {
             var hit = false
             var side = 0
             var outOfBounds = false
+            var hitTile: TileType? = null
 
             while (!hit) {
                 if (sideDistX < sideDistY) {
@@ -90,8 +90,13 @@ object Raycaster {
                 if (mapX < 0 || mapY < 0 || mapX >= map.width || mapY >= map.height) {
                     hit = true
                     outOfBounds = true
-                } else if (map.get(GridPos(mapX, mapY)) == TileType.WALL) {
-                    hit = true
+                } else {
+                    // Луч останавливают любые непрозрачные тайлы: и стены, и колонны.
+                    val tile = map.get(GridPos(mapX, mapY))
+                    if (tile != null && tile.blocksVision) {
+                        hit = true
+                        hitTile = tile
+                    }
                 }
             }
 
@@ -105,13 +110,8 @@ object Raycaster {
             perpWallDist = abs(perpWallDist).coerceIn(FpsConstants.COLLISION_MIN_RAY_DIST, 64f)
 
             distances[col] = perpWallDist
-            sides[col] = side
             val shade = (200 / (1f + perpWallDist * 0.28f)).toInt().coerceIn(50, 220)
-            colors[col] = if (side == 0) {
-                rgb(shade, shade * 2 / 3, shade / 2)
-            } else {
-                rgb(shade * 2 / 3, shade / 2, shade)
-            }
+            colors[col] = colorFor(hitTile, side, shade)
         }
 
         smoothWallDistances(distances)
@@ -143,6 +143,46 @@ object Raycaster {
             val smoothed = (scratch[col - 1] + scratch[col] * 2f + scratch[col + 1]) / 4f
             distances[col] = d + (smoothed - d) * weight
         }
+    }
+
+    /** Цвет вертикали стены: колонны — холодный камень, обычные стены — тёплый кирпич. */
+    private fun colorFor(tile: TileType?, side: Int, shade: Int): Int = when (tile) {
+        TileType.COLUMN -> if (side == 0) {
+            rgb(shade / 2, shade / 2, shade)
+        } else {
+            rgb(shade / 3, shade / 3, shade * 2 / 3)
+        }
+        else -> if (side == 0) {
+            rgb(shade, shade * 2 / 3, shade / 2)
+        } else {
+            rgb(shade * 2 / 3, shade / 2, shade)
+        }
+    }
+
+    /**
+     * Направление луча (мировые координаты, ненормированное) для экранного
+     * столбца [col]. Совпадает с базисом камеры в [castColumns] — используется
+     * клиентом для проекции пола (подсветка лавы).
+     */
+    fun rayDirection(pose: PlayerPose, screenWidth: Int, col: Int, fovRadians: Float = FpsConstants.DEFAULT_FOV_RADIANS): FloatArray {
+        val halfFov = fovRadians / 2f
+        val planeX = -sin(pose.yaw) * tan(halfFov)
+        val planeY = cos(pose.yaw) * tan(halfFov)
+        val dirX = cos(pose.yaw)
+        val dirY = sin(pose.yaw)
+        val cameraX = (col + 0.5f) / screenWidth * 2f - 1f
+        return floatArrayOf(dirX + planeX * cameraX, dirY + planeY * cameraX)
+    }
+
+    /**
+     * Перпендикулярная дистанция до точки пола на экранной строке [screenRow]
+     * (ниже [horizon]). Согласована с проекцией стен в [castColumns]:
+     * нижняя грань стены на дистанции d попадает в ту же строку, что и пол на d.
+     * Возвращает [Float.POSITIVE_INFINITY] для строк на/над горизонтом.
+     */
+    fun floorDistance(screenHeight: Int, horizon: Float, screenRow: Int): Float {
+        val denom = screenRow - horizon
+        return if (denom <= 0f) Float.POSITIVE_INFINITY else (screenHeight / 2f) / denom
     }
 
     private fun rgb(r: Int, g: Int, b: Int): Int = (r shl 16) or (g shl 8) or b

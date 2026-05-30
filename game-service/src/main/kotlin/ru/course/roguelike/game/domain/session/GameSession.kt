@@ -17,9 +17,20 @@ data class GameSession(
     var playerPose: PlayerPose,
     var playerHp: Int = 100,
     val playerMaxHp: Int = 100,
+    /** Накопитель дробного урона лавой (HP списывается целыми единицами). */
+    var lavaDamageBuffer: Float = 0f,
     var tick: Long = 0,
     var serverTimeMs: Long = System.currentTimeMillis(),
+    /** Верхний уровень двухуровневой локации (null — одноуровневая сессия). */
+    val secondLevel: TileMap? = null,
+    /** Активный уровень (0 — нижний [map], 1 — [secondLevel]). */
+    var currentLevel: Int = 0,
+    /** Стоял ли герой на лифте в прошлом тике — чтобы не зациклить переход. */
+    var onElevator: Boolean = false,
 ) {
+    /** Карта активного уровня — её видят системы движения, урона и снимок. */
+    val activeMap: TileMap get() = if (currentLevel == 1) secondLevel ?: map else map
+
     fun touchClock() {
         tick++
         serverTimeMs = System.currentTimeMillis()
@@ -29,9 +40,9 @@ data class GameSession(
         sessionId = sessionId,
         seed = seed,
         phase = phase.name,
-        width = map.width,
-        height = map.height,
-        tiles = map.toFlatList(),
+        width = activeMap.width,
+        height = activeMap.height,
+        tiles = activeMap.toFlatList(),
         player = PlayerSnapshot(
             pose = playerPose,
             hp = playerHp,
@@ -39,5 +50,6 @@ data class GameSession(
         ),
         tick = tick,
         serverTimeMs = serverTimeMs,
+        currentLevel = currentLevel,
     )
 }

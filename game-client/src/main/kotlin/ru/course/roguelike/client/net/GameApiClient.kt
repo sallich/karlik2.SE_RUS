@@ -21,10 +21,15 @@ class GameApiClient(
     private val baseUrl: String,
     private val http: HttpClient = createHttp(),
 ) {
-    suspend fun createSession(seed: Long? = null): GameSnapshot =
+    suspend fun createSession(seed: Long? = null, twoLevel: Boolean = false): GameSnapshot =
         http.post("$baseUrl/api/v1/sessions") {
             contentType(ContentType.Application.Json)
-            setBody(buildJsonObject { seed?.let { put("seed", it) } })
+            setBody(
+                buildJsonObject {
+                    seed?.let { put("seed", it) }
+                    put("twoLevel", twoLevel)
+                },
+            )
         }.body()
 
     suspend fun observe(sessionId: String): GameSnapshot =

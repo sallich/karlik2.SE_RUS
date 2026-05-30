@@ -15,6 +15,7 @@ import ru.course.roguelike.client.input.InputSampler
 import ru.course.roguelike.client.net.GameApiClient
 import ru.course.roguelike.client.render.CollisionDebugOverlay
 import ru.course.roguelike.client.render.FpsViewportRenderer
+import ru.course.roguelike.client.render.LocationMapOverlay
 import ru.course.roguelike.shared.dto.GameSnapshot
 import ru.course.roguelike.shared.dto.InputSyncRequest
 import ru.course.roguelike.shared.engine.CollisionDebug
@@ -32,6 +33,7 @@ class RoguelikeGame : ApplicationAdapter() {
     private lateinit var viewport: FpsViewportRenderer
     private lateinit var shapeRenderer: ShapeRenderer
     private lateinit var collisionDebugOverlay: CollisionDebugOverlay
+    private lateinit var locationMapOverlay: LocationMapOverlay
     private lateinit var sync: RoguelikeSync
 
     private var tileMap: TileMap? = null
@@ -50,7 +52,12 @@ class RoguelikeGame : ApplicationAdapter() {
     private var pendingSyncDeltaMs = 0
     private var accumulatedYawDelta = 0f
     private var showCollisionDebug = false
+    private var showLocationMap = false
     private var lastCollisionDebug: CollisionDebug? = null
+
+    /** HP/maxHP, присланные сервером (учитывают урон от лавы). */
+    private var playerHp = 0
+    private var playerMaxHp = 0
 
     override fun create() {
         batch = SpriteBatch()
@@ -58,6 +65,7 @@ class RoguelikeGame : ApplicationAdapter() {
         hud = RoguelikeHud(batch, font)
         shapeRenderer = ShapeRenderer()
         collisionDebugOverlay = CollisionDebugOverlay(shapeRenderer)
+        locationMapOverlay = LocationMapOverlay(shapeRenderer)
         viewport = FpsViewportRenderer(640, 360)
         sync = RoguelikeSync(
             scope = scope,
@@ -67,6 +75,10 @@ class RoguelikeGame : ApplicationAdapter() {
             poseAccessor = { predictedPose },
             poseMutator = { predictedPose = it },
             authoritativeMutator = { authoritativePose = it },
+            vitalsMutator = { hp, maxHp ->
+                playerHp = hp
+                playerMaxHp = maxHp
+            },
         )
         Gdx.graphics.setForegroundFPS(60)
         InputSampler.enableMouseLook()
@@ -80,8 +92,18 @@ class RoguelikeGame : ApplicationAdapter() {
         handleDebugKeys()
         val pose = simulateFrame(delta)
         drawWorldFrame()
-        drawCollisionOverlay(pose)
-        hud.draw(statusLine, pose, fpsSmoothed, lastCollisionDebug, showCollisionDebug)
+        drawDebugOverlays(pose)
+        val onLava = pose != null && tileMap?.getTileAt(pose.x, pose.y)?.damaging == true
+        hud.draw(
+            statusLine,
+            pose,
+            fpsSmoothed,
+            lastCollisionDebug,
+            showCollisionDebug,
+            onLava = onLava,
+            hp = playerHp,
+            maxHp = playerMaxHp,
+        )
     }
 
     private var syncAccum = 0f
@@ -92,6 +114,9 @@ class RoguelikeGame : ApplicationAdapter() {
         }
         if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.F3)) {
             showCollisionDebug = !showCollisionDebug
+        }
+        if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.F4)) {
+            showLocationMap = !showLocationMap
         }
     }
 
@@ -139,16 +164,17 @@ class RoguelikeGame : ApplicationAdapter() {
         batch.end()
     }
 
-    private fun drawCollisionOverlay(pose: PlayerPose?) {
-        val overlay = collisionOverlayParams(pose) ?: return
+    private fun drawDebugOverlays(pose: PlayerPose?) {
+        if (!showCollisionDebug && !showLocationMap) return
+        val screenW = Gdx.graphics.width.toFloat()
+        val screenH = Gdx.graphics.height.toFloat()
         Gdx.gl.glEnable(GL20.GL_BLEND)
-        collisionDebugOverlay.render(
-            Gdx.graphics.width.toFloat(),
-            Gdx.graphics.height.toFloat(),
-            overlay.map,
-            overlay.pose,
-            overlay.debug,
-        )
+        if (showLocationMap) {
+            tileMap?.let { locationMapOverlay.render(screenW, screenH, it, pose) }
+        }
+        collisionOverlayParams(pose)?.let { overlay ->
+            collisionDebugOverlay.render(screenW, screenH, overlay.map, overlay.pose, overlay.debug)
+        }
         Gdx.gl.glDisable(GL20.GL_BLEND)
     }
 

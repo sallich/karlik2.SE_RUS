@@ -48,4 +48,7 @@ object FpsConstants {
     const val SYNC_POSITION_HARD_SNAP = 0.55f
     /** Мышь вправо → взгляд вправо (стандартный FPS). */
     const val MOUSE_YAW_SIGN = -1f
+
+    /** Урон лавой в единицах HP в секунду, пока герой стоит на тайле LAVA. */
+    const val LAVA_DAMAGE_PER_SECOND = 20f
 }

@@ -1,7 +1,9 @@
 package ru.course.roguelike.game.domain.command
 
 import ru.course.roguelike.game.domain.event.GameEvent
+import ru.course.roguelike.game.domain.session.ElevatorSystem
 import ru.course.roguelike.game.domain.session.GameSession
+import ru.course.roguelike.game.domain.session.LavaDamageSystem
 import ru.course.roguelike.shared.dto.InputSyncRequest
 import ru.course.roguelike.shared.engine.FpsMovementSystem
 
@@ -18,15 +20,18 @@ class SyncInputCommand(
         }
 
     override fun execute(session: GameSession): CommandExecutionResult {
-        session.playerPose = FpsMovementSystem.applyInput(session.map, session.playerPose, input)
+        session.playerPose = FpsMovementSystem.applyInput(session.activeMap, session.playerPose, input)
         session.touchClock()
+        val events = mutableListOf<GameEvent>(
+            GameEvent.CommandExecuted(name, accepted = true),
+            GameEvent.PlayerMoved(session.tick),
+        )
+        LavaDamageSystem.apply(session, input.deltaMs)?.let { events.add(it) }
+        ElevatorSystem.apply(session)?.let { events.add(it) }
         return CommandExecutionResult(
             accepted = true,
             message = "sync ok",
-            events = listOf(
-                GameEvent.CommandExecuted(name, accepted = true),
-                GameEvent.PlayerMoved(session.tick),
-            ),
+            events = events,
         )
     }
 

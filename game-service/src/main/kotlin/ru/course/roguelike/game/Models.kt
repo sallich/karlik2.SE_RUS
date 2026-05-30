@@ -11,6 +11,8 @@ data class HealthResponse(
 @Serializable
 data class CreateSessionRequest(
     val seed: Long? = null,
+    /** Создать двухуровневую локацию с лифтами (issue #3, опционально). */
+    val twoLevel: Boolean = false,
 )
 
 @Serializable

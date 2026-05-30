@@ -29,7 +29,7 @@ fun Route.configureGameRoutes() {
 
 private suspend fun createSession(call: ApplicationCall) {
     val request = call.receive<CreateSessionRequest>()
-    val snapshot = engine.createSession(request.seed)
+    val snapshot = engine.createSession(request.seed, request.twoLevel)
     call.respond(snapshot)
 }
 

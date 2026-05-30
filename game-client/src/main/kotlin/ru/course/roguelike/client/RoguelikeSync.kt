@@ -19,6 +19,8 @@ class RoguelikeSync(
     private val poseAccessor: () -> PlayerPose?,
     private val poseMutator: (PlayerPose?) -> Unit,
     private val authoritativeMutator: (PlayerPose?) -> Unit,
+    /** HP/maxHP с сервера (источник правды по урону, напр. от лавы). */
+    private val vitalsMutator: (Int, Int) -> Unit = { _, _ -> },
 ) {
     var sessionId: String? = null
         private set
@@ -26,17 +28,21 @@ class RoguelikeSync(
     private val syncOutboundSeq = AtomicInteger(0)
     private val syncAppliedSeq = AtomicInteger(0)
 
+    /** Активный ярус локации по последнему снимку — для уведомления о смене лифтом. */
+    private var currentLevel = 0
+
     @Suppress("TooGenericExceptionCaught")
-    fun connect(seed: Long = 42) {
+    fun connect(seed: Long? = null) {
         scope.launch {
             try {
-                val created = api.createSession(seed = seed)
+                val created = api.createSession(seed = seed, twoLevel = true)
                 Gdx.app.postRunnable {
                     applySnapshot(created)
                     onSnapshot(created)
                 }
                 onStatusLine(
-                    "WASD — ходьба, мышь/ПКМ — поворот, ←→ — поворот, ↑↓ — pitch. Esc — мышь. F3 — коллизии.",
+                    "WASD — ходьба, мышь/ПКМ — поворот, ←→ — поворот, ↑↓ — pitch. " +
+                        "Esc — мышь. F3 — коллизии. F4 — карта локации.",
                 )
             } catch (ex: Exception) {
                 onStatusLine("Server error: ${ex.message}. Run :game-service:run")
@@ -57,6 +63,17 @@ class RoguelikeSync(
         val pose = snap.player.pose
         poseMutator(pose)
         authoritativeMutator(pose)
+        vitalsMutator(snap.player.hp, snap.player.maxHp)
+        currentLevel = snap.currentLevel
+    }
+
+    /** Сообщает о смене яруса лифтом, если активный уровень в снимке изменился. */
+    private fun notifyLevelChange(level: Int) {
+        if (level == currentLevel) return
+        currentLevel = level
+        onStatusLine(
+            if (level == 1) "Elevator: went up to the 2nd floor" else "Elevator: went down to the 1st floor",
+        )
     }
 
     @Suppress("TooGenericExceptionCaught")
@@ -67,8 +84,13 @@ class RoguelikeSync(
             if (seq < syncAppliedSeq.get()) return
             syncAppliedSeq.set(seq)
             val auth = snap.player.pose
+            val hp = snap.player.hp
+            val maxHp = snap.player.maxHp
+            val level = snap.currentLevel
             Gdx.app.postRunnable {
                 applyServerCorrection(auth)
+                vitalsMutator(hp, maxHp)
+                notifyLevelChange(level)
             }
         } catch (ex: Exception) {
             onStatusLine("Sync failed: ${ex.message}")
