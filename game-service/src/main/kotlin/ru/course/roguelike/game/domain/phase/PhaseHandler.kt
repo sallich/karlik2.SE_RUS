@@ -8,6 +8,12 @@ import ru.course.roguelike.game.domain.session.GameSession
 import ru.course.roguelike.shared.model.SessionPhase
 import ru.course.roguelike.shared.protocol.GameActions
 
+private fun resolveEndPhase(session: GameSession): SessionPhase? = when {
+    session.playerHp <= 0 -> SessionPhase.GAME_OVER
+    session.levelCompleted -> SessionPhase.LEVEL_COMPLETE
+    else -> null
+}
+
 interface PhaseHandler {
     val phase: SessionPhase
 
@@ -24,17 +30,17 @@ class ExplorationPhaseHandler : PhaseHandler {
     override val phase: SessionPhase = SessionPhase.EXPLORATION
 
     override fun validateCommand(command: GameCommand, session: GameSession): CommandValidation =
-        if (session.playerHp <= 0) {
-            CommandValidation(false, "Game over")
-        } else {
-            CommandValidation(true)
+        when {
+            session.playerHp <= 0 -> CommandValidation(false, "Game over")
+            session.levelCompleted -> CommandValidation(false, "Level already completed")
+            else -> CommandValidation(true)
         }
 
     override fun onCommandExecuted(
         session: GameSession,
         command: GameCommand,
         result: CommandExecutionResult,
-    ): SessionPhase? = if (session.playerHp <= 0) SessionPhase.GAME_OVER else null
+    ): SessionPhase? = resolveEndPhase(session)
 }
 
 class CombatPhaseHandler : PhaseHandler {
@@ -53,7 +59,7 @@ class CombatPhaseHandler : PhaseHandler {
         session: GameSession,
         command: GameCommand,
         result: CommandExecutionResult,
-    ): SessionPhase? = if (session.playerHp <= 0) SessionPhase.GAME_OVER else null
+    ): SessionPhase? = resolveEndPhase(session)
 }
 
 class ChoicePhaseHandler : PhaseHandler {
@@ -76,6 +82,13 @@ class HubPhaseHandler : PhaseHandler {
 
 class GameOverPhaseHandler : PhaseHandler {
     override val phase: SessionPhase = SessionPhase.GAME_OVER
+
+    override fun validateCommand(command: GameCommand, session: GameSession): CommandValidation =
+        CommandValidation(false, "Session ended")
+}
+
+class LevelCompletePhaseHandler : PhaseHandler {
+    override val phase: SessionPhase = SessionPhase.LEVEL_COMPLETE
 
     override fun validateCommand(command: GameCommand, session: GameSession): CommandValidation =
         CommandValidation(false, "Session ended")

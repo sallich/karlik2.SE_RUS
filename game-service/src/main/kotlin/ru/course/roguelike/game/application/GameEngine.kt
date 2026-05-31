@@ -7,7 +7,14 @@ import ru.course.roguelike.game.domain.event.GameEvent
 import ru.course.roguelike.game.domain.event.GameEventBus
 import ru.course.roguelike.game.domain.event.GameEventListener
 import ru.course.roguelike.game.domain.level.LevelGenerator
+import ru.course.roguelike.game.domain.session.ExitGatePlacer
 import ru.course.roguelike.game.domain.session.GameSession
+import ru.course.roguelike.game.domain.session.KeyPickup
+import ru.course.roguelike.game.domain.session.KeySpawner
+import ru.course.roguelike.game.domain.level.GeneratedLevel
+import ru.course.roguelike.game.domain.level.Room
+import ru.course.roguelike.shared.engine.TileMap
+import ru.course.roguelike.shared.model.GridPos
 import ru.course.roguelike.game.infrastructure.level.LevelGeneratorFactory
 import ru.course.roguelike.game.infrastructure.level.TwoLevelLabyrinthGenerator
 import ru.course.roguelike.shared.dto.GameSnapshot
@@ -49,26 +56,51 @@ class GameEngine(
 
     private fun buildSession(sessionId: String, seed: Long): GameSession {
         val level = levelGenerator.generate(seed)
+        val progress = setupProgress(level, seed)
         return GameSession(
             sessionId = sessionId,
             seed = seed,
             phase = SessionPhase.EXPLORATION,
-            map = level.map,
+            map = progress.map,
             playerPose = PlayerPose.fromGridCell(level.playerSpawn),
+            keyPickups = progress.keys,
+            bossRoom = progress.bossRoom,
+            exitGate = progress.exitGate,
         )
     }
 
     private fun buildTwoLevelSession(sessionId: String, seed: Long): GameSession {
         val dungeon = TwoLevelLabyrinthGenerator.generate(seed)
         val ground = dungeon.levels[0]
+        val progress = setupProgress(ground, seed)
         return GameSession(
             sessionId = sessionId,
             seed = seed,
             phase = SessionPhase.EXPLORATION,
-            map = ground.map,
+            map = progress.map,
             playerPose = PlayerPose.fromGridCell(ground.playerSpawn),
             secondLevel = dungeon.levels[1].map,
+            keyPickups = progress.keys,
+            bossRoom = progress.bossRoom,
+            exitGate = progress.exitGate,
         )
+    }
+
+    private data class ProgressSetup(
+        val map: TileMap,
+        val keys: MutableList<KeyPickup>,
+        val bossRoom: Room?,
+        val exitGate: GridPos?,
+    )
+
+    private fun setupProgress(level: GeneratedLevel, seed: Long): ProgressSetup {
+        val boss = KeySpawner.bossRoomOf(level)
+        val keys = KeySpawner.spawn(level, seed).toMutableList()
+        if (boss == null) {
+            return ProgressSetup(level.map, keys, null, null)
+        }
+        val (mapWithGate, exitGate) = ExitGatePlacer.place(level, boss)
+        return ProgressSetup(mapWithGate, keys, boss, exitGate)
     }
 
     fun getSnapshot(sessionId: String): GameSnapshot? = sessions[sessionId]?.toSnapshot()

@@ -15,6 +15,7 @@ class PhaseRegistry(
             ChoicePhaseHandler(),
             HubPhaseHandler(),
             GameOverPhaseHandler(),
+            LevelCompletePhaseHandler(),
         ).associateBy { it.phase }
     }
 }

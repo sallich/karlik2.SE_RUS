@@ -4,6 +4,9 @@ object SceneRenderConfig {
     const val SKY_RGB = 0x2a3548
     const val FLOOR_BASE_RGB = 0x3d4a3a
 
+    /** Яркий однотонный цвет ячейки выхода (без текстуры лифта/двери). */
+    const val EXIT_GATE_RGB = 0x33EE66
+
     /** Число горизонтальных полос в textures/walls.png (256×512 → 2 ряда по 256px). */
     const val WALL_ATLAS_ROWS = 2
 
@@ -23,7 +26,7 @@ object SceneRenderConfig {
 
     const val MAX_FLOOR_DISTANCE = 28f
 
-    const val PITCH_HORIZON_FACTOR = 0.38f
+    const val PITCH_HORIZON_FACTOR = 0.45f
 
     const val AMBIENT_VOLUME = 10f
 
@@ -31,6 +34,8 @@ object SceneRenderConfig {
 
     fun sideDarken(wallSide: Int): Float = if (wallSide == 0) Y_WALL_DARKEN else X_WALL_DARKEN
 
+    /** Положительный pitch (взгляд вверх) опускает линию горизонта — больше неба, меньше пола. */
     fun horizonY(viewHeight: Int, pitch: Float): Float =
-        viewHeight / 2f - kotlin.math.sin(pitch) * viewHeight * PITCH_HORIZON_FACTOR
+        (viewHeight / 2f + kotlin.math.sin(pitch) * viewHeight * PITCH_HORIZON_FACTOR)
+            .coerceIn(0f, viewHeight.toFloat())
 }

@@ -9,4 +9,5 @@ enum class SessionPhase {
     CHOICE,
     HUB,
     GAME_OVER,
+    LEVEL_COMPLETE,
 }

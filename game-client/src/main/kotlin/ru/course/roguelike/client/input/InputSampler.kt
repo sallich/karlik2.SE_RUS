@@ -38,12 +38,13 @@ object InputSampler {
                 turnLeft = pressed(Input.Keys.LEFT),
                 turnRight = pressed(Input.Keys.RIGHT),
                 lookUp = pressed(Input.Keys.UP, Input.Keys.Q),
-                lookDown = pressed(Input.Keys.DOWN, Input.Keys.E),
+                lookDown = pressed(Input.Keys.DOWN),
                 yawDelta = yawDelta,
                 pitchDelta = pitchDelta,
                 deltaMs = deltaMs,
                 attack = Gdx.input.isButtonJustPressed(Input.Buttons.LEFT) ||
                     Gdx.input.isKeyJustPressed(Input.Keys.SPACE),
+                interact = Gdx.input.isKeyJustPressed(Input.Keys.E),
             ),
         )
     }

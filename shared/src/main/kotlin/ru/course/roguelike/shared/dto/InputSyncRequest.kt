@@ -24,4 +24,6 @@ data class InputSyncRequest(
     val clientYaw: Float? = null,
     val clientPitch: Float? = null,
     val attack: Boolean = false,
+    /** Взаимодействие: подобрать ключ, открыть ворота выхода. */
+    val interact: Boolean = false,
 )

@@ -20,6 +20,7 @@ class GameTextures private constructor(
         BillboardRenderer.SpriteTexture.MELEE -> meleeMob
         BillboardRenderer.SpriteTexture.RANGED -> rangedMob
         BillboardRenderer.SpriteTexture.BLAST -> blast
+        BillboardRenderer.SpriteTexture.KEY -> null
         BillboardRenderer.SpriteTexture.COLOR_FALLBACK -> null
     }
 
@@ -28,7 +29,9 @@ class GameTextures private constructor(
         BillboardRenderer.SpriteTexture.RANGED,
         BillboardRenderer.SpriteTexture.BLAST,
         -> true
-        BillboardRenderer.SpriteTexture.COLOR_FALLBACK -> false
+        BillboardRenderer.SpriteTexture.KEY,
+        BillboardRenderer.SpriteTexture.COLOR_FALLBACK,
+        -> false
     }
 
     companion object {

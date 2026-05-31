@@ -27,4 +27,7 @@ enum class TileType(
 
     /** Лифт — проходимый тайл-переход между уровнями (двухуровневая локация). */
     ELEVATOR(walkable = true, blocksVision = false, damaging = false),
+
+    /** Ворота выхода в комнате босса — сюда нужно принести все ключи и нажать E. */
+    EXIT_GATE(walkable = true, blocksVision = false, damaging = false),
 }
