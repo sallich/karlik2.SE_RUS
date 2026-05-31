@@ -15,7 +15,7 @@ class GameEndOverlay(
 ) {
     private val layout = GlyphLayout()
 
-    fun render(phase: SessionPhase, keysCollected: Int, keysRequired: Int) {
+    fun render(phase: SessionPhase) {
         val screenW = Gdx.graphics.width.toFloat()
         val screenH = Gdx.graphics.height.toFloat()
 

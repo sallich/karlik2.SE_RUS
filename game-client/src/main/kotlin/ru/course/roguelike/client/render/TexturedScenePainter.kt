@@ -9,6 +9,7 @@ import ru.course.roguelike.shared.model.PlayerPose
 import ru.course.roguelike.shared.model.TileType
 import ru.course.roguelike.shared.render.BillboardRenderer
 import ru.course.roguelike.shared.render.Raycaster
+import ru.course.roguelike.shared.render.RgbImageSampler
 import ru.course.roguelike.shared.render.SceneRenderConfig
 import ru.course.roguelike.shared.render.TextureMapping
 
@@ -53,8 +54,7 @@ internal class TexturedScenePainter(
         if (dist.isInfinite() || dist > SceneRenderConfig.MAX_FLOOR_DISTANCE) return null
         val floorX = pose.x + dist * ray[0]
         val floorY = pose.y + dist * ray[1]
-        val tile = map.getTileAt(floorX, floorY) ?: return null
-        if (tile !in FLOOR_TILES) return null
+        val tile = map.getTileAt(floorX, floorY)?.takeIf { it in FLOOR_TILES } ?: return null
         if (tile == TileType.EXIT_GATE) {
             return TextureMapping.shadeRgb(SceneRenderConfig.EXIT_GATE_RGB, dist)
         }
@@ -146,20 +146,39 @@ internal class TexturedScenePainter(
         val sampler = textures.samplerFor(command.texture)
         val chromaKey = textures.usesChromaKey(command.texture)
         for (x in command.left until command.right) {
-            val col = x.coerceIn(0, wallDistances.size - 1)
-            if (BillboardRenderer.isColumnOccluded(command.distance, wallDistances[col])) continue
-            val u = TextureMapping.spriteColumnU(x, command.left, command.right)
-            for (y in command.top until command.bottom) {
-                val rgb = if (sampler != null) {
-                    val sample = sampler.sampleColumnU(u, y, command.top, command.bottom)
-                    if (!sampler.isVisible(sample, chromaKey)) continue
-                    TextureMapping.shadeRgb(sample.rgb, command.distance)
-                } else {
-                    TextureMapping.shadeRgb(command.colorRgb, command.distance)
-                }
-                buffer.set(x, y, rgb)
-            }
+            paintSpriteColumn(command, wallDistances, sampler, chromaKey, x)
         }
+    }
+
+    private fun paintSpriteColumn(
+        command: BillboardRenderer.DrawCommand,
+        wallDistances: FloatArray,
+        sampler: RgbImageSampler?,
+        chromaKey: Boolean,
+        x: Int,
+    ) {
+        val col = x.coerceIn(0, wallDistances.size - 1)
+        if (BillboardRenderer.isColumnOccluded(command.distance, wallDistances[col])) return
+        val u = TextureMapping.spriteColumnU(x, command.left, command.right)
+        for (y in command.top until command.bottom) {
+            val rgb = spritePixelRgb(command, sampler, chromaKey, u, y) ?: continue
+            buffer.set(x, y, rgb)
+        }
+    }
+
+    private fun spritePixelRgb(
+        command: BillboardRenderer.DrawCommand,
+        sampler: RgbImageSampler?,
+        chromaKey: Boolean,
+        u: Float,
+        y: Int,
+    ): Int? {
+        if (sampler != null) {
+            val sample = sampler.sampleColumnU(u, y, command.top, command.bottom)
+            if (!sampler.isVisible(sample, chromaKey)) return null
+            return TextureMapping.shadeRgb(sample.rgb, command.distance)
+        }
+        return TextureMapping.shadeRgb(command.colorRgb, command.distance)
     }
 
     private companion object {

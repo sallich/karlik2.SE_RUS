@@ -31,9 +31,6 @@ import ru.course.roguelike.shared.engine.TileMap
 import ru.course.roguelike.shared.model.GridPos
 import ru.course.roguelike.shared.model.PlayerPose
 import ru.course.roguelike.shared.model.SessionPhase
-import ru.course.roguelike.shared.model.TileType
-import kotlin.math.floor
-import kotlin.math.hypot
 
 class RoguelikeGame : ApplicationAdapter() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -122,7 +119,7 @@ class RoguelikeGame : ApplicationAdapter() {
                     serverProjectiles = projectiles
                 },
                 progressMutator = { phase, collected, required, keys, gate ->
-                    sessionPhase = parsePhase(phase)
+                    sessionPhase = parseSessionPhase(phase)
                     keysCollected = collected
                     keysRequired = required
                     keyPickups = keys
@@ -147,7 +144,22 @@ class RoguelikeGame : ApplicationAdapter() {
 
         drawWorldFrame()
         if (!isSessionEnded()) {
-            drawDebugOverlays(predictedPose)
+            drawDebugOverlays(
+                DebugOverlayContext(
+                    showCollisionDebug = showCollisionDebug,
+                    showLocationMap = showLocationMap,
+                    screenW = Gdx.graphics.width.toFloat(),
+                    screenH = Gdx.graphics.height.toFloat(),
+                    tileMap = tileMap,
+                    pose = predictedPose,
+                    serverMobs = serverMobs,
+                    keyPickups = keyPickups,
+                    exitGate = exitGate,
+                    lastCollisionDebug = lastCollisionDebug,
+                    locationMapOverlay = locationMapOverlay,
+                    collisionDebugOverlay = collisionDebugOverlay,
+                ),
+            )
         }
 
         val pose = predictedPose
@@ -163,11 +175,19 @@ class RoguelikeGame : ApplicationAdapter() {
             maxHp = playerMaxHp,
             keysCollected = keysCollected,
             keysRequired = keysRequired,
-            interactionHint = interactionHint(pose),
+            interactionHint = interactionHint(
+                pose,
+                isSessionEnded(),
+                tileMap,
+                exitGate,
+                keysCollected,
+                keysRequired,
+                keyPickups,
+            ),
         )
 
         if (isSessionEnded()) {
-            gameEndOverlay.render(sessionPhase, keysCollected, keysRequired)
+            gameEndOverlay.render(sessionPhase)
         }
     }
 
@@ -236,36 +256,6 @@ class RoguelikeGame : ApplicationAdapter() {
         frameTexture = viewport.render(map, pose, serverMobs, serverProjectiles, keyPickups)
     }
 
-    private fun interactionHint(pose: PlayerPose?): String? {
-        if (pose == null || isSessionEnded()) return null
-        val map = tileMap ?: return null
-        val gate = exitGate
-        if (gate != null) {
-            val onGate = floor(pose.x).toInt() == gate.x && floor(pose.y).toInt() == gate.y
-            if (onGate) {
-                return if (keysCollected >= keysRequired) {
-                    "Press E — insert keys and open the exit gate"
-                } else {
-                    "Exit gate: need all keys ($keysCollected / $keysRequired)"
-                }
-            }
-        }
-        val nearKey = keyPickups.minByOrNull {
-            hypot((it.x - pose.x).toDouble(), (it.y - pose.y).toDouble())
-        } ?: return null
-        if (hypot((nearKey.x - pose.x).toDouble(), (nearKey.y - pose.y).toDouble()) <= 0.65) {
-            return "Press E — pick up golden key"
-        }
-        if (map.getTileAt(pose.x, pose.y) == TileType.EXIT_GATE) {
-            return if (keysCollected >= keysRequired) {
-                "Press E — insert keys and open the exit gate"
-            } else {
-                "Exit gate: need all keys ($keysCollected / $keysRequired)"
-            }
-        }
-        return null
-    }
-
     private fun maybeSendSync(localPose: PlayerPose) {
         if (!InputSampler.shouldSync(syncAccum) || sync.sessionId == null) return
         syncAccum = 0f
@@ -294,40 +284,11 @@ class RoguelikeGame : ApplicationAdapter() {
         batch.setBlendFunction(blendSrc, blendDst)
     }
 
-    private fun drawDebugOverlays(pose: PlayerPose?) {
-        if (!showCollisionDebug && !showLocationMap) return
-        val screenW = Gdx.graphics.width.toFloat()
-        val screenH = Gdx.graphics.height.toFloat()
-        Gdx.gl.glEnable(GL20.GL_BLEND)
-        if (showLocationMap) {
-            tileMap?.let { locationMapOverlay.render(screenW, screenH, it, pose, serverMobs, keyPickups, exitGate) }
-        }
-        collisionOverlayParams(pose)?.let { overlay ->
-            collisionDebugOverlay.render(
-                screenW,
-                screenH,
-                overlay.map,
-                overlay.pose,
-                overlay.debug,
-                serverMobs,
-            )
-        }
-        Gdx.gl.glDisable(GL20.GL_BLEND)
-    }
-
-    private fun collisionOverlayParams(pose: PlayerPose?): CollisionOverlayParams? {
-        if (!showCollisionDebug) return null
-        val map = tileMap
-        val debug = lastCollisionDebug
-        if (map == null || pose == null || debug == null) return null
-        return CollisionOverlayParams(map, pose, debug)
-    }
-
     private fun applySnapshotFromServer(snap: GameSnapshot) {
         tileMap = TileMap.fromFlat(snap.width, snap.height, snap.tiles)
         serverMobs = snap.mobs
         serverProjectiles = snap.projectiles
-        sessionPhase = parsePhase(snap.phase)
+        sessionPhase = parseSessionPhase(snap.phase)
         keysCollected = snap.keysCollected
         keysRequired = snap.keysRequired
         keyPickups = snap.keyPickups
@@ -335,9 +296,6 @@ class RoguelikeGame : ApplicationAdapter() {
         audio.onCombatSnapshot(snap.player.hp, snap.projectiles)
         sync.applySnapshot(snap)
     }
-
-    private fun parsePhase(raw: String): SessionPhase =
-        runCatching { SessionPhase.valueOf(raw) }.getOrDefault(SessionPhase.EXPLORATION)
 
     override fun dispose() {
         scope.cancel()
@@ -349,10 +307,4 @@ class RoguelikeGame : ApplicationAdapter() {
         batch.dispose()
         font.dispose()
     }
-
-    private data class CollisionOverlayParams(
-        val map: TileMap,
-        val pose: PlayerPose,
-        val debug: CollisionDebug,
-    )
 }

@@ -72,7 +72,12 @@ class LocationMapOverlay(
             shapeRenderer.color = Color.GOLD
             val px = layout.left + key.x * layout.cellPx
             val py = layout.bottom + key.y * layout.cellPx
-            shapeRenderer.rect(px - layout.cellPx * 0.2f, py - layout.cellPx * 0.2f, layout.cellPx * 0.4f, layout.cellPx * 0.4f)
+            shapeRenderer.rect(
+                px - layout.cellPx * 0.2f,
+                py - layout.cellPx * 0.2f,
+                layout.cellPx * 0.4f,
+                layout.cellPx * 0.4f,
+            )
         }
     }
 
