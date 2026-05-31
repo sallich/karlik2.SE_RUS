@@ -7,6 +7,7 @@ import ru.course.roguelike.shared.dto.BossRoomSnapshot
 import ru.course.roguelike.shared.dto.GameSnapshot
 import ru.course.roguelike.shared.dto.PlayerSnapshot
 import ru.course.roguelike.shared.engine.TileMap
+import ru.course.roguelike.shared.model.ExperienceProgression
 import ru.course.roguelike.shared.model.GridPos
 import ru.course.roguelike.shared.model.PlayerPose
 import ru.course.roguelike.shared.model.SessionPhase
@@ -20,8 +21,12 @@ data class GameSession(
     var phase: SessionPhase = SessionPhase.EXPLORATION,
     val map: TileMap,
     var playerPose: PlayerPose,
-    var playerHp: Int = 100,
-    val playerMaxHp: Int = 100,
+    var playerHp: Int = ExperienceProgression.maxHpForLevel(ExperienceProgression.STARTING_LEVEL),
+    var playerMaxHp: Int = ExperienceProgression.maxHpForLevel(ExperienceProgression.STARTING_LEVEL),
+    var playerLevel: Int = ExperienceProgression.STARTING_LEVEL,
+    var playerExperience: Int = 0,
+    var playerAttackDamage: Int = ExperienceProgression.attackDamageForLevel(ExperienceProgression.STARTING_LEVEL),
+    var locationCompletionAwarded: Boolean = false,
     /** Накопитель дробного урона лавой (HP списывается целыми единицами). */
     var lavaDamageBuffer: Float = 0f,
     var tick: Long = 0,
@@ -63,30 +68,24 @@ data class GameSession(
         width = activeMap.width,
         height = activeMap.height,
         tiles = activeMap.toFlatList(),
-        player = PlayerSnapshot(
-            pose = playerPose,
-            hp = playerHp,
-            maxHp = playerMaxHp,
-        ),
-        agent = agentPose?.let { pose ->
-            PlayerSnapshot(pose = pose, hp = playerHp, maxHp = playerMaxHp)
-        },
+        player = playerSnapshot(),
         tick = tick,
         serverTimeMs = serverTimeMs,
         currentLevel = currentLevel,
         mobs = mobs.filter { it.alive }.map { it.toSnapshot() },
         projectiles = projectiles.map { it.toSnapshot() },
-        keysCollected = keysCollected,
-        keysRequired = keysRequired,
-        keyPickups = keyPickups.filter { !it.collected }.map { it.toSnapshot() },
-        bossRoom = bossRoom?.toSnapshot(),
-        exitGate = exitGate,
     )
-}
 
-private fun Room.toSnapshot() = BossRoomSnapshot(
-    x = x,
-    y = y,
-    width = width,
-    height = height,
-)
+    private fun playerSnapshot(): PlayerSnapshot {
+        val (xpInLevel, xpToNext) = ExperienceProgression.xpProgressInLevel(playerExperience)
+        return PlayerSnapshot(
+            pose = playerPose,
+            hp = playerHp,
+            maxHp = playerMaxHp,
+            level = playerLevel,
+            experience = xpInLevel,
+            experienceToNextLevel = xpToNext,
+            attackDamage = playerAttackDamage,
+        )
+    }
+}

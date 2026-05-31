@@ -4,6 +4,7 @@ import ru.course.roguelike.game.domain.ai.MobDecisionContext
 import ru.course.roguelike.game.domain.ai.MobIntent
 import ru.course.roguelike.game.domain.ai.distanceTo
 import ru.course.roguelike.game.domain.event.GameEvent
+import ru.course.roguelike.game.domain.progression.ProgressionSystem
 import ru.course.roguelike.game.domain.session.GameSession
 import ru.course.roguelike.shared.engine.EntityCollision
 import ru.course.roguelike.shared.engine.TileMap
@@ -25,6 +26,7 @@ object CombatSystem {
         tickMobs(session, map, deltaSec, events)
         tickProjectiles(session, map, deltaSec, events)
         removeDeadMobs(session, events)
+        events.addAll(ProgressionSystem.checkLocationCompletion(session))
         return events
     }
 
@@ -122,10 +124,11 @@ object CombatSystem {
         } ?: return false
 
         val before = hitMob.hp
-        hitMob.hp = (before - CombatConstants.PLAYER_ATTACK_DAMAGE).coerceAtLeast(0)
+        hitMob.hp = (before - session.playerAttackDamage).coerceAtLeast(0)
         val dealt = before - hitMob.hp
         events.add(
             if (hitMob.hp <= 0) {
+                onMobKilled(session, hitMob, events)
                 GameEvent.MobKilled(hitMob.id)
             } else {
                 GameEvent.MobDamaged(hitMob.id, dealt, hitMob.hp)
@@ -137,7 +140,11 @@ object CombatSystem {
     private fun firePlayerProjectile(session: GameSession): GameEvent? {
         if (session.playerAttackCooldownMs > 0) return null
         session.projectiles.add(
-            ProjectileEntity.fromPlayer(session.playerPose, session.allocateEntityId()),
+            ProjectileEntity.fromPlayer(
+                session.playerPose,
+                session.allocateEntityId(),
+                session.playerAttackDamage,
+            ),
         )
         session.playerAttackCooldownMs = CombatConstants.PLAYER_ATTACK_COOLDOWN_MS
         return null
@@ -154,10 +161,15 @@ object CombatSystem {
         if (dead.isEmpty()) return
         dead.forEach { mob ->
             if (events.none { it is GameEvent.MobKilled && it.mobId == mob.id }) {
+                onMobKilled(session, mob, events)
                 events.add(GameEvent.MobKilled(mob.id))
             }
         }
         session.mobs.removeAll { !it.alive }
+    }
+
+    private fun onMobKilled(session: GameSession, mob: MobEntity, events: MutableList<GameEvent>) {
+        events.addAll(ProgressionSystem.awardMobKill(session, mob.kind))
     }
 
     private fun moveToward(

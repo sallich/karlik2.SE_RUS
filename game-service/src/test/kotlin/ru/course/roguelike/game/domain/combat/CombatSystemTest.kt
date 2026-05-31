@@ -9,6 +9,7 @@ import ru.course.roguelike.game.domain.event.GameEvent
 import ru.course.roguelike.game.domain.session.GameSession
 import ru.course.roguelike.shared.engine.TileMap
 import ru.course.roguelike.shared.model.CombatConstants
+import ru.course.roguelike.shared.model.ExperienceProgression
 import ru.course.roguelike.shared.model.MobKind
 import ru.course.roguelike.shared.model.PlayerPose
 import ru.course.roguelike.shared.model.TileType
@@ -71,6 +72,58 @@ class CombatSystemTest {
 
         assertEquals(0, mob.hp)
         assertTrue(session.mobs.isEmpty())
+    }
+
+    @Test
+    fun `killing a mob awards experience`() {
+        val session = openArenaSession()
+        session.locationCompletionAwarded = true
+        val mob = MobSpawner.createMob(session, MobKind.MELEE, 3.5f, 2.5f)
+        mob.hp = 10
+        session.mobs.add(mob)
+
+        CombatSystem.tick(session, deltaMs = 50, playerAttacking = true)
+        repeat(40) {
+            CombatSystem.tick(session, deltaMs = 50, playerAttacking = false)
+        }
+
+        assertEquals(ExperienceProgression.MELEE_MOB_XP, session.playerExperience)
+    }
+
+    @Test
+    fun `clearing all mobs awards location completion xp`() {
+        val session = openArenaSession()
+        val melee = MobSpawner.createMob(session, MobKind.MELEE, 3.5f, 2.5f)
+        val ranged = MobSpawner.createMob(session, MobKind.RANGED, 2.5f, 3.5f)
+        melee.hp = 10
+        ranged.hp = 10
+        session.mobs.add(melee)
+        session.mobs.add(ranged)
+
+        fun killAllMobs() {
+            session.mobs.forEach { mob ->
+                mob.hp = 0
+            }
+            CombatSystem.tick(session, deltaMs = 50, playerAttacking = false)
+        }
+        killAllMobs()
+
+        val expectedXp = ExperienceProgression.MELEE_MOB_XP +
+            ExperienceProgression.RANGED_MOB_XP +
+            ExperienceProgression.LOCATION_COMPLETION_XP
+        assertEquals(expectedXp, session.playerExperience)
+        assertTrue(session.locationCompletionAwarded)
+    }
+
+    @Test
+    fun `level up increases player attack damage used in combat`() {
+        val session = openArenaSession()
+        session.playerLevel = 2
+        session.playerAttackDamage = ExperienceProgression.attackDamageForLevel(2)
+
+        CombatSystem.tick(session, deltaMs = 50, playerAttacking = true)
+
+        assertEquals(ExperienceProgression.attackDamageForLevel(2), session.projectiles.first().damage)
     }
 
     @Test

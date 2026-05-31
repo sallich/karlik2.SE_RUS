@@ -68,9 +68,12 @@ class RoguelikeGame : ApplicationAdapter() {
     private var showLocationMap = false
     private var lastCollisionDebug: CollisionDebug? = null
 
-    /** HP/maxHP, присланные сервером (учитывают урон от лавы). */
+    /** HP/maxHP, уровень и опыт, присланные сервером. */
     private var playerHp = 0
     private var playerMaxHp = 0
+    private var playerLevel = 1
+    private var playerExperience = 0
+    private var playerExperienceToNextLevel = 100
     private var keysCollected = 0
     private var keysRequired = 0
 
@@ -114,9 +117,12 @@ class RoguelikeGame : ApplicationAdapter() {
                 poseAccessor = { predictedPose },
                 poseMutator = { predictedPose = it },
                 authoritativeMutator = { authoritativePose = it },
-                vitalsMutator = { hp, maxHp ->
+                vitalsMutator = { hp, maxHp, level, experience, experienceToNextLevel ->
                     playerHp = hp
                     playerMaxHp = maxHp
+                    playerLevel = level
+                    playerExperience = experience
+                    playerExperienceToNextLevel = experienceToNextLevel
                 },
                 combatMutator = { mobs, projectiles ->
                     serverMobs = mobs
@@ -178,6 +184,9 @@ class RoguelikeGame : ApplicationAdapter() {
             onLava = onLava,
             hp = playerHp,
             maxHp = playerMaxHp,
+            level = playerLevel,
+            experience = playerExperience,
+            experienceToNextLevel = playerExperienceToNextLevel,
             keysCollected = keysCollected,
             keysRequired = keysRequired,
             interactionHint = interactionHint(
