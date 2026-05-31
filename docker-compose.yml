@@ -1,0 +1,60 @@
+services:
+  game-service:
+    build:
+      context: .
+      dockerfile: game-service/Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      PORT: "8080"
+      AGENT_RUNNER_URL: http://agent-runner:8082
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
+
+  mcp-server:
+    build:
+      context: .
+      dockerfile: mcp-server/Dockerfile
+    ports:
+      - "8081:8081"
+    environment:
+      PORT: "8081"
+      GAME_SERVICE_URL: http://game-service:8080
+    depends_on:
+      game-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8081/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 20s
+
+  agent-runner:
+    build:
+      context: .
+      dockerfile: agent-runner/Dockerfile
+    ports:
+      - "8082:8082"
+    environment:
+      PORT: "8082"
+      LLM_PROVIDER: heuristic
+      MCP_TRANSPORT: stdio
+      MCP_SERVER_COMMAND: "/opt/mcp-server/bin/mcp-server stdio"
+      GAME_SERVICE_URL: http://game-service:8080
+      AGENT_MAX_TOOL_CALLS: "500"
+    depends_on:
+      mcp-server:
+        condition: service_healthy
+      game-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8082/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 20s
