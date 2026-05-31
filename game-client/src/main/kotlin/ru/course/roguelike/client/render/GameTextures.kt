@@ -6,6 +6,7 @@ import ru.course.roguelike.shared.render.AssetPaths
 import ru.course.roguelike.shared.render.BillboardRenderer
 import ru.course.roguelike.shared.render.RgbImageSampler
 
+@Suppress("LongParameterList")
 class GameTextures private constructor(
     val walls: RgbImageSampler,
     val floor: RgbImageSampler,
@@ -15,8 +16,10 @@ class GameTextures private constructor(
     val blast: RgbImageSampler,
     val meleeMob: RgbImageSampler,
     val rangedMob: RgbImageSampler,
+    val playerSprite: RgbImageSampler,
 ) {
     fun samplerFor(texture: BillboardRenderer.SpriteTexture): RgbImageSampler? = when (texture) {
+        BillboardRenderer.SpriteTexture.PLAYER -> playerSprite
         BillboardRenderer.SpriteTexture.MELEE -> meleeMob
         BillboardRenderer.SpriteTexture.RANGED -> rangedMob
         BillboardRenderer.SpriteTexture.BLAST -> blast
@@ -27,6 +30,7 @@ class GameTextures private constructor(
     fun usesChromaKey(texture: BillboardRenderer.SpriteTexture): Boolean = when (texture) {
         BillboardRenderer.SpriteTexture.MELEE,
         BillboardRenderer.SpriteTexture.RANGED,
+        BillboardRenderer.SpriteTexture.PLAYER,
         BillboardRenderer.SpriteTexture.BLAST,
         -> true
         BillboardRenderer.SpriteTexture.KEY,
@@ -44,6 +48,7 @@ class GameTextures private constructor(
             blast = loadSampler(AssetPaths.BLAST, opaque = false),
             meleeMob = loadSampler(AssetPaths.MELEE_MOB, opaque = false),
             rangedMob = loadSampler(AssetPaths.RANGED_MOB, opaque = false),
+            playerSprite = loadSampler(AssetPaths.PLAYER, opaque = false),
         )
 
         private fun loadSampler(path: String, opaque: Boolean): RgbImageSampler {

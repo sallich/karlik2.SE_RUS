@@ -38,6 +38,7 @@ data class MobDecisionContext(
     val playerX: Float,
     val playerY: Float,
     val distanceToPlayer: Float,
+    val playerHp: Int = 0,
 )
 
 sealed interface MobIntent {
@@ -48,10 +49,11 @@ sealed interface MobIntent {
     data object ShootPlayer : MobIntent
 }
 
-fun MobEntity.distanceTo(playerX: Float, playerY: Float): Float =
-    hypot((x - playerX).toDouble(), (y - playerY).toDouble()).toFloat()
-
 fun mobBehaviorFor(kind: MobKind): MobBehavior = when (kind) {
     MobKind.MELEE -> RusherBehavior()
     MobKind.RANGED -> ShooterBehavior()
+    MobKind.LLM_GUARD -> LlmGuardBehavior()
 }
+
+fun MobEntity.distanceTo(playerX: Float, playerY: Float): Float =
+    hypot((x - playerX).toDouble(), (y - playerY).toDouble()).toFloat()

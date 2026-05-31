@@ -26,4 +26,6 @@ data class InputSyncRequest(
     val attack: Boolean = false,
     /** Взаимодействие: подобрать ключ, открыть ворота выхода. */
     val interact: Boolean = false,
+    /** "player" (default) или "agent" — кто выполняет sync. */
+    val actor: String = "player",
 )

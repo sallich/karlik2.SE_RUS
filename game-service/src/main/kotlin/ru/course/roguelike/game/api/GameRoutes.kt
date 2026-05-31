@@ -29,7 +29,7 @@ fun Route.configureGameRoutes() {
 
 private suspend fun createSession(call: ApplicationCall) {
     val request = call.receive<CreateSessionRequest>()
-    val snapshot = engine.createSession(request.seed, request.twoLevel)
+    val snapshot = engine.createSession(request.seed, request.twoLevel, request.coopAgent)
     call.respond(snapshot)
 }
 
@@ -50,7 +50,7 @@ private suspend fun syncSession(call: ApplicationCall) {
 private suspend fun applySessionAction(call: ApplicationCall) {
     val sessionId = call.requireSessionId() ?: return
     val request = call.receive<PlayerActionRequest>()
-    val result = engine.applyAction(sessionId, request.action) ?: run {
+    val result = engine.applyAction(sessionId, request.action, request.actor) ?: run {
         call.respond(HttpStatusCode.NotFound, mapOf("error" to "session not found"))
         return
     }

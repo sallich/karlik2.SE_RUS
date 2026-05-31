@@ -40,6 +40,8 @@ data class GameSession(
     val bossRoom: Room? = null,
     val exitGate: GridPos? = null,
     var levelCompleted: Boolean = false,
+    /** Кооп-агент (видимый спутник); null — сессия без агента. */
+    var agentPose: PlayerPose? = null,
 ) {
     val keysCollected: Int get() = keyPickups.count { it.collected }
     val keysRequired: Int get() = keyPickups.size
@@ -66,6 +68,9 @@ data class GameSession(
             hp = playerHp,
             maxHp = playerMaxHp,
         ),
+        agent = agentPose?.let { pose ->
+            PlayerSnapshot(pose = pose, hp = playerHp, maxHp = playerMaxHp)
+        },
         tick = tick,
         serverTimeMs = serverTimeMs,
         currentLevel = currentLevel,

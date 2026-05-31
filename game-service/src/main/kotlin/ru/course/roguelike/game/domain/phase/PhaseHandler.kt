@@ -1,5 +1,6 @@
 package ru.course.roguelike.game.domain.phase
 
+import ru.course.roguelike.game.domain.command.AgentSyncInputCommand
 import ru.course.roguelike.game.domain.command.CommandExecutionResult
 import ru.course.roguelike.game.domain.command.CommandValidation
 import ru.course.roguelike.game.domain.command.GameCommand
@@ -50,7 +51,8 @@ class CombatPhaseHandler : PhaseHandler {
         if (session.playerHp <= 0) return CommandValidation(false, "Game over")
         return when (command.name) {
             SyncInputCommand.NAME,
-            in GameActions.MOVEMENT -> CommandValidation(true)
+            AgentSyncInputCommand.NAME,
+            in GameActions.ALL -> CommandValidation(true)
             else -> CommandValidation(false, "Action not allowed during combat: ${command.name}")
         }
     }
@@ -75,7 +77,7 @@ class HubPhaseHandler : PhaseHandler {
     override fun validateCommand(command: GameCommand, session: GameSession): CommandValidation =
         when (command.name) {
             SyncInputCommand.NAME -> CommandValidation(false, "Movement disabled in hub")
-            in GameActions.MOVEMENT -> CommandValidation(false, "Movement disabled in hub")
+            in GameActions.ALL -> CommandValidation(false, "Movement disabled in hub")
             else -> CommandValidation(false, "Unknown hub action: ${command.name}")
         }
 }

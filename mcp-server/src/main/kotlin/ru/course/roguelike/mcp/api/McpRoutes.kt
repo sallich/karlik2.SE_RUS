@@ -8,14 +8,15 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.route
 import ru.course.roguelike.mcp.McpToolCallRequest
-import ru.course.roguelike.mcp.McpToolDescriptor
 import ru.course.roguelike.mcp.McpToolsListResponse
 import ru.course.roguelike.mcp.client.GameServiceClient
 import ru.course.roguelike.mcp.protocol.McpToolRegistry
 
 fun Route.configureMcpRoutes(gameClient: GameServiceClient) {
-    val registry = McpToolRegistry(gameClient)
+    configureMcpRoutes(McpToolRegistry(gameClient))
+}
 
+fun Route.configureMcpRoutes(registry: McpToolRegistry) {
     get("/tools") {
         call.respond(
             McpToolsListResponse(
@@ -38,9 +39,3 @@ fun Route.configureMcpRoutes(gameClient: GameServiceClient) {
         }
     }
 }
-
-internal fun stubToolsList(): List<McpToolDescriptor> = listOf(
-    McpToolDescriptor("game_new_session", "Create a new roguelike session with optional seed."),
-    McpToolDescriptor("game_observe", "Get public observation for a session (stub)."),
-    McpToolDescriptor("game_act", "Apply a player action in a session."),
-)

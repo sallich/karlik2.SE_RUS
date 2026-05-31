@@ -52,6 +52,7 @@ object CombatSystem {
                 playerX = playerX,
                 playerY = playerY,
                 distanceToPlayer = distance,
+                playerHp = session.playerHp,
             )
             when (mob.behavior.decide(context)) {
                 MobIntent.Idle -> Unit

@@ -7,6 +7,7 @@ services:
       - "8080:8080"
     environment:
       PORT: "8080"
+      AGENT_RUNNER_URL: http://agent-runner:8082
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
       interval: 5s
@@ -41,12 +42,15 @@ services:
       - "8082:8082"
     environment:
       PORT: "8082"
-      LLM_PROVIDER: stub
+      LLM_PROVIDER: heuristic
       MCP_TRANSPORT: stdio
-      MCP_SERVER_COMMAND: "stub"
-      AGENT_MAX_TOOL_CALLS: "100"
+      MCP_SERVER_COMMAND: "/opt/mcp-server/bin/mcp-server stdio"
+      GAME_SERVICE_URL: http://game-service:8080
+      AGENT_MAX_TOOL_CALLS: "500"
     depends_on:
       mcp-server:
+        condition: service_healthy
+      game-service:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8082/health"]

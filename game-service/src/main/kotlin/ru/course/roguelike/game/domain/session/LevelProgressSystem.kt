@@ -3,6 +3,7 @@ package ru.course.roguelike.game.domain.session
 import ru.course.roguelike.game.domain.event.GameEvent
 import ru.course.roguelike.shared.dto.InputSyncRequest
 import ru.course.roguelike.shared.model.GridPos
+import ru.course.roguelike.shared.model.PlayerPose
 import ru.course.roguelike.shared.model.TileType
 import kotlin.math.floor
 import kotlin.math.hypot
@@ -10,19 +11,22 @@ import kotlin.math.hypot
 object LevelProgressSystem {
     private const val KEY_PICKUP_RADIUS = 0.65f
 
-    fun apply(session: GameSession, input: InputSyncRequest): List<GameEvent> {
+    fun apply(session: GameSession, input: InputSyncRequest): List<GameEvent> =
+        applyForPose(session, input, session.playerPose)
+
+    fun applyForPose(session: GameSession, input: InputSyncRequest, pose: PlayerPose): List<GameEvent> {
         if (session.levelCompleted || session.playerHp <= 0) return emptyList()
         if (!input.interact) return emptyList()
 
         val events = mutableListOf<GameEvent>()
-        collectKey(session, events)
-        tryOpenExitGate(session, events)
+        collectKey(session, pose, events)
+        tryOpenExitGate(session, pose, events)
         return events
     }
 
-    private fun collectKey(session: GameSession, events: MutableList<GameEvent>) {
-        val px = session.playerPose.x
-        val py = session.playerPose.y
+    private fun collectKey(session: GameSession, pose: PlayerPose, events: MutableList<GameEvent>) {
+        val px = pose.x
+        val py = pose.y
         val nearest = session.keyPickups
             .filter { !it.collected }
             .minByOrNull { hypot((it.x - px).toDouble(), (it.y - py).toDouble()) }
@@ -39,11 +43,11 @@ object LevelProgressSystem {
         )
     }
 
-    private fun tryOpenExitGate(session: GameSession, events: MutableList<GameEvent>) {
+    private fun tryOpenExitGate(session: GameSession, pose: PlayerPose, events: MutableList<GameEvent>) {
         val gate = session.exitGate ?: return
         if (session.keysCollected < session.keysRequired) return
 
-        val cell = playerCell(session)
+        val cell = playerCell(pose)
         if (cell != gate) return
         if (session.activeMap.get(gate) != TileType.EXIT_GATE) return
 
@@ -51,6 +55,6 @@ object LevelProgressSystem {
         events.add(GameEvent.LevelCompleted(session.keysCollected, session.keysRequired))
     }
 
-    private fun playerCell(session: GameSession): GridPos =
-        GridPos(floor(session.playerPose.x).toInt(), floor(session.playerPose.y).toInt())
+    private fun playerCell(pose: PlayerPose): GridPos =
+        GridPos(floor(pose.x).toInt(), floor(pose.y).toInt())
 }

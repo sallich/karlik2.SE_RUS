@@ -19,6 +19,9 @@ internal class TexturedScenePainter(
     private val viewHeight: Int,
     private val textures: GameTextures,
 ) {
+    private val floorDistByRow = FloatArray(viewHeight)
+    private val spriteScratch = ArrayList<BillboardRenderer.Sprite>(16)
+
     fun beginFrame() {
         buffer.clear(SceneRenderConfig.SKY_RGB)
     }
@@ -26,8 +29,9 @@ internal class TexturedScenePainter(
     fun paintSky(horizonInt: Int, yaw: Float) {
         val skyBottom = horizonInt.coerceIn(1, viewHeight)
         for (row in 0 until skyBottom) {
+            val v = TextureMapping.skyV(row, skyBottom)
             for (col in 0 until viewWidth) {
-                val (u, v) = TextureMapping.skyUv(col, row, viewWidth, skyBottom, yaw)
+                val u = TextureMapping.skyU(col, viewWidth, yaw)
                 buffer.set(col, row, textures.sky.samplePixel(u, v).rgb)
             }
         }
@@ -41,16 +45,23 @@ internal class TexturedScenePainter(
 
     fun paintFloor(map: TileMap, pose: PlayerPose, horizon: Float, horizonInt: Int) {
         val firstRow = horizonInt.coerceAtLeast(0)
+        for (row in firstRow until viewHeight) {
+            floorDistByRow[row] = Raycaster.floorDistance(viewHeight, horizon, row)
+        }
         for (col in 0 until viewWidth) {
             val ray = Raycaster.rayDirection(pose, viewWidth, col)
             for (row in firstRow until viewHeight) {
-                floorRgbAt(map, pose, horizon, ray, row)?.let { buffer.set(col, row, it) }
+                floorRgbAt(map, pose, ray, floorDistByRow[row])?.let { buffer.set(col, row, it) }
             }
         }
     }
 
-    private fun floorRgbAt(map: TileMap, pose: PlayerPose, horizon: Float, ray: FloatArray, row: Int): Int? {
-        val dist = Raycaster.floorDistance(viewHeight, horizon, row)
+    private fun floorRgbAt(
+        map: TileMap,
+        pose: PlayerPose,
+        ray: FloatArray,
+        dist: Float,
+    ): Int? {
         if (dist.isInfinite() || dist > SceneRenderConfig.MAX_FLOOR_DISTANCE) return null
         val floorX = pose.x + dist * ray[0]
         val floorY = pose.y + dist * ray[1]
@@ -73,16 +84,16 @@ internal class TexturedScenePainter(
             val meta = scene.wallMeta[x]
             val top = kotlin.math.floor(col.wallStart).toInt().coerceIn(0, viewHeight - 1)
             val bottom = kotlin.math.ceil(col.wallEnd).toInt().coerceIn(top + 1, viewHeight)
+            val sideDarken = SceneRenderConfig.sideDarken(meta.side)
+            val u = TextureMapping.wallTextureUClamped(meta.wallU)
             for (row in top until bottom) {
-                val u = TextureMapping.wallTextureUClamped(meta.wallU)
                 val v = TextureMapping.wallTextureV(row, col.wallStart, meta.distance, viewHeight, meta.tile)
                 val sample = textures.walls.samplePixel(u, v)
-                val rgb = TextureMapping.shadeRgb(
-                    sample.rgb,
-                    meta.distance,
-                    SceneRenderConfig.sideDarken(meta.side),
+                buffer.set(
+                    x,
+                    row,
+                    TextureMapping.shadeRgb(sample.rgb, meta.distance, sideDarken),
                 )
-                buffer.set(x, row, rgb)
             }
         }
     }
@@ -93,48 +104,59 @@ internal class TexturedScenePainter(
         mobs: List<MobSnapshot>,
         projectiles: List<ProjectileSnapshot>,
         keyPickups: List<KeySnapshot>,
+        agentPose: PlayerPose? = null,
         wallDistances: FloatArray,
     ) {
-        val sprites = buildList {
-            keyPickups.forEach { key ->
-                add(
-                    BillboardRenderer.Sprite(
-                        worldX = key.x,
-                        worldY = key.y,
-                        texture = BillboardRenderer.SpriteTexture.KEY,
-                        sizeScale = 0.55f,
-                    ),
-                )
-            }
-            mobs.forEach { mob ->
-                add(
-                    BillboardRenderer.Sprite(
-                        worldX = mob.x,
-                        worldY = mob.y,
-                        texture = when (mob.kind) {
-                            MobKind.MELEE -> BillboardRenderer.SpriteTexture.MELEE
-                            MobKind.RANGED -> BillboardRenderer.SpriteTexture.RANGED
-                        },
-                    ),
-                )
-            }
-            projectiles.forEach { projectile ->
-                add(
-                    BillboardRenderer.Sprite(
-                        worldX = projectile.x,
-                        worldY = projectile.y,
-                        texture = BillboardRenderer.SpriteTexture.BLAST,
-                        sizeScale = if (projectile.fromPlayer) 0.4f else 0.35f,
-                    ),
-                )
-            }
+        spriteScratch.clear()
+        agentPose?.let { agent ->
+            spriteScratch.add(
+                BillboardRenderer.Sprite(
+                    worldX = agent.x,
+                    worldY = agent.y,
+                    texture = BillboardRenderer.SpriteTexture.PLAYER,
+                    sizeScale = 0.85f,
+                ),
+            )
+        }
+        keyPickups.forEach { key ->
+            spriteScratch.add(
+                BillboardRenderer.Sprite(
+                    worldX = key.x,
+                    worldY = key.y,
+                    texture = BillboardRenderer.SpriteTexture.KEY,
+                    sizeScale = 0.55f,
+                ),
+            )
+        }
+        mobs.forEach { mob ->
+            spriteScratch.add(
+                BillboardRenderer.Sprite(
+                    worldX = mob.x,
+                    worldY = mob.y,
+                    texture = when (mob.kind) {
+                        MobKind.MELEE -> BillboardRenderer.SpriteTexture.MELEE
+                        MobKind.RANGED -> BillboardRenderer.SpriteTexture.RANGED
+                        MobKind.LLM_GUARD -> BillboardRenderer.SpriteTexture.RANGED
+                    },
+                ),
+            )
+        }
+        projectiles.forEach { projectile ->
+            spriteScratch.add(
+                BillboardRenderer.Sprite(
+                    worldX = projectile.x,
+                    worldY = projectile.y,
+                    texture = BillboardRenderer.SpriteTexture.BLAST,
+                    sizeScale = if (projectile.fromPlayer) 0.4f else 0.35f,
+                ),
+            )
         }
         val commands = BillboardRenderer.projectSprites(
             pose,
             viewWidth,
             viewHeight,
             horizon,
-            sprites,
+            spriteScratch,
             wallDistances,
         )
         for (command in commands) {

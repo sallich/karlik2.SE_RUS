@@ -9,6 +9,7 @@ import ru.course.roguelike.game.domain.event.GameEventListener
 import ru.course.roguelike.game.domain.level.GeneratedLevel
 import ru.course.roguelike.game.domain.level.LevelGenerator
 import ru.course.roguelike.game.domain.level.Room
+import ru.course.roguelike.game.domain.session.AgentCompanionSpawner
 import ru.course.roguelike.game.domain.session.ExitGatePlacer
 import ru.course.roguelike.game.domain.session.GameSession
 import ru.course.roguelike.game.domain.session.KeyPickup
@@ -35,18 +36,19 @@ class GameEngine(
     private val commandDispatcher: CommandDispatcher = CommandDispatcher(eventBus = eventBus),
 ) {
     private val sessions = ConcurrentHashMap<String, GameSession>()
+    private val sessionLocks = ConcurrentHashMap<String, Any>()
 
     init {
         eventBus.subscribe(loggingListener)
     }
 
-    fun createSession(seed: Long?, twoLevel: Boolean = false): GameSnapshot {
+    fun createSession(seed: Long?, twoLevel: Boolean = false, coopAgent: Boolean = false): GameSnapshot {
         val resolvedSeed = seed ?: Random.nextLong()
         val sessionId = UUID.randomUUID().toString()
         val session = if (twoLevel) {
-            buildTwoLevelSession(sessionId, resolvedSeed)
+            buildTwoLevelSession(sessionId, resolvedSeed, coopAgent)
         } else {
-            buildSession(sessionId, resolvedSeed)
+            buildSession(sessionId, resolvedSeed, coopAgent)
         }
         sessions[sessionId] = session
         MobSpawner.spawnStarterPack(session)
@@ -54,31 +56,43 @@ class GameEngine(
         return session.toSnapshot()
     }
 
-    private fun buildSession(sessionId: String, seed: Long): GameSession {
+    private fun buildSession(sessionId: String, seed: Long, coopAgent: Boolean): GameSession {
         val level = levelGenerator.generate(seed)
         val progress = setupProgress(level, seed)
+        val playerSpawn = level.playerSpawn
         return GameSession(
             sessionId = sessionId,
             seed = seed,
             phase = SessionPhase.EXPLORATION,
             map = progress.map,
-            playerPose = PlayerPose.fromGridCell(level.playerSpawn),
+            playerPose = PlayerPose.fromGridCell(playerSpawn),
+            agentPose = if (coopAgent) {
+                AgentCompanionSpawner.spawnBeside(progress.map, playerSpawn)
+            } else {
+                null
+            },
             keyPickups = progress.keys,
             bossRoom = progress.bossRoom,
             exitGate = progress.exitGate,
         )
     }
 
-    private fun buildTwoLevelSession(sessionId: String, seed: Long): GameSession {
+    private fun buildTwoLevelSession(sessionId: String, seed: Long, coopAgent: Boolean): GameSession {
         val dungeon = TwoLevelLabyrinthGenerator.generate(seed)
         val ground = dungeon.levels[0]
         val progress = setupProgress(ground, seed)
+        val playerSpawn = ground.playerSpawn
         return GameSession(
             sessionId = sessionId,
             seed = seed,
             phase = SessionPhase.EXPLORATION,
             map = progress.map,
-            playerPose = PlayerPose.fromGridCell(ground.playerSpawn),
+            playerPose = PlayerPose.fromGridCell(playerSpawn),
+            agentPose = if (coopAgent) {
+                AgentCompanionSpawner.spawnBeside(progress.map, playerSpawn)
+            } else {
+                null
+            },
             secondLevel = dungeon.levels[1].map,
             keyPickups = progress.keys,
             bossRoom = progress.bossRoom,
@@ -105,33 +119,48 @@ class GameEngine(
 
     fun getSnapshot(sessionId: String): GameSnapshot? = sessions[sessionId]?.toSnapshot()
 
-    fun syncInput(sessionId: String, input: InputSyncRequest): ActionResult? =
-        dispatch(sessionId, commandDispatcher.syncCommand(input))
+    fun syncInput(sessionId: String, input: InputSyncRequest): ActionResult? {
+        val command = if (input.actor == ACTOR_AGENT) {
+            ru.course.roguelike.game.domain.command.AgentSyncInputCommand(input)
+        } else {
+            commandDispatcher.syncCommand(input.copy(actor = ACTOR_PLAYER))
+        }
+        return dispatch(sessionId, command)
+    }
 
-    fun applyAction(sessionId: String, action: String): ActionResult? {
+    fun applyAction(sessionId: String, action: String, actor: String = ACTOR_PLAYER): ActionResult? {
         val session = sessions[sessionId] ?: return null
-        val command = commandDispatcher.commandFromAction(action, session)
-            ?: return ActionResult(
-                PlayerActionResponse(false, "Unknown action: $action"),
-                session.toSnapshot(),
-            )
+        val movementInput = ru.course.roguelike.game.domain.command.LegacyMovementCommand.inputFor(action)
+        val command = if (actor == ACTOR_AGENT) {
+            ru.course.roguelike.game.domain.command.AgentSyncInputCommand(movementInput)
+        } else {
+            commandDispatcher.commandFromAction(action, session)
+                ?: return ActionResult(
+                    PlayerActionResponse(false, "Unknown action: $action"),
+                    session.toSnapshot(),
+                )
+        }
         return dispatch(sessionId, command)
     }
 
     private fun dispatch(sessionId: String, command: GameCommand): ActionResult? {
         val session = sessions[sessionId] ?: return null
-        val result = commandDispatcher.dispatch(session, command)
-        return ActionResult(
-            response = PlayerActionResponse(
-                accepted = result.accepted,
-                message = result.message,
+        synchronized(sessionLocks.computeIfAbsent(sessionId) { Any() }) {
+            val result = commandDispatcher.dispatch(session, command)
+            return ActionResult(
+                response = PlayerActionResponse(
+                    accepted = result.accepted,
+                    message = result.message,
+                    snapshot = session.toSnapshot(),
+                ),
                 snapshot = session.toSnapshot(),
-            ),
-            snapshot = session.toSnapshot(),
-        )
+            )
+        }
     }
 
     companion object {
+        const val ACTOR_PLAYER = "player"
+        const val ACTOR_AGENT = "agent"
         private val loggingListener = GameEventListener { event ->
             if (event is GameEvent.PhaseChanged) {
                 org.slf4j.LoggerFactory.getLogger(GameEngine::class.java)

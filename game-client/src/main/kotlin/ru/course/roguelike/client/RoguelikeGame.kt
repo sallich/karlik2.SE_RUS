@@ -31,6 +31,7 @@ import ru.course.roguelike.shared.engine.TileMap
 import ru.course.roguelike.shared.model.GridPos
 import ru.course.roguelike.shared.model.PlayerPose
 import ru.course.roguelike.shared.model.SessionPhase
+import ru.course.roguelike.shared.render.SceneRenderConfig
 
 class RoguelikeGame : ApplicationAdapter() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -77,6 +78,9 @@ class RoguelikeGame : ApplicationAdapter() {
     private var sessionPhase = SessionPhase.EXPLORATION
 
     @Volatile
+    private var agentPose: PlayerPose? = null
+
+    @Volatile
     private var serverMobs: List<MobSnapshot> = emptyList()
 
     @Volatile
@@ -100,7 +104,7 @@ class RoguelikeGame : ApplicationAdapter() {
         audio = GameAudio()
         audio.load()
         audio.playAmbient()
-        viewport = FpsViewportRenderer(640, 360, gameTextures)
+        viewport = FpsViewportRenderer(SceneRenderConfig.VIEW_WIDTH, SceneRenderConfig.VIEW_HEIGHT, gameTextures)
         sync = RoguelikeSync(
             scope = scope,
             api = api,
@@ -125,6 +129,7 @@ class RoguelikeGame : ApplicationAdapter() {
                     keyPickups = keys
                     exitGate = gate
                 },
+                agentMutator = { agentPose = it },
             ),
         )
         Gdx.graphics.setForegroundFPS(60)
@@ -224,6 +229,7 @@ class RoguelikeGame : ApplicationAdapter() {
         keysRequired = 0
         serverMobs = emptyList()
         serverProjectiles = emptyList()
+        agentPose = null
         pendingSyncInput = InputSyncRequest()
         pendingSyncDeltaMs = 0
         accumulatedYawDelta = 0f
@@ -253,7 +259,7 @@ class RoguelikeGame : ApplicationAdapter() {
         maybeSendSync(localPose)
         pose = localPose
         predictedPose = pose
-        frameTexture = viewport.render(map, pose, serverMobs, serverProjectiles, keyPickups)
+        frameTexture = viewport.render(map, pose, serverMobs, serverProjectiles, keyPickups, agentPose)
     }
 
     private fun maybeSendSync(localPose: PlayerPose) {

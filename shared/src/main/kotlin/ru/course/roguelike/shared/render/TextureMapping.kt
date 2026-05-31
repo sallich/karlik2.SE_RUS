@@ -144,11 +144,14 @@ object TextureMapping {
         return (rowBase + tiledV * rowSpan).coerceIn(0f, 0.9999f)
     }
 
-    fun skyUv(col: Int, row: Int, viewWidth: Int, horizonInt: Int, yaw: Float): Pair<Float, Float> {
-        val u = frac(col.toFloat() / viewWidth.coerceAtLeast(1) + yaw * SceneRenderConfig.SKY_YAW_SCALE)
-        val v = row.toFloat() / horizonInt.coerceAtLeast(1)
-        return u to v.coerceIn(0f, 0.9999f)
-    }
+    fun skyUv(col: Int, row: Int, viewWidth: Int, horizonInt: Int, yaw: Float): Pair<Float, Float> =
+        skyU(col, viewWidth, yaw) to skyV(row, horizonInt)
+
+    fun skyU(col: Int, viewWidth: Int, yaw: Float): Float =
+        frac(col.toFloat() / viewWidth.coerceAtLeast(1) + yaw * SceneRenderConfig.SKY_YAW_SCALE)
+
+    fun skyV(row: Int, horizonInt: Int): Float =
+        (row.toFloat() / horizonInt.coerceAtLeast(1)).coerceIn(0f, 0.9999f)
 
     fun wallRowFor(tile: TileType?): Float = wallAtlasRowBase(tile)
 

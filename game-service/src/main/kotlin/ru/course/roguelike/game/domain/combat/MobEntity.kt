@@ -72,4 +72,24 @@ sealed class MobEntity(
         override val attackDamage: Int = CombatConstants.RANGED_MOB_DAMAGE
         override val attackCooldownTotalMs: Int = CombatConstants.RANGED_ATTACK_COOLDOWN_MS
     }
+
+    class LlmGuardMob(
+        id: Long,
+        x: Float,
+        y: Float,
+        behavior: MobBehavior,
+    ) : MobEntity(
+        id = id,
+        x = x,
+        y = y,
+        hp = CombatConstants.RANGED_MOB_HP,
+        maxHp = CombatConstants.RANGED_MOB_HP,
+        kind = MobKind.LLM_GUARD,
+        behavior = behavior,
+    ) {
+        override val moveSpeed: Float = CombatConstants.RANGED_MOVE_SPEED
+        override val attackRange: Float = CombatConstants.RANGED_ATTACK_RANGE
+        override val attackDamage: Int = CombatConstants.RANGED_MOB_DAMAGE
+        override val attackCooldownTotalMs: Int = CombatConstants.RANGED_ATTACK_COOLDOWN_MS
+    }
 }

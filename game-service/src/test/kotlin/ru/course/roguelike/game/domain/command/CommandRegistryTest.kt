@@ -24,7 +24,7 @@ class CommandRegistryTest {
     @Test
     fun `default registry resolves movement actions`() {
         val registry = CommandRegistry.default()
-        assertEquals(GameActions.MOVEMENT, registry.knownActions())
+        assertEquals(GameActions.ALL, registry.knownActions())
         val cmd = registry.commandFor(GameActions.MOVE_NORTH, session)
         assertNotNull(cmd)
         assertEquals(GameActions.MOVE_NORTH, cmd!!.name)

@@ -6,4 +6,5 @@ import kotlinx.serialization.Serializable
 enum class MobKind {
     MELEE,
     RANGED,
+    LLM_GUARD,
 }
