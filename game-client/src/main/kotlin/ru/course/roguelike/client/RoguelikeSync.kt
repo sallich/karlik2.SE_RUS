@@ -111,40 +111,6 @@ class RoguelikeSync(
         currentLevel = snap.currentLevel
     }
 
-    /** Сообщает о смене яруса лифтом, если активный уровень в снимке изменился. */
-    private fun notifyLevelChange(level: Int) {
-        if (level == currentLevel) return
-        currentLevel = level
-        onStatusLine(
-            if (level == 1) "Elevator: went up to the 2nd floor" else "Elevator: went down to the 1st floor",
-        )
-    }
-
-    @Suppress("TooGenericExceptionCaught")
-    private suspend fun runSyncRequest(sessionId: String, seq: Int, input: InputSyncRequest) {
-        try {
-            val result = api.sync(sessionId, input)
-            val snap = result.snapshot ?: return
-            if (seq < syncAppliedSeq.get()) return
-            syncAppliedSeq.set(seq)
-            val auth = snap.player.pose
-            val hp = snap.player.hp
-            val maxHp = snap.player.maxHp
-            val level = snap.player.level
-            val experience = snap.player.experience
-            val experienceToNextLevel = snap.player.experienceToNextLevel
-            val mapLevel = snap.currentLevel
-            val mobs = snap.mobs
-            val projectiles = snap.projectiles
-            Gdx.app.postRunnable {
-                applyServerCorrection(auth)
-                bindings.vitalsMutator(hp, maxHp, level, experience, experienceToNextLevel)
-                bindings.combatMutator(mobs, projectiles)
-                notifyLevelChange(mapLevel)
-            }
-        } catch (ex: Exception) {
-            onStatusLine("Sync failed: ${ex.message}")
-        }
     private fun startObservePoll(session: String, generation: Int) {
         observeJob?.cancel()
         observeJob = scope.launch {
@@ -164,20 +130,28 @@ class RoguelikeSync(
         }
     }
 
-    private fun applyServerCorrection(serverPose: PlayerPose) {
-        val pred = bindings.poseAccessor() ?: return
-        val auth = serverPose.copy(yaw = pred.yaw, pitch = pred.pitch)
-        bindings.authoritativeMutator(auth)
-        val err = hypot((auth.x - pred.x).toDouble(), (auth.y - pred.y).toDouble()).toFloat()
-        bindings.poseMutator(
-            when {
-                err > FpsConstants.SYNC_POSITION_HARD_SNAP ->
-                    pred.copy(x = auth.x, y = auth.y)
-                err > FpsConstants.SYNC_POSITION_CORRECT_MIN ->
-                    PoseBlend.towardPosition(pred, auth, FpsConstants.SYNC_POSITION_BLEND)
-                else -> pred
-            },
+    private fun applyObserveUpdate(snap: GameSnapshot) {
+        bindings.agentMutator(snap.agent?.pose)
+        bindings.combatMutator(snap.mobs, snap.projectiles)
+        bindings.progressMutator(
+            snap.phase,
+            snap.keysCollected,
+            snap.keysRequired,
+            snap.keyPickups,
+            snap.exitGate,
         )
+        notifyLevelChange(snap.currentLevel)
+    }
+
+    fun restart(seed: Long? = null) {
+        observeJob?.cancel()
+        sessionGeneration.incrementAndGet()
+        sessionId = null
+        pendingInput.set(null)
+        syncOutboundSeq.set(0)
+        syncAppliedSeq.set(0)
+        currentLevel = 0
+        connect(seed)
     }
 
     fun mergeInput(prev: InputSyncRequest, frame: InputSyncRequest): InputSyncRequest =
@@ -198,7 +172,13 @@ class RoguelikeSync(
         )
 
     private fun applySyncSnapshot(snap: GameSnapshot) {
-        bindings.vitalsMutator(snap.player.hp, snap.player.maxHp)
+        bindings.vitalsMutator(
+            snap.player.hp,
+            snap.player.maxHp,
+            snap.player.level,
+            snap.player.experience,
+            snap.player.experienceToNextLevel,
+        )
         bindings.combatMutator(snap.mobs, snap.projectiles)
         bindings.agentMutator(snap.agent?.pose)
         bindings.progressMutator(

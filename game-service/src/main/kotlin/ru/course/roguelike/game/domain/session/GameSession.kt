@@ -69,11 +69,17 @@ data class GameSession(
         height = activeMap.height,
         tiles = activeMap.toFlatList(),
         player = playerSnapshot(),
+        agent = agentPose?.let { pose -> playerSnapshot().copy(pose = pose) },
         tick = tick,
         serverTimeMs = serverTimeMs,
         currentLevel = currentLevel,
         mobs = mobs.filter { it.alive }.map { it.toSnapshot() },
         projectiles = projectiles.map { it.toSnapshot() },
+        keysCollected = keysCollected,
+        keysRequired = keysRequired,
+        keyPickups = keyPickups.filter { !it.collected }.map { it.toSnapshot() },
+        bossRoom = bossRoom?.toSnapshot(),
+        exitGate = exitGate,
     )
 
     private fun playerSnapshot(): PlayerSnapshot {
@@ -89,3 +95,10 @@ data class GameSession(
         )
     }
 }
+
+private fun Room.toSnapshot() = BossRoomSnapshot(
+    x = x,
+    y = y,
+    width = width,
+    height = height,
+)

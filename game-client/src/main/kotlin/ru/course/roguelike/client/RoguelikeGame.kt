@@ -234,6 +234,9 @@ class RoguelikeGame : ApplicationAdapter() {
         sessionPhase = SessionPhase.EXPLORATION
         playerHp = 0
         playerMaxHp = 0
+        playerLevel = 1
+        playerExperience = 0
+        playerExperienceToNextLevel = 100
         keysCollected = 0
         keysRequired = 0
         serverMobs = emptyList()

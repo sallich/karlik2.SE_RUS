@@ -11,6 +11,7 @@ object ExperienceProgression {
 
     const val MELEE_MOB_XP = 25
     const val RANGED_MOB_XP = 35
+    const val LLM_GUARD_MOB_XP = 50
     const val LOCATION_COMPLETION_XP = 100
 
     fun xpRequiredForNextLevel(level: Int): Int = 100 + (level - 1) * 50
@@ -44,5 +45,6 @@ object ExperienceProgression {
     fun mobKillXp(kind: MobKind): Int = when (kind) {
         MobKind.MELEE -> MELEE_MOB_XP
         MobKind.RANGED -> RANGED_MOB_XP
+        MobKind.LLM_GUARD -> LLM_GUARD_MOB_XP
     }
 }
