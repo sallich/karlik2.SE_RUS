@@ -1,6 +1,6 @@
 package ru.course.roguelike.client.render
 
-import com.badlogic.gdx.graphics.Pixmap
+import ru.course.roguelike.shared.dto.KeySnapshot
 import ru.course.roguelike.shared.dto.MobSnapshot
 import ru.course.roguelike.shared.dto.ProjectileSnapshot
 import ru.course.roguelike.shared.engine.TileMap
@@ -14,19 +14,28 @@ import ru.course.roguelike.shared.render.SceneRenderConfig
 import ru.course.roguelike.shared.render.TextureMapping
 
 internal class TexturedScenePainter(
-    private val pixmap: Pixmap,
+    private val buffer: PixelFrameBuffer,
     private val viewWidth: Int,
     private val viewHeight: Int,
     private val textures: GameTextures,
 ) {
+    fun beginFrame() {
+        buffer.clear(SceneRenderConfig.SKY_RGB)
+    }
+
     fun paintSky(horizonInt: Int, yaw: Float) {
         val skyBottom = horizonInt.coerceIn(1, viewHeight)
         for (row in 0 until skyBottom) {
             for (col in 0 until viewWidth) {
                 val (u, v) = TextureMapping.skyUv(col, row, viewWidth, skyBottom, yaw)
-                val rgb = textures.sky.samplePixel(u, v).rgb
-                drawRgbPixel(col, row, rgb)
+                buffer.set(col, row, textures.sky.samplePixel(u, v).rgb)
             }
+        }
+    }
+
+    fun fillFloorBase(horizonInt: Int) {
+        if (horizonInt < viewHeight) {
+            buffer.fillRect(0, horizonInt, viewWidth, viewHeight - horizonInt, SceneRenderConfig.FLOOR_BASE_RGB)
         }
     }
 
@@ -35,7 +44,7 @@ internal class TexturedScenePainter(
         for (col in 0 until viewWidth) {
             val ray = Raycaster.rayDirection(pose, viewWidth, col)
             for (row in firstRow until viewHeight) {
-                floorRgbAt(map, pose, horizon, ray, row)?.let { drawRgbPixel(col, row, it) }
+                floorRgbAt(map, pose, horizon, ray, row)?.let { buffer.set(col, row, it) }
             }
         }
     }
@@ -45,8 +54,10 @@ internal class TexturedScenePainter(
         if (dist.isInfinite() || dist > SceneRenderConfig.MAX_FLOOR_DISTANCE) return null
         val floorX = pose.x + dist * ray[0]
         val floorY = pose.y + dist * ray[1]
-        val tile = map.getTileAt(floorX, floorY) ?: return null
-        if (tile !in FLOOR_TILES) return null
+        val tile = map.getTileAt(floorX, floorY)?.takeIf { it in FLOOR_TILES } ?: return null
+        if (tile == TileType.EXIT_GATE) {
+            return TextureMapping.shadeRgb(SceneRenderConfig.EXIT_GATE_RGB, dist)
+        }
         val (u, v) = TextureMapping.floorUv(floorX, floorY)
         val sampler = when (tile) {
             TileType.LAVA -> textures.lava
@@ -71,7 +82,7 @@ internal class TexturedScenePainter(
                     meta.distance,
                     SceneRenderConfig.sideDarken(meta.side),
                 )
-                drawRgbPixel(x, row, rgb)
+                buffer.set(x, row, rgb)
             }
         }
     }
@@ -81,9 +92,20 @@ internal class TexturedScenePainter(
         horizon: Float,
         mobs: List<MobSnapshot>,
         projectiles: List<ProjectileSnapshot>,
+        keyPickups: List<KeySnapshot>,
         wallDistances: FloatArray,
     ) {
         val sprites = buildList {
+            keyPickups.forEach { key ->
+                add(
+                    BillboardRenderer.Sprite(
+                        worldX = key.x,
+                        worldY = key.y,
+                        texture = BillboardRenderer.SpriteTexture.KEY,
+                        sizeScale = 0.55f,
+                    ),
+                )
+            }
             mobs.forEach { mob ->
                 add(
                     BillboardRenderer.Sprite(
@@ -116,29 +138,50 @@ internal class TexturedScenePainter(
             wallDistances,
         )
         for (command in commands) {
-            paintSpriteCommand(command)
+            paintSpriteCommand(command, wallDistances)
         }
     }
 
-    private fun paintSpriteCommand(command: BillboardRenderer.DrawCommand) {
-        val sampler = textures.samplerFor(command.texture) ?: return
+    private fun paintSpriteCommand(command: BillboardRenderer.DrawCommand, wallDistances: FloatArray) {
+        val sampler = textures.samplerFor(command.texture)
         val chromaKey = textures.usesChromaKey(command.texture)
         for (x in command.left until command.right) {
-            val u = TextureMapping.spriteColumnU(x, command.left, command.right)
-            for (y in command.top until command.bottom) {
-                val sample = sampler.sampleColumnU(u, y, command.top, command.bottom)
-                if (!sampler.isVisible(sample, chromaKey)) continue
-                val rgb = TextureMapping.shadeRgb(sample.rgb, command.distance)
-                drawRgbPixel(x, y, rgb)
-            }
+            paintSpriteColumn(command, wallDistances, sampler, chromaKey, x)
         }
     }
 
-    private fun drawRgbPixel(x: Int, y: Int, rgb: Int) {
-        pixmap.drawPixel(x, y, RgbImageSampler.toLibGdxPixel(rgb))
+    private fun paintSpriteColumn(
+        command: BillboardRenderer.DrawCommand,
+        wallDistances: FloatArray,
+        sampler: RgbImageSampler?,
+        chromaKey: Boolean,
+        x: Int,
+    ) {
+        val col = x.coerceIn(0, wallDistances.size - 1)
+        if (BillboardRenderer.isColumnOccluded(command.distance, wallDistances[col])) return
+        val u = TextureMapping.spriteColumnU(x, command.left, command.right)
+        for (y in command.top until command.bottom) {
+            val rgb = spritePixelRgb(command, sampler, chromaKey, u, y) ?: continue
+            buffer.set(x, y, rgb)
+        }
+    }
+
+    private fun spritePixelRgb(
+        command: BillboardRenderer.DrawCommand,
+        sampler: RgbImageSampler?,
+        chromaKey: Boolean,
+        u: Float,
+        y: Int,
+    ): Int? {
+        if (sampler != null) {
+            val sample = sampler.sampleColumnU(u, y, command.top, command.bottom)
+            if (!sampler.isVisible(sample, chromaKey)) return null
+            return TextureMapping.shadeRgb(sample.rgb, command.distance)
+        }
+        return TextureMapping.shadeRgb(command.colorRgb, command.distance)
     }
 
     private companion object {
-        val FLOOR_TILES = setOf(TileType.FLOOR, TileType.LAVA, TileType.ELEVATOR)
+        val FLOOR_TILES = setOf(TileType.FLOOR, TileType.LAVA, TileType.ELEVATOR, TileType.EXIT_GATE)
     }
 }

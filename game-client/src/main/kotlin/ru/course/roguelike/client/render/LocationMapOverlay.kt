@@ -3,6 +3,7 @@ package ru.course.roguelike.client.render
 import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer
 import com.badlogic.gdx.math.Matrix4
+import ru.course.roguelike.shared.dto.KeySnapshot
 import ru.course.roguelike.shared.dto.MobSnapshot
 import ru.course.roguelike.shared.engine.TileMap
 import ru.course.roguelike.shared.model.GridPos
@@ -29,6 +30,8 @@ class LocationMapOverlay(
         map: TileMap,
         pose: PlayerPose?,
         mobs: List<MobSnapshot> = emptyList(),
+        keyPickups: List<KeySnapshot> = emptyList(),
+        exitGate: GridPos? = null,
     ) {
         val layout = layout(screenWidth, screenHeight, map)
         shapeRenderer.projectionMatrix = Matrix4().setToOrtho2D(0f, 0f, screenWidth, screenHeight)
@@ -37,6 +40,8 @@ class LocationMapOverlay(
         shapeRenderer.color = BACKGROUND
         shapeRenderer.rect(layout.left, layout.bottom, layout.widthPx, layout.heightPx)
         drawTiles(map, layout)
+        exitGate?.let { drawExitGate(it, layout) }
+        drawKeys(keyPickups, layout)
         drawMobs(mobs, layout)
         pose?.let { drawPlayer(it, layout) }
         shapeRenderer.end()
@@ -60,6 +65,27 @@ class LocationMapOverlay(
                 )
             }
         }
+    }
+
+    private fun drawKeys(keys: List<KeySnapshot>, layout: Layout) {
+        for (key in keys) {
+            shapeRenderer.color = Color.GOLD
+            val px = layout.left + key.x * layout.cellPx
+            val py = layout.bottom + key.y * layout.cellPx
+            shapeRenderer.rect(
+                px - layout.cellPx * 0.2f,
+                py - layout.cellPx * 0.2f,
+                layout.cellPx * 0.4f,
+                layout.cellPx * 0.4f,
+            )
+        }
+    }
+
+    private fun drawExitGate(gate: GridPos, layout: Layout) {
+        shapeRenderer.color = Color.GREEN
+        val px = layout.left + gate.x * layout.cellPx
+        val py = layout.bottom + gate.y * layout.cellPx
+        shapeRenderer.rect(px, py, layout.cellPx, layout.cellPx)
     }
 
     private fun drawMobs(mobs: List<MobSnapshot>, layout: Layout) {
@@ -90,6 +116,7 @@ class LocationMapOverlay(
         TileType.COLUMN -> Color.GRAY
         TileType.LAVA -> Color.RED
         TileType.ELEVATOR -> Color.CYAN
+        TileType.EXIT_GATE -> Color(0.2f, 0.85f, 0.35f, 1f)
         else -> null
     }
 

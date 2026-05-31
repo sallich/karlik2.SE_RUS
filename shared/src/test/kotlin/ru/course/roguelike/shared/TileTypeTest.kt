@@ -42,6 +42,13 @@ class TileTypeTest {
     }
 
     @Test
+    fun `exit gate is walkable and visible`() {
+        assertTrue(TileType.EXIT_GATE.walkable)
+        assertFalse(TileType.EXIT_GATE.blocksVision)
+        assertFalse(TileType.EXIT_GATE.damaging)
+    }
+
+    @Test
     fun `only lava is damaging`() {
         val damaging = TileType.entries.filter { it.damaging }
         assertTrue(damaging == listOf(TileType.LAVA))

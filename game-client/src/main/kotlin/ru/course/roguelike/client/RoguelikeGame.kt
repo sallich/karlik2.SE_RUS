@@ -2,6 +2,7 @@ package ru.course.roguelike.client
 
 import com.badlogic.gdx.ApplicationAdapter
 import com.badlogic.gdx.Gdx
+import com.badlogic.gdx.Input
 import com.badlogic.gdx.graphics.GL20
 import com.badlogic.gdx.graphics.Texture
 import com.badlogic.gdx.graphics.g2d.BitmapFont
@@ -16,16 +17,20 @@ import ru.course.roguelike.client.input.InputSampler
 import ru.course.roguelike.client.net.GameApiClient
 import ru.course.roguelike.client.render.CollisionDebugOverlay
 import ru.course.roguelike.client.render.FpsViewportRenderer
+import ru.course.roguelike.client.render.GameEndOverlay
 import ru.course.roguelike.client.render.GameTextures
 import ru.course.roguelike.client.render.LocationMapOverlay
 import ru.course.roguelike.shared.dto.GameSnapshot
 import ru.course.roguelike.shared.dto.InputSyncRequest
+import ru.course.roguelike.shared.dto.KeySnapshot
 import ru.course.roguelike.shared.dto.MobSnapshot
 import ru.course.roguelike.shared.dto.ProjectileSnapshot
 import ru.course.roguelike.shared.engine.CollisionDebug
 import ru.course.roguelike.shared.engine.FpsMovementSystem
 import ru.course.roguelike.shared.engine.TileMap
+import ru.course.roguelike.shared.model.GridPos
 import ru.course.roguelike.shared.model.PlayerPose
+import ru.course.roguelike.shared.model.SessionPhase
 
 class RoguelikeGame : ApplicationAdapter() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -39,6 +44,7 @@ class RoguelikeGame : ApplicationAdapter() {
     private lateinit var shapeRenderer: ShapeRenderer
     private lateinit var collisionDebugOverlay: CollisionDebugOverlay
     private lateinit var locationMapOverlay: LocationMapOverlay
+    private lateinit var gameEndOverlay: GameEndOverlay
     private lateinit var sync: RoguelikeSync
     private lateinit var audio: GameAudio
 
@@ -64,12 +70,23 @@ class RoguelikeGame : ApplicationAdapter() {
     /** HP/maxHP, присланные сервером (учитывают урон от лавы). */
     private var playerHp = 0
     private var playerMaxHp = 0
+    private var keysCollected = 0
+    private var keysRequired = 0
+
+    @Volatile
+    private var sessionPhase = SessionPhase.EXPLORATION
 
     @Volatile
     private var serverMobs: List<MobSnapshot> = emptyList()
 
     @Volatile
     private var serverProjectiles: List<ProjectileSnapshot> = emptyList()
+
+    @Volatile
+    private var keyPickups: List<KeySnapshot> = emptyList()
+
+    @Volatile
+    private var exitGate: GridPos? = null
 
     override fun create() {
         batch = SpriteBatch()
@@ -78,6 +95,7 @@ class RoguelikeGame : ApplicationAdapter() {
         shapeRenderer = ShapeRenderer()
         collisionDebugOverlay = CollisionDebugOverlay(shapeRenderer)
         locationMapOverlay = LocationMapOverlay(shapeRenderer)
+        gameEndOverlay = GameEndOverlay(batch, font, shapeRenderer)
         gameTextures = GameTextures.load()
         audio = GameAudio()
         audio.load()
@@ -100,6 +118,13 @@ class RoguelikeGame : ApplicationAdapter() {
                     serverMobs = mobs
                     serverProjectiles = projectiles
                 },
+                progressMutator = { phase, collected, required, keys, gate ->
+                    sessionPhase = parseSessionPhase(phase)
+                    keysCollected = collected
+                    keysRequired = required
+                    keyPickups = keys
+                    exitGate = gate
+                },
             ),
         )
         Gdx.graphics.setForegroundFPS(60)
@@ -110,41 +135,107 @@ class RoguelikeGame : ApplicationAdapter() {
     override fun render() {
         val delta = Gdx.graphics.deltaTime.coerceAtMost(0.05f)
         fpsSmoothed = fpsSmoothed * 0.9f + (1f / delta) * 0.1f
-        syncAccum += delta
         handleDebugKeys()
-        val pose = simulateFrame(delta)
+
+        if (!isSessionEnded()) {
+            syncAccum += delta
+            simulateFrame(delta)
+        }
+
         drawWorldFrame()
-        drawDebugOverlays(pose)
-        val onLava = pose != null && tileMap?.getTileAt(pose.x, pose.y)?.damaging == true
+        if (!isSessionEnded()) {
+            drawDebugOverlays(
+                DebugOverlayContext(
+                    showCollisionDebug = showCollisionDebug,
+                    showLocationMap = showLocationMap,
+                    screenW = Gdx.graphics.width.toFloat(),
+                    screenH = Gdx.graphics.height.toFloat(),
+                    tileMap = tileMap,
+                    pose = predictedPose,
+                    serverMobs = serverMobs,
+                    keyPickups = keyPickups,
+                    exitGate = exitGate,
+                    lastCollisionDebug = lastCollisionDebug,
+                    locationMapOverlay = locationMapOverlay,
+                    collisionDebugOverlay = collisionDebugOverlay,
+                ),
+            )
+        }
+
+        val pose = predictedPose
+        val onLava = !isSessionEnded() && pose != null && tileMap?.getTileAt(pose.x, pose.y)?.damaging == true
         hud.draw(
             statusLine,
             pose,
             fpsSmoothed,
             lastCollisionDebug,
-            showCollisionDebug,
+            showCollisionDebug && !isSessionEnded(),
             onLava = onLava,
             hp = playerHp,
             maxHp = playerMaxHp,
+            keysCollected = keysCollected,
+            keysRequired = keysRequired,
+            interactionHint = interactionHint(
+                pose,
+                isSessionEnded(),
+                tileMap,
+                exitGate,
+                keysCollected,
+                keysRequired,
+                keyPickups,
+            ),
         )
+
+        if (isSessionEnded()) {
+            gameEndOverlay.render(sessionPhase)
+        }
     }
 
     private var syncAccum = 0f
 
+    private fun isSessionEnded(): Boolean =
+        sessionPhase == SessionPhase.GAME_OVER || sessionPhase == SessionPhase.LEVEL_COMPLETE
+
     private fun handleDebugKeys() {
-        if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.ESCAPE)) {
+        if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
             InputSampler.toggleMouseLook()
         }
-        if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.F3)) {
+        if (Gdx.input.isKeyJustPressed(Input.Keys.F3)) {
             showCollisionDebug = !showCollisionDebug
         }
-        if (Gdx.input.isKeyJustPressed(com.badlogic.gdx.Input.Keys.F4)) {
+        if (Gdx.input.isKeyJustPressed(Input.Keys.F4)) {
             showLocationMap = !showLocationMap
+        }
+        if (Gdx.input.isKeyJustPressed(Input.Keys.R)) {
+            restartSession()
         }
     }
 
-    private fun simulateFrame(delta: Float): PlayerPose? {
-        val map = tileMap ?: return predictedPose
-        var pose = predictedPose ?: return null
+    private fun restartSession() {
+        predictedPose = null
+        authoritativePose = null
+        tileMap = null
+        keyPickups = emptyList()
+        exitGate = null
+        sessionPhase = SessionPhase.EXPLORATION
+        playerHp = 0
+        playerMaxHp = 0
+        keysCollected = 0
+        keysRequired = 0
+        serverMobs = emptyList()
+        serverProjectiles = emptyList()
+        pendingSyncInput = InputSyncRequest()
+        pendingSyncDeltaMs = 0
+        accumulatedYawDelta = 0f
+        syncAccum = 0f
+        lastCollisionDebug = null
+        statusLine = "Starting new run..."
+        sync.restart()
+    }
+
+    private fun simulateFrame(delta: Float) {
+        val map = tileMap ?: return
+        var pose = predictedPose ?: return
 
         val sample = InputSampler.sample(delta)
         accumulatedYawDelta += sample.input.yawDelta
@@ -162,8 +253,7 @@ class RoguelikeGame : ApplicationAdapter() {
         maybeSendSync(localPose)
         pose = localPose
         predictedPose = pose
-        frameTexture = viewport.render(map, pose, serverMobs, serverProjectiles)
-        return pose
+        frameTexture = viewport.render(map, pose, serverMobs, serverProjectiles, keyPickups)
     }
 
     private fun maybeSendSync(localPose: PlayerPose) {
@@ -194,39 +284,15 @@ class RoguelikeGame : ApplicationAdapter() {
         batch.setBlendFunction(blendSrc, blendDst)
     }
 
-    private fun drawDebugOverlays(pose: PlayerPose?) {
-        if (!showCollisionDebug && !showLocationMap) return
-        val screenW = Gdx.graphics.width.toFloat()
-        val screenH = Gdx.graphics.height.toFloat()
-        Gdx.gl.glEnable(GL20.GL_BLEND)
-        if (showLocationMap) {
-            tileMap?.let { locationMapOverlay.render(screenW, screenH, it, pose, serverMobs) }
-        }
-        collisionOverlayParams(pose)?.let { overlay ->
-            collisionDebugOverlay.render(
-                screenW,
-                screenH,
-                overlay.map,
-                overlay.pose,
-                overlay.debug,
-                serverMobs,
-            )
-        }
-        Gdx.gl.glDisable(GL20.GL_BLEND)
-    }
-
-    private fun collisionOverlayParams(pose: PlayerPose?): CollisionOverlayParams? {
-        if (!showCollisionDebug) return null
-        val map = tileMap
-        val debug = lastCollisionDebug
-        if (map == null || pose == null || debug == null) return null
-        return CollisionOverlayParams(map, pose, debug)
-    }
-
     private fun applySnapshotFromServer(snap: GameSnapshot) {
         tileMap = TileMap.fromFlat(snap.width, snap.height, snap.tiles)
         serverMobs = snap.mobs
         serverProjectiles = snap.projectiles
+        sessionPhase = parseSessionPhase(snap.phase)
+        keysCollected = snap.keysCollected
+        keysRequired = snap.keysRequired
+        keyPickups = snap.keyPickups
+        exitGate = snap.exitGate
         audio.onCombatSnapshot(snap.player.hp, snap.projectiles)
         sync.applySnapshot(snap)
     }
@@ -235,17 +301,10 @@ class RoguelikeGame : ApplicationAdapter() {
         scope.cancel()
         api.close()
         InputSampler.disableMouseLook()
-        frameTexture?.dispose()
         viewport.dispose()
         audio.dispose()
         shapeRenderer.dispose()
         batch.dispose()
         font.dispose()
     }
-
-    private data class CollisionOverlayParams(
-        val map: TileMap,
-        val pose: PlayerPose,
-        val debug: CollisionDebug,
-    )
 }

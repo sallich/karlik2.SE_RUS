@@ -5,6 +5,7 @@ import ru.course.roguelike.game.domain.event.GameEvent
 import ru.course.roguelike.game.domain.session.ElevatorSystem
 import ru.course.roguelike.game.domain.session.GameSession
 import ru.course.roguelike.game.domain.session.LavaDamageSystem
+import ru.course.roguelike.game.domain.session.LevelProgressSystem
 import ru.course.roguelike.shared.dto.InputSyncRequest
 import ru.course.roguelike.shared.engine.FpsMovementSystem
 
@@ -29,6 +30,7 @@ class SyncInputCommand(
         )
         LavaDamageSystem.apply(session, input.deltaMs)?.let { events.add(it) }
         ElevatorSystem.apply(session)?.let { events.add(it) }
+        events.addAll(LevelProgressSystem.apply(session, input))
         events.addAll(CombatSystem.tick(session, input.deltaMs, input.attack))
         return CommandExecutionResult(
             accepted = true,

@@ -15,6 +15,7 @@ object BillboardRenderer {
         MELEE,
         RANGED,
         BLAST,
+        KEY,
         COLOR_FALLBACK,
     }
 
@@ -101,7 +102,7 @@ object BillboardRenderer {
         val drawStartX = (spriteScreenX - spriteWidth / 2).coerceIn(0, screenWidth - 1)
         val drawEndX = (spriteScreenX + spriteWidth / 2).coerceIn(drawStartX + 1, screenWidth)
 
-        if (wallDistances != null && isOccludedByWall(spriteScreenX, transformY, wallDistances)) {
+        if (wallDistances != null && isFullyOccludedByWall(drawStartX, drawEndX, transformY, wallDistances)) {
             return null
         }
 
@@ -112,15 +113,36 @@ object BillboardRenderer {
             top = drawStartY,
             bottom = drawEndY,
             texture = sprite.texture,
-            colorRgb = sprite.colorRgb,
+            colorRgb = fallbackColor(sprite.texture, sprite.colorRgb),
             distance = transformY,
         )
     }
 
-    private fun isOccludedByWall(spriteScreenX: Int, spriteDistance: Float, wallDistances: FloatArray): Boolean {
-        val col = spriteScreenX.coerceIn(0, wallDistances.size - 1)
-        return spriteDistance > wallDistances[col] + 0.05f
+    private fun fallbackColor(texture: SpriteTexture, default: Int): Int = when (texture) {
+        SpriteTexture.KEY -> rgb(0xFF, 0xD7, 0x00)
+        else -> default
     }
+
+  /** true, если спрайт целиком за стеной (ни один столбец не ближе стены). */
+    private fun isFullyOccludedByWall(
+        drawStartX: Int,
+        drawEndX: Int,
+        spriteDistance: Float,
+        wallDistances: FloatArray,
+    ): Boolean {
+        if (wallDistances.isEmpty()) return false
+        val left = drawStartX.coerceIn(0, wallDistances.size - 1)
+        val right = (drawEndX - 1).coerceIn(left, wallDistances.size - 1)
+        for (col in left..right) {
+            if (spriteDistance <= wallDistances[col] + SPRITE_DEPTH_EPSILON) return false
+        }
+        return true
+    }
+
+    fun isColumnOccluded(spriteDistance: Float, wallDistance: Float): Boolean =
+        spriteDistance > wallDistance + SPRITE_DEPTH_EPSILON
+
+    private const val SPRITE_DEPTH_EPSILON = 0.05f
 
     fun mobColor(kind: ru.course.roguelike.shared.model.MobKind): Int = when (kind) {
         ru.course.roguelike.shared.model.MobKind.MELEE -> rgb(0xFF, 0xD7, 0x00)

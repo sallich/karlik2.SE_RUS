@@ -1,6 +1,7 @@
 package ru.course.roguelike.shared.dto
 
 import kotlinx.serialization.Serializable
+import ru.course.roguelike.shared.model.GridPos
 import ru.course.roguelike.shared.model.PlayerPose
 import ru.course.roguelike.shared.model.TileType
 
@@ -20,6 +21,12 @@ data class GameSnapshot(
     val currentLevel: Int = 0,
     val mobs: List<MobSnapshot> = emptyList(),
     val projectiles: List<ProjectileSnapshot> = emptyList(),
+    val keysCollected: Int = 0,
+    val keysRequired: Int = 0,
+    val keyPickups: List<KeySnapshot> = emptyList(),
+    val bossRoom: BossRoomSnapshot? = null,
+    /** Ячейка ворот выхода в комнате босса (куда нужно принести ключи). */
+    val exitGate: GridPos? = null,
 )
 
 @Serializable

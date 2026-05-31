@@ -37,8 +37,8 @@ class RoguelikeSync(
                     onSnapshot(created)
                 }
                 onStatusLine(
-                    "WASD — ходьба, ЛКМ/Space — атака, мышь/ПКМ — yaw/pitch, ←→ — поворот, ↑↓/Q/E — pitch. " +
-                        "Esc — мышь. F3 — миникарта. F4 — карта локации.",
+                    "Собери золотые ключи (E), найди ворота в комнате босса и вставь ключи (E). " +
+                        "Esc — мышь, F4 — карта, R — новый забег.",
                 )
             } catch (ex: Exception) {
                 onStatusLine("Server error: ${ex.message}. Run :game-service:run")
@@ -61,7 +61,16 @@ class RoguelikeSync(
         bindings.authoritativeMutator(pose)
         bindings.vitalsMutator(snap.player.hp, snap.player.maxHp)
         bindings.combatMutator(snap.mobs, snap.projectiles)
+        bindings.progressMutator(snap.phase, snap.keysCollected, snap.keysRequired, snap.keyPickups, snap.exitGate)
         currentLevel = snap.currentLevel
+    }
+
+    fun restart(seed: Long? = null) {
+        sessionId = null
+        syncOutboundSeq.set(0)
+        syncAppliedSeq.set(0)
+        currentLevel = 0
+        connect(seed)
     }
 
     /** Сообщает о смене яруса лифтом, если активный уровень в снимке изменился. */
@@ -90,6 +99,13 @@ class RoguelikeSync(
                 applyServerCorrection(auth)
                 bindings.vitalsMutator(hp, maxHp)
                 bindings.combatMutator(mobs, projectiles)
+                bindings.progressMutator(
+                    snap.phase,
+                    snap.keysCollected,
+                    snap.keysRequired,
+                    snap.keyPickups,
+                    snap.exitGate,
+                )
                 notifyLevelChange(level)
             }
         } catch (ex: Exception) {
@@ -127,5 +143,6 @@ class RoguelikeSync(
             pitchDelta = prev.pitchDelta + frame.pitchDelta,
             deltaMs = prev.deltaMs + frame.deltaMs,
             attack = prev.attack || frame.attack,
+            interact = prev.interact || frame.interact,
         )
 }

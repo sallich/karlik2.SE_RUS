@@ -13,6 +13,7 @@ import ru.course.roguelike.shared.dto.InputSyncRequest
 import ru.course.roguelike.shared.engine.TileMap
 import ru.course.roguelike.shared.model.MobKind
 import ru.course.roguelike.shared.model.PlayerPose
+import ru.course.roguelike.shared.model.SessionPhase
 import ru.course.roguelike.shared.model.TileType
 
 class CombatDispatchTest {
@@ -25,6 +26,36 @@ class CombatDispatchTest {
         assertTrue(snap.mobs.size >= 2)
         assertTrue(snap.mobs.any { it.kind == MobKind.MELEE })
         assertTrue(snap.mobs.any { it.kind == MobKind.RANGED })
+    }
+
+    @Test
+    fun `new session includes keys and boss room metadata`() {
+        val snap = GameEngine().createSession(seed = 42L)
+        assertEquals(3, snap.keysRequired)
+        assertEquals(0, snap.keysCollected)
+        assertEquals(3, snap.keyPickups.size)
+        assertTrue(snap.bossRoom != null)
+        assertTrue(snap.exitGate != null)
+    }
+
+    @Test
+    fun `hp reaching zero during sync transitions to game over`() {
+        val session = arenaSession()
+        session.playerHp = 1
+        val mob = session.mobs.first()
+        mob.x = session.playerPose.x + 0.6f
+        mob.y = session.playerPose.y
+        mob.attackCooldownMs = 0
+
+        dispatcher.dispatch(
+            session,
+            SyncInputCommand(
+                InputSyncRequest(deltaMs = 50, clientYaw = 0f, clientPitch = 0f),
+            ),
+        )
+
+        assertEquals(0, session.playerHp)
+        assertEquals(SessionPhase.GAME_OVER, session.phase)
     }
 
     @Test

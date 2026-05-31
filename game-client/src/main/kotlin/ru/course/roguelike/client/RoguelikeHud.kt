@@ -21,6 +21,9 @@ class RoguelikeHud(
         onLava: Boolean = false,
         hp: Int = 0,
         maxHp: Int = 0,
+        keysCollected: Int = 0,
+        keysRequired: Int = 0,
+        interactionHint: String? = null,
     ) {
         batch.begin()
         font.draw(batch, statusLine, 12f, Gdx.graphics.height - 12f)
@@ -28,6 +31,10 @@ class RoguelikeHud(
         if (maxHp > 0) {
             drawHp(hp, maxHp)
         }
+        if (keysRequired > 0) {
+            drawKeys(keysCollected, keysRequired)
+        }
+        interactionHint?.let { drawInteractionHint(it) }
         if (onLava) {
             drawLavaWarning()
         }
@@ -42,6 +49,20 @@ class RoguelikeHud(
         val previous = font.color.cpy()
         font.color = if (hp <= maxHp / 4) Color.SCARLET else Color.LIME
         font.draw(batch, "HP $hp / $maxHp", 12f, Gdx.graphics.height - 84f)
+        font.color = previous
+    }
+
+    private fun drawKeys(collected: Int, required: Int) {
+        val previous = font.color.cpy()
+        font.color = if (collected >= required) Color.GOLD else Color.WHITE
+        font.draw(batch, "Keys $collected / $required — open boss room gate", 12f, Gdx.graphics.height - 108f)
+        font.color = previous
+    }
+
+    private fun drawInteractionHint(hint: String) {
+        val previous = font.color.cpy()
+        font.color = Color.GOLD
+        font.draw(batch, hint, Gdx.graphics.width / 2f - 140f, 80f)
         font.color = previous
     }
 
