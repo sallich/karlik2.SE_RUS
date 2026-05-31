@@ -152,11 +152,11 @@ class TextureMappingTest {
     @Test
     fun `pitch shifts horizon up and down`() {
         val center = SceneRenderConfig.horizonY(360, pitch = 0f)
-        val up = SceneRenderConfig.horizonY(360, pitch = 0.5f)
-        val down = SceneRenderConfig.horizonY(360, pitch = -0.5f)
+        val lookUp = SceneRenderConfig.horizonY(360, pitch = 0.5f)
+        val lookDown = SceneRenderConfig.horizonY(360, pitch = -0.5f)
         assertEquals(180f, center, 0.01f)
-        assertTrue(up < center)
-        assertTrue(down > center)
+        assertTrue(lookUp > center, "look up should lower horizon line on screen (larger Y)")
+        assertTrue(lookDown < center, "look down should raise horizon line on screen (smaller Y)")
     }
 
     @Test
