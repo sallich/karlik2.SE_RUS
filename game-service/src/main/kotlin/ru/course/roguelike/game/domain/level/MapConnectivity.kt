@@ -2,6 +2,7 @@ package ru.course.roguelike.game.domain.level
 
 import ru.course.roguelike.shared.engine.TileMap
 import ru.course.roguelike.shared.model.GridPos
+import ru.course.roguelike.shared.model.TileType
 
 /**
  * Проверка проходимости карты (issue #3: «не сделать непроходимую комнату»).
@@ -77,5 +78,11 @@ object MapConnectivity {
             }
         }
         return true
+    }
+
+    /** Проходимый пол (не лава), достижимый от [start] — безопасная зона для ключей и лута. */
+    fun reachableSafeFloorCells(map: TileMap, start: GridPos): Set<GridPos> {
+        val reachable = reachableFrom(map, start)
+        return reachable.filterTo(mutableSetOf()) { map.get(it) == TileType.FLOOR }
     }
 }

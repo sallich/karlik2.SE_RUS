@@ -1,8 +1,10 @@
 package ru.course.roguelike.game.domain.session
 
 import ru.course.roguelike.game.domain.level.GeneratedLevel
+import ru.course.roguelike.game.domain.level.MapConnectivity
 import ru.course.roguelike.game.domain.level.Room
 import ru.course.roguelike.shared.dto.KeySnapshot
+import ru.course.roguelike.shared.model.GridPos
 import kotlin.random.Random
 
 data class KeyPickup(
@@ -17,27 +19,43 @@ data class KeyPickup(
 /** Расстановка ключей в обычных комнатах лабиринта. */
 object KeySpawner {
     const val DEFAULT_KEY_COUNT = 3
-    private const val MIN_ROOM_DISTANCE = 2
 
     fun spawn(level: GeneratedLevel, seed: Long, count: Int = DEFAULT_KEY_COUNT): List<KeyPickup> {
-        val candidates = level.rooms.filter { !it.isBoss }
-        if (candidates.isEmpty()) return emptyList()
-
+        val safeCells = MapConnectivity.reachableSafeFloorCells(level.map, level.playerSpawn)
         val random = Random(seed xor KEY_SALT)
-        val chosenRooms = candidates.shuffled(random).take(count.coerceAtMost(candidates.size))
-        return chosenRooms.mapIndexed { index, room ->
-            KeyPickup(
-                id = index,
-                x = room.x + room.width / 2f + randomOffset(random),
-                y = room.y + room.height / 2f + randomOffset(random),
-            )
+        val roomsWithSpots = level.rooms
+            .filter { !it.isBoss }
+            .mapNotNull { room ->
+                keySpawnCellsInRoom(room, safeCells)
+                    .takeIf { it.isNotEmpty() }
+                    ?.let { room to it }
+            }
+            .shuffled(random)
+            .take(count)
+
+        return roomsWithSpots.mapIndexed { index, (_, spots) ->
+            val cell = spots[random.nextInt(spots.size)]
+            KeyPickup(id = index, x = cell.x + 0.5f, y = cell.y + 0.5f)
         }
     }
 
     fun bossRoomOf(level: GeneratedLevel): Room? = level.rooms.singleOrNull { it.isBoss }
 
-    private fun randomOffset(random: Random): Float =
-        (random.nextInt(-MIN_ROOM_DISTANCE, MIN_ROOM_DISTANCE + 1)) * 0.35f
+    private fun keySpawnCellsInRoom(
+        room: Room,
+        safeCells: Set<GridPos>,
+    ): List<GridPos> {
+        val cells = mutableListOf<GridPos>()
+        for (y in room.y until room.y + room.height) {
+            for (x in room.x until room.x + room.width) {
+                val pos = GridPos(x, y)
+                if (pos in safeCells) {
+                    cells.add(pos)
+                }
+            }
+        }
+        return cells
+    }
 
     private const val KEY_SALT = 0x4B_45_59_53L
 }
