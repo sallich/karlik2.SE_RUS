@@ -19,6 +19,12 @@ sealed interface GameEvent {
 
     data class LevelChanged(val level: Int) : GameEvent
 
+    data class ExperienceGained(val amount: Int, val source: String, val totalXp: Int) : GameEvent
+
+    data class PlayerLevelUp(val newLevel: Int, val maxHp: Int, val attackDamage: Int) : GameEvent
+
+    data class LocationCompleted(val bonusXp: Int) : GameEvent
+
     data class KeyCollected(val keyId: Int, val totalCollected: Int) : GameEvent
 
     data class LevelCompleted(val keysCollected: Int, val keysRequired: Int) : GameEvent

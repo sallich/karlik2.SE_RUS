@@ -28,6 +28,7 @@ class LavaDamageDispatchTest {
             map = TileMap(3, 3, tiles),
             playerPose = PlayerPose(1.5f, 1.5f, yaw = 0f),
             playerHp = hp,
+            locationCompletionAwarded = true,
         )
     }
 

@@ -98,7 +98,13 @@ class RoguelikeSync(
         val pose = snap.player.pose
         bindings.poseMutator(pose)
         bindings.authoritativeMutator(pose)
-        bindings.vitalsMutator(snap.player.hp, snap.player.maxHp)
+        bindings.vitalsMutator(
+            snap.player.hp,
+            snap.player.maxHp,
+            snap.player.level,
+            snap.player.experience,
+            snap.player.experienceToNextLevel,
+        )
         bindings.combatMutator(snap.mobs, snap.projectiles)
         bindings.progressMutator(snap.phase, snap.keysCollected, snap.keysRequired, snap.keyPickups, snap.exitGate)
         bindings.agentMutator(snap.agent?.pose)
@@ -166,7 +172,13 @@ class RoguelikeSync(
         )
 
     private fun applySyncSnapshot(snap: GameSnapshot) {
-        bindings.vitalsMutator(snap.player.hp, snap.player.maxHp)
+        bindings.vitalsMutator(
+            snap.player.hp,
+            snap.player.maxHp,
+            snap.player.level,
+            snap.player.experience,
+            snap.player.experienceToNextLevel,
+        )
         bindings.combatMutator(snap.mobs, snap.projectiles)
         bindings.agentMutator(snap.agent?.pose)
         bindings.progressMutator(

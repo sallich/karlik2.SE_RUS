@@ -21,6 +21,9 @@ class RoguelikeHud(
         onLava: Boolean = false,
         hp: Int = 0,
         maxHp: Int = 0,
+        level: Int = 1,
+        experience: Int = 0,
+        experienceToNextLevel: Int = 100,
         keysCollected: Int = 0,
         keysRequired: Int = 0,
         interactionHint: String? = null,
@@ -35,6 +38,7 @@ class RoguelikeHud(
             drawKeys(keysCollected, keysRequired)
         }
         interactionHint?.let { drawInteractionHint(it) }
+        drawProgression(level, experience, experienceToNextLevel)
         if (onLava) {
             drawLavaWarning()
         }
@@ -52,10 +56,23 @@ class RoguelikeHud(
         font.color = previous
     }
 
+    /** Уровень и прогресс опыта в текущем уровне. */
+    private fun drawProgression(level: Int, experience: Int, experienceToNextLevel: Int) {
+        val previous = font.color.cpy()
+        font.color = Color.GOLD
+        font.draw(
+            batch,
+            "LV $level | XP $experience / $experienceToNextLevel",
+            12f,
+            Gdx.graphics.height - 108f,
+        )
+        font.color = previous
+    }
+
     private fun drawKeys(collected: Int, required: Int) {
         val previous = font.color.cpy()
         font.color = if (collected >= required) Color.GOLD else Color.WHITE
-        font.draw(batch, "Keys $collected / $required — open boss room gate", 12f, Gdx.graphics.height - 108f)
+        font.draw(batch, "Keys $collected / $required — open boss room gate", 12f, Gdx.graphics.height - 132f)
         font.color = previous
     }
 

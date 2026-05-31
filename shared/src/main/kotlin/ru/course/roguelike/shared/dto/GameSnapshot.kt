@@ -36,4 +36,8 @@ data class PlayerSnapshot(
     val pose: PlayerPose,
     val hp: Int,
     val maxHp: Int,
+    val level: Int = 1,
+    val experience: Int = 0,
+    val experienceToNextLevel: Int = 100,
+    val attackDamage: Int = 25,
 )
