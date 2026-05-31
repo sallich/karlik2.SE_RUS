@@ -72,7 +72,7 @@ class RoguelikeHud(
     private fun drawKeys(collected: Int, required: Int) {
         val previous = font.color.cpy()
         font.color = if (collected >= required) Color.GOLD else Color.WHITE
-        font.draw(batch, "Keys $collected / $required — open boss room gate", 12f, Gdx.graphics.height - 108f)
+        font.draw(batch, "Keys $collected / $required — open boss room gate", 12f, Gdx.graphics.height - 132f)
         font.color = previous
     }
 
