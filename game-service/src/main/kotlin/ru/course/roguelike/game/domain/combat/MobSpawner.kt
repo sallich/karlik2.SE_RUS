@@ -13,6 +13,7 @@ object MobSpawner {
     private const val MIN_PLAYER_DISTANCE = 4f
 
     fun spawnStarterPack(session: GameSession) {
+        if (skipAllMobs()) return
         val map = session.activeMap
         val spots = findSpawnSpots(
             map,
@@ -26,6 +27,23 @@ object MobSpawner {
         if (spots.size > 1) {
             session.mobs.add(createMob(session, MobKind.RANGED, spots[1].x + 0.5f, spots[1].y + 0.5f))
         }
+        spawnLlmGuard(session)
+    }
+
+    private fun spawnLlmGuard(session: GameSession) {
+        if (skipLlmMob()) return
+        val gate = session.exitGate ?: return
+        val map = session.activeMap
+        val candidates = listOf(
+            GridPos(gate.x - 1, gate.y),
+            GridPos(gate.x + 1, gate.y),
+            GridPos(gate.x, gate.y - 1),
+            GridPos(gate.x, gate.y + 1),
+        )
+        val spot = candidates.firstOrNull { map.get(it) == TileType.FLOOR } ?: gate
+        session.mobs.add(
+            createMob(session, MobKind.LLM_GUARD, spot.x + 0.5f, spot.y + 0.5f),
+        )
     }
 
     fun createMob(session: GameSession, kind: MobKind, x: Float, y: Float): MobEntity {
@@ -34,6 +52,7 @@ object MobSpawner {
         return when (kind) {
             MobKind.MELEE -> MobEntity.MeleeMob(id, x, y, behavior)
             MobKind.RANGED -> MobEntity.RangedMob(id, x, y, behavior)
+            MobKind.LLM_GUARD -> MobEntity.LlmGuardMob(id, x, y, behavior)
         }
     }
 
@@ -52,6 +71,12 @@ object MobSpawner {
         }
         return spots
     }
+
+    private fun skipLlmMob(): Boolean =
+        System.getenv("SKIP_LLM_MOB") == "true" || System.getProperty("SKIP_LLM_MOB") == "true"
+
+    private fun skipAllMobs(): Boolean =
+        System.getenv("SKIP_MOBS") == "true" || System.getProperty("SKIP_MOBS") == "true"
 
     private fun floorCells(map: TileMap): List<GridPos> =
         (1 until map.height - 1).flatMap { y ->

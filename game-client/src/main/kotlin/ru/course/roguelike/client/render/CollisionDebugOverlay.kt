@@ -102,6 +102,7 @@ class CollisionDebugOverlay(
             shapeRenderer.color = when (mob.kind) {
                 MobKind.MELEE -> Color.GOLD
                 MobKind.RANGED -> Color.SKY
+                MobKind.LLM_GUARD -> Color.MAGENTA
             }
             shapeRenderer.circle(sx, sy, layout.cellPx * 0.35f, 10)
         }

@@ -13,4 +13,5 @@ data class SyncBindings(
     val vitalsMutator: (Int, Int) -> Unit = { _, _ -> },
     val combatMutator: (List<MobSnapshot>, List<ProjectileSnapshot>) -> Unit = { _, _ -> },
     val progressMutator: (String, Int, Int, List<KeySnapshot>, GridPos?) -> Unit = { _, _, _, _, _ -> },
+    val agentMutator: (PlayerPose?) -> Unit = {},
 )

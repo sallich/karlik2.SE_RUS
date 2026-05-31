@@ -14,6 +14,8 @@ data class GameSnapshot(
     val height: Int,
     val tiles: List<TileType>,
     val player: PlayerSnapshot,
+    /** Кооп-агент в той же сессии (null если отключён). */
+    val agent: PlayerSnapshot? = null,
     val tick: Long,
     /** Серверное время снимка (мс), для интерполяции на клиенте. */
     val serverTimeMs: Long = 0L,

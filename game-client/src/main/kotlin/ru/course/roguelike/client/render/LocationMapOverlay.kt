@@ -93,6 +93,7 @@ class LocationMapOverlay(
             shapeRenderer.color = when (mob.kind) {
                 MobKind.MELEE -> Color.GOLD
                 MobKind.RANGED -> Color.SKY
+                MobKind.LLM_GUARD -> Color.MAGENTA
             }
             val px = layout.left + mob.x * layout.cellPx
             val py = layout.bottom + mob.y * layout.cellPx

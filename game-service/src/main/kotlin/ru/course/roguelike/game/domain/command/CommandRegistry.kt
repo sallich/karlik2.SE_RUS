@@ -34,7 +34,7 @@ class CommandRegistry private constructor(
         fun defaultBuilder(): Builder = Builder().apply { registerDefaults() }
 
         private fun Builder.registerDefaults() {
-            GameActions.MOVEMENT.forEach { action ->
+            GameActions.ALL.forEach { action ->
                 register(action) { LegacyMovementCommand(action) }
             }
         }

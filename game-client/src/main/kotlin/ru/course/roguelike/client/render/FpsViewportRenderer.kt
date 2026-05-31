@@ -27,6 +27,7 @@ class FpsViewportRenderer(
         mobs: List<MobSnapshot> = emptyList(),
         projectiles: List<ProjectileSnapshot> = emptyList(),
         keyPickups: List<KeySnapshot> = emptyList(),
+        agentPose: PlayerPose? = null,
     ): Texture {
         val horizon = SceneRenderConfig.horizonY(viewHeight, pose.pitch)
         val horizonInt = kotlin.math.ceil(horizon).toInt().coerceIn(0, viewHeight)
@@ -37,17 +38,17 @@ class FpsViewportRenderer(
         painter.paintFloor(map, pose, horizon, horizonInt)
         val scene = Raycaster.castScene(map, pose, viewWidth, viewHeight, horizon)
         painter.paintWalls(scene)
-        painter.paintSprites(pose, horizon, mobs, projectiles, keyPickups, scene.wallDistances)
+        painter.paintSprites(pose, horizon, mobs, projectiles, keyPickups, agentPose, scene.wallDistances)
 
         frameBuffer.flushTo(pixmap)
 
         if (!textureReady) {
             texture = Texture(pixmap)
+            texture.setFilter(Texture.TextureFilter.Nearest, Texture.TextureFilter.Nearest)
             textureReady = true
         } else {
             texture.draw(pixmap, 0, 0)
         }
-        texture.setFilter(Texture.TextureFilter.Nearest, Texture.TextureFilter.Nearest)
         return texture
     }
 

@@ -17,14 +17,21 @@ import org.slf4j.event.Level
 import ru.course.roguelike.mcp.api.configureMcpRoutes
 import ru.course.roguelike.mcp.client.GameServiceClient
 
-fun main() {
+fun main(args: Array<String>) {
+    if (args.contains("stdio")) {
+        McpStdioMain.run()
+        return
+    }
     val port = System.getenv("PORT")?.toIntOrNull() ?: 8081
     embeddedServer(Netty, port = port, module = Application::module).start(wait = true)
 }
 
 @Suppress("unused")
 fun Application.module() {
-    val gameBaseUrl = System.getenv("GAME_SERVICE_URL") ?: "http://localhost:8080"
+    moduleWithGameService(System.getenv("GAME_SERVICE_URL") ?: "http://localhost:8080")
+}
+
+fun Application.moduleWithGameService(gameBaseUrl: String) {
     val gameClient = GameServiceClient(gameBaseUrl)
 
     install(CallLogging) {

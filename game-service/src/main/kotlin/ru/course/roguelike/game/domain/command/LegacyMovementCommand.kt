@@ -13,7 +13,7 @@ class LegacyMovementCommand(
     override val name: String = action
 
     override fun validate(session: GameSession): CommandValidation {
-        if (action !in GameActions.MOVEMENT) {
+        if (action !in GameActions.ALL) {
             return CommandValidation(false, "Unknown action: $action")
         }
         return SyncInputCommand(inputFor(action)).validate(session)
@@ -24,11 +24,16 @@ class LegacyMovementCommand(
 
     companion object {
         fun inputFor(action: String): InputSyncRequest = when (action) {
-            GameActions.MOVE_NORTH -> InputSyncRequest(forward = true, deltaMs = 100)
-            GameActions.MOVE_SOUTH -> InputSyncRequest(backward = true, deltaMs = 100)
-            GameActions.MOVE_EAST -> InputSyncRequest(strafeRight = true, deltaMs = 100)
-            GameActions.MOVE_WEST -> InputSyncRequest(strafeLeft = true, deltaMs = 100)
-            else -> error("Unsupported movement action: $action")
+            GameActions.MOVE_NORTH -> InputSyncRequest(forward = true, deltaMs = GameActions.AGENT_FORWARD_MS)
+            GameActions.MOVE_SOUTH -> InputSyncRequest(backward = true, deltaMs = GameActions.AGENT_FORWARD_MS)
+            GameActions.MOVE_EAST -> InputSyncRequest(strafeRight = true, deltaMs = GameActions.AGENT_FORWARD_MS)
+            GameActions.MOVE_WEST -> InputSyncRequest(strafeLeft = true, deltaMs = GameActions.AGENT_FORWARD_MS)
+            GameActions.MOVE_FORWARD -> InputSyncRequest(forward = true, deltaMs = GameActions.AGENT_FORWARD_MS)
+            GameActions.TURN_LEFT -> InputSyncRequest(turnLeft = true, deltaMs = GameActions.AGENT_TURN_MS)
+            GameActions.TURN_RIGHT -> InputSyncRequest(turnRight = true, deltaMs = GameActions.AGENT_TURN_MS)
+            GameActions.INTERACT -> InputSyncRequest(interact = true, deltaMs = GameActions.AGENT_WAIT_MS)
+            GameActions.WAIT -> InputSyncRequest(deltaMs = GameActions.AGENT_WAIT_MS)
+            else -> error("Unsupported action: $action")
         }
     }
 }

@@ -26,6 +26,13 @@ object SceneRenderConfig {
 
     const val MAX_FLOOR_DISTANCE = 28f
 
+    /**
+     * Внутреннее разрешение raycast-буфера; картинка апскейлится на окно.
+     * Меньше пикселей = быстрее, при этом каждый пиксель сэмплируется полноценно (без полос).
+     */
+    const val VIEW_WIDTH = 480
+    const val VIEW_HEIGHT = 270
+
     const val PITCH_HORIZON_FACTOR = 0.45f
 
     const val AMBIENT_VOLUME = 10f

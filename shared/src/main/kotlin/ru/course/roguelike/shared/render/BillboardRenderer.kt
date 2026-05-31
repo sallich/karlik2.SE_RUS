@@ -12,6 +12,7 @@ import kotlin.math.tan
  */
 object BillboardRenderer {
     enum class SpriteTexture {
+        PLAYER,
         MELEE,
         RANGED,
         BLAST,
@@ -147,6 +148,7 @@ object BillboardRenderer {
     fun mobColor(kind: ru.course.roguelike.shared.model.MobKind): Int = when (kind) {
         ru.course.roguelike.shared.model.MobKind.MELEE -> rgb(0xFF, 0xD7, 0x00)
         ru.course.roguelike.shared.model.MobKind.RANGED -> rgb(0x33, 0x99, 0xFF)
+        ru.course.roguelike.shared.model.MobKind.LLM_GUARD -> rgb(0xCC, 0x33, 0xFF)
     }
 
     fun projectileColor(): Int = rgb(0xFF, 0x22, 0x22)
