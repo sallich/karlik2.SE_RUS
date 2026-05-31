@@ -1,5 +1,6 @@
 package ru.course.roguelike.game.application
 
+import ru.course.roguelike.game.domain.combat.MobSpawner
 import ru.course.roguelike.game.domain.command.CommandDispatcher
 import ru.course.roguelike.game.domain.command.GameCommand
 import ru.course.roguelike.game.domain.event.GameEvent
@@ -41,6 +42,7 @@ class GameEngine(
             buildSession(sessionId, resolvedSeed)
         }
         sessions[sessionId] = session
+        MobSpawner.spawnStarterPack(session)
         eventBus.publish(listOf(GameEvent.SessionCreated(sessionId, resolvedSeed)))
         return session.toSnapshot()
     }

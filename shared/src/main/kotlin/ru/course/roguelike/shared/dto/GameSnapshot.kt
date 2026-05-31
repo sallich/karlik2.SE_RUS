@@ -18,6 +18,8 @@ data class GameSnapshot(
     val serverTimeMs: Long = 0L,
     /** Активный уровень локации (0 — нижний). Меняется при использовании лифта. */
     val currentLevel: Int = 0,
+    val mobs: List<MobSnapshot> = emptyList(),
+    val projectiles: List<ProjectileSnapshot> = emptyList(),
 )
 
 @Serializable

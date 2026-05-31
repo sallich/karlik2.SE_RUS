@@ -16,11 +16,7 @@ class RoguelikeSync(
     private val api: GameApiClient,
     private val onStatusLine: (String) -> Unit,
     private val onSnapshot: (GameSnapshot) -> Unit,
-    private val poseAccessor: () -> PlayerPose?,
-    private val poseMutator: (PlayerPose?) -> Unit,
-    private val authoritativeMutator: (PlayerPose?) -> Unit,
-    /** HP/maxHP с сервера (источник правды по урону, напр. от лавы). */
-    private val vitalsMutator: (Int, Int) -> Unit = { _, _ -> },
+    private val bindings: SyncBindings,
 ) {
     var sessionId: String? = null
         private set
@@ -41,8 +37,8 @@ class RoguelikeSync(
                     onSnapshot(created)
                 }
                 onStatusLine(
-                    "WASD — ходьба, мышь/ПКМ — поворот, ←→ — поворот, ↑↓ — pitch. " +
-                        "Esc — мышь. F3 — коллизии. F4 — карта локации.",
+                    "WASD — ходьба, ЛКМ/Space — атака, мышь/ПКМ — yaw/pitch, ←→ — поворот, ↑↓/Q/E — pitch. " +
+                        "Esc — мышь. F3 — миникарта. F4 — карта локации.",
                 )
             } catch (ex: Exception) {
                 onStatusLine("Server error: ${ex.message}. Run :game-service:run")
@@ -61,9 +57,10 @@ class RoguelikeSync(
     fun applySnapshot(snap: GameSnapshot) {
         sessionId = snap.sessionId
         val pose = snap.player.pose
-        poseMutator(pose)
-        authoritativeMutator(pose)
-        vitalsMutator(snap.player.hp, snap.player.maxHp)
+        bindings.poseMutator(pose)
+        bindings.authoritativeMutator(pose)
+        bindings.vitalsMutator(snap.player.hp, snap.player.maxHp)
+        bindings.combatMutator(snap.mobs, snap.projectiles)
         currentLevel = snap.currentLevel
     }
 
@@ -87,9 +84,12 @@ class RoguelikeSync(
             val hp = snap.player.hp
             val maxHp = snap.player.maxHp
             val level = snap.currentLevel
+            val mobs = snap.mobs
+            val projectiles = snap.projectiles
             Gdx.app.postRunnable {
                 applyServerCorrection(auth)
-                vitalsMutator(hp, maxHp)
+                bindings.vitalsMutator(hp, maxHp)
+                bindings.combatMutator(mobs, projectiles)
                 notifyLevelChange(level)
             }
         } catch (ex: Exception) {
@@ -98,11 +98,11 @@ class RoguelikeSync(
     }
 
     private fun applyServerCorrection(serverPose: PlayerPose) {
-        val pred = poseAccessor() ?: return
+        val pred = bindings.poseAccessor() ?: return
         val auth = serverPose.copy(yaw = pred.yaw, pitch = pred.pitch)
-        authoritativeMutator(auth)
+        bindings.authoritativeMutator(auth)
         val err = hypot((auth.x - pred.x).toDouble(), (auth.y - pred.y).toDouble()).toFloat()
-        poseMutator(
+        bindings.poseMutator(
             when {
                 err > FpsConstants.SYNC_POSITION_HARD_SNAP ->
                     pred.copy(x = auth.x, y = auth.y)
@@ -126,5 +126,6 @@ class RoguelikeSync(
             yawDelta = prev.yawDelta + frame.yawDelta,
             pitchDelta = prev.pitchDelta + frame.pitchDelta,
             deltaMs = prev.deltaMs + frame.deltaMs,
+            attack = prev.attack || frame.attack,
         )
 }

@@ -19,6 +19,13 @@ object Raycaster {
         val colorRgb: Int,
     )
 
+    data class WallColumnMeta(
+        val distance: Float,
+        val side: Int,
+        val wallU: Float,
+        val tile: TileType?,
+    )
+
     fun castColumns(
         map: TileMap,
         pose: PlayerPose,
@@ -26,11 +33,27 @@ object Raycaster {
         screenHeight: Int,
         horizonY: Float,
         fovRadians: Float = FpsConstants.DEFAULT_FOV_RADIANS,
-    ): Array<Column> {
-        if (screenWidth <= 0) return emptyArray()
+    ): Array<Column> = castScene(map, pose, screenWidth, screenHeight, horizonY, fovRadians).columns
+
+    data class SceneCast(
+        val columns: Array<Column>,
+        val wallDistances: FloatArray,
+        val wallMeta: Array<WallColumnMeta>,
+    )
+
+    fun castScene(
+        map: TileMap,
+        pose: PlayerPose,
+        screenWidth: Int,
+        screenHeight: Int,
+        horizonY: Float,
+        fovRadians: Float = FpsConstants.DEFAULT_FOV_RADIANS,
+    ): SceneCast {
+        if (screenWidth <= 0) return SceneCast(emptyArray(), FloatArray(0), emptyArray())
 
         val distances = FloatArray(screenWidth)
         val colors = IntArray(screenWidth)
+        val meta = arrayOfNulls<WallColumnMeta>(screenWidth)
 
         val posX = pose.x
         val posY = pose.y
@@ -76,6 +99,10 @@ object Raycaster {
             var side = 0
             var outOfBounds = false
             var hitTile: TileType? = null
+            var hitMapX = 0
+            var hitMapY = 0
+            var hitStepX = 1
+            var hitStepY = 1
 
             while (!hit) {
                 if (sideDistX < sideDistY) {
@@ -96,6 +123,10 @@ object Raycaster {
                     if (tile != null && tile.blocksVision) {
                         hit = true
                         hitTile = tile
+                        hitMapX = mapX
+                        hitMapY = mapY
+                        hitStepX = stepX
+                        hitStepY = stepY
                     }
                 }
             }
@@ -103,20 +134,24 @@ object Raycaster {
             var perpWallDist = if (outOfBounds) {
                 24f
             } else if (side == 0) {
-                (mapX - posX + (1 - stepX) / 2f) / rayDirX
+                (hitMapX - posX + (1 - hitStepX) / 2f) / rayDirX
             } else {
-                (mapY - posY + (1 - stepY) / 2f) / rayDirY
+                (hitMapY - posY + (1 - hitStepY) / 2f) / rayDirY
             }
             perpWallDist = abs(perpWallDist).coerceIn(FpsConstants.COLLISION_MIN_RAY_DIST, 64f)
 
             distances[col] = perpWallDist
             val shade = (200 / (1f + perpWallDist * 0.28f)).toInt().coerceIn(50, 220)
             colors[col] = colorFor(hitTile, side, shade)
+            if (!outOfBounds) {
+                val hitCoord = TextureMapping.wallHitCoord(side, perpWallDist, rayDirX, rayDirY, posX, posY)
+                meta[col] = WallColumnMeta(perpWallDist, side, hitCoord, hitTile)
+            }
         }
 
-        smoothWallDistances(distances)
+        unwrapWallTextureU(meta)
 
-        return Array(screenWidth) { col ->
+        val columns = Array(screenWidth) { col ->
             val perpWallDist = distances[col]
             val lineHeight = screenHeight / perpWallDist
             val halfH = lineHeight / 2f
@@ -124,24 +159,32 @@ object Raycaster {
             val drawEnd = (horizonY + halfH).coerceAtMost(screenHeight.toFloat())
             Column(drawStart, drawEnd, colors[col])
         }
+        return SceneCast(columns, distances, Array(screenWidth) { meta[it] ?: WallColumnMeta(distances[it], 0, 0f, null) })
     }
 
-    /**
-     * Сглаживание глубины между соседними столбцами — убирает «лесенки» на дальних стенах.
-     */
-    private fun smoothWallDistances(distances: FloatArray) {
-        if (distances.size < 3) return
-        val scratch = distances.copyOf()
-        for (col in 1 until distances.size - 1) {
-            val d = distances[col]
-            val weight = when {
-                d > 8f -> 1f
-                d > 4f -> 0.65f
-                else -> 0.35f
+   
+    private fun unwrapWallTextureU(meta: Array<WallColumnMeta?>) {
+        var offset = 0
+        var prevFrac = 0f
+        var prevSide = -1
+        var prevTile: TileType? = null
+        for (col in meta.indices) {
+            val entry = meta[col] ?: continue
+            if (entry.side != prevSide || entry.tile != prevTile) {
+                offset = 0
+                prevFrac = TextureMapping.wallFracU(entry.wallU)
+                meta[col] = entry.copy(wallU = TextureMapping.continuousWallU(entry.wallU, offset))
+                prevSide = entry.side
+                prevTile = entry.tile
+                continue
             }
-            if (weight < 0.01f) continue
-            val smoothed = (scratch[col - 1] + scratch[col] * 2f + scratch[col + 1]) / 4f
-            distances[col] = d + (smoothed - d) * weight
+            val fracU = TextureMapping.wallFracU(entry.wallU)
+            if (fracU - prevFrac > 0.5f) offset--
+            if (prevFrac - fracU > 0.5f) offset++
+            meta[col] = entry.copy(wallU = TextureMapping.continuousWallU(entry.wallU, offset))
+            prevFrac = fracU
+            prevSide = entry.side
+            prevTile = entry.tile
         }
     }
 

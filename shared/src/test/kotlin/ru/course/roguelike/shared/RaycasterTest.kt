@@ -50,6 +50,17 @@ class RaycasterTest {
     }
 
     @Test
+    fun `cast scene exposes wall texture metadata`() {
+        val tiles = Array(9) { TileType.FLOOR }
+        tiles[2] = TileType.WALL
+        val map = TileMap(3, 3, tiles)
+        val scene = Raycaster.castScene(map, PlayerPose(1.5f, 1.5f, yaw = 0f), 16, 16, horizonY = 8f)
+        assertTrue(scene.wallMeta.any { it.wallU >= 0f })
+        assertEquals(scene.columns.size, scene.wallDistances.size)
+        assertEquals(scene.columns.size, scene.wallMeta.size)
+    }
+
+    @Test
     fun `floor distance grows toward the horizon`() {
         val near = Raycaster.floorDistance(screenHeight = 200, horizon = 100f, screenRow = 190)
         val far = Raycaster.floorDistance(screenHeight = 200, horizon = 100f, screenRow = 110)

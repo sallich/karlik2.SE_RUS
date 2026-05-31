@@ -3,8 +3,10 @@ package ru.course.roguelike.client.render
 import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer
 import com.badlogic.gdx.math.Matrix4
+import ru.course.roguelike.shared.dto.MobSnapshot
 import ru.course.roguelike.shared.engine.TileMap
 import ru.course.roguelike.shared.model.GridPos
+import ru.course.roguelike.shared.model.MobKind
 import ru.course.roguelike.shared.model.PlayerPose
 import ru.course.roguelike.shared.model.TileType
 import kotlin.math.cos
@@ -16,11 +18,18 @@ import kotlin.math.sin
  * В отличие от миникарты коллизий ([CollisionDebugOverlay], окно 7x7 вокруг
  * героя) рисует весь сгенерированный уровень целиком: стены, колонны, лаву,
  * лифты и пол — чтобы видеть, что и где сгенерировано и куда движется герой.
+ *
  */
 class LocationMapOverlay(
     private val shapeRenderer: ShapeRenderer,
 ) {
-    fun render(screenWidth: Float, screenHeight: Float, map: TileMap, pose: PlayerPose?) {
+    fun render(
+        screenWidth: Float,
+        screenHeight: Float,
+        map: TileMap,
+        pose: PlayerPose?,
+        mobs: List<MobSnapshot> = emptyList(),
+    ) {
         val layout = layout(screenWidth, screenHeight, map)
         shapeRenderer.projectionMatrix = Matrix4().setToOrtho2D(0f, 0f, screenWidth, screenHeight)
 
@@ -28,6 +37,7 @@ class LocationMapOverlay(
         shapeRenderer.color = BACKGROUND
         shapeRenderer.rect(layout.left, layout.bottom, layout.widthPx, layout.heightPx)
         drawTiles(map, layout)
+        drawMobs(mobs, layout)
         pose?.let { drawPlayer(it, layout) }
         shapeRenderer.end()
 
@@ -52,6 +62,18 @@ class LocationMapOverlay(
         }
     }
 
+    private fun drawMobs(mobs: List<MobSnapshot>, layout: Layout) {
+        for (mob in mobs) {
+            shapeRenderer.color = when (mob.kind) {
+                MobKind.MELEE -> Color.GOLD
+                MobKind.RANGED -> Color.SKY
+            }
+            val px = layout.left + mob.x * layout.cellPx
+            val py = layout.bottom + mob.y * layout.cellPx
+            shapeRenderer.circle(px, py, layout.cellPx * 0.45f, 12)
+        }
+    }
+
     private fun drawPlayer(pose: PlayerPose, layout: Layout) {
         val px = layout.left + pose.x * layout.cellPx
         val py = layout.bottom + pose.y * layout.cellPx
@@ -62,7 +84,6 @@ class LocationMapOverlay(
         shapeRenderer.rectLine(px, py, px + cos(pose.yaw) * aimLen, py + sin(pose.yaw) * aimLen, 1.5f)
     }
 
-    /** Пол тоже рисуем (приглушённо), чтобы видеть всю проходимую раскладку. */
     private fun cellColor(tile: TileType?): Color? = when (tile) {
         TileType.FLOOR -> FLOOR
         TileType.WALL -> Color.DARK_GRAY

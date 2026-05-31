@@ -51,4 +51,7 @@ object FpsConstants {
 
     /** Урон лавой в единицах HP в секунду, пока герой стоит на тайле LAVA. */
     const val LAVA_DAMAGE_PER_SECOND = 20f
+
+    /** Мышь вверх → взгляд вверх (отрицательный pitch). */
+    const val MOUSE_PITCH_SIGN = -1f
 }
