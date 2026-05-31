@@ -13,5 +13,9 @@ sealed interface GameEvent {
 
     data class PlayerDamaged(val amount: Int, val remainingHp: Int) : GameEvent
 
+    data class MobDamaged(val mobId: Long, val amount: Int, val remainingHp: Int) : GameEvent
+
+    data class MobKilled(val mobId: Long) : GameEvent
+
     data class LevelChanged(val level: Int) : GameEvent
 }

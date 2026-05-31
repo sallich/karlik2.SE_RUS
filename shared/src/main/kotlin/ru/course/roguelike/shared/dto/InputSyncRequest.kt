@@ -23,4 +23,5 @@ data class InputSyncRequest(
      */
     val clientYaw: Float? = null,
     val clientPitch: Float? = null,
+    val attack: Boolean = false,
 )

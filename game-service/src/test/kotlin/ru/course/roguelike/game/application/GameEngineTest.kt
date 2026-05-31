@@ -18,6 +18,7 @@ class GameEngineTest {
         assertEquals(100, snap.player.hp)
         assertEquals(100, snap.player.maxHp)
         assertEquals(snap.width * snap.height, snap.tiles.size)
+        assertTrue(snap.mobs.isNotEmpty(), "expected starter mobs in session")
     }
 
     @Test

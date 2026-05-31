@@ -8,6 +8,7 @@ import ru.course.roguelike.shared.model.FpsConstants
 
 object InputSampler {
     private const val MOUSE_YAW_PER_PIXEL = 0.0025f
+    private const val MOUSE_PITCH_PER_PIXEL = 0.0025f
 
     data class Sample(val input: InputSyncRequest)
 
@@ -22,6 +23,11 @@ object InputSampler {
         } else {
             0f
         }
+        val pitchDelta = if (mouseLook) {
+            FpsConstants.MOUSE_PITCH_SIGN * Gdx.input.deltaY * MOUSE_PITCH_PER_PIXEL * frameScale
+        } else {
+            0f
+        }
 
         return Sample(
             input = InputSyncRequest(
@@ -31,10 +37,13 @@ object InputSampler {
                 strafeRight = pressed(Input.Keys.D),
                 turnLeft = pressed(Input.Keys.LEFT),
                 turnRight = pressed(Input.Keys.RIGHT),
-                lookUp = pressed(Input.Keys.UP),
-                lookDown = pressed(Input.Keys.DOWN),
+                lookUp = pressed(Input.Keys.UP, Input.Keys.Q),
+                lookDown = pressed(Input.Keys.DOWN, Input.Keys.E),
                 yawDelta = yawDelta,
+                pitchDelta = pitchDelta,
                 deltaMs = deltaMs,
+                attack = Gdx.input.isButtonJustPressed(Input.Buttons.LEFT) ||
+                    Gdx.input.isKeyJustPressed(Input.Keys.SPACE),
             ),
         )
     }

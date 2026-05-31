@@ -52,6 +52,10 @@ tasks.named("check") {
     dependsOn(tasks.named("jacocoTestCoverageVerification"))
 }
 
+tasks.named<ProcessResources>("processResources") {
+    from("${rootProject.projectDir}/shared/assets")
+}
+
 dependencies {
     detektPlugins(libs.detekt.formatting)
 

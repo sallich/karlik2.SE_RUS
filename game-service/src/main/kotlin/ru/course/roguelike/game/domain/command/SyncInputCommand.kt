@@ -1,5 +1,6 @@
 package ru.course.roguelike.game.domain.command
 
+import ru.course.roguelike.game.domain.combat.CombatSystem
 import ru.course.roguelike.game.domain.event.GameEvent
 import ru.course.roguelike.game.domain.session.ElevatorSystem
 import ru.course.roguelike.game.domain.session.GameSession
@@ -28,6 +29,7 @@ class SyncInputCommand(
         )
         LavaDamageSystem.apply(session, input.deltaMs)?.let { events.add(it) }
         ElevatorSystem.apply(session)?.let { events.add(it) }
+        events.addAll(CombatSystem.tick(session, input.deltaMs, input.attack))
         return CommandExecutionResult(
             accepted = true,
             message = "sync ok",

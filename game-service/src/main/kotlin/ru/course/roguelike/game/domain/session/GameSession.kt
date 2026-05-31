@@ -1,5 +1,7 @@
 package ru.course.roguelike.game.domain.session
 
+import ru.course.roguelike.game.domain.combat.MobEntity
+import ru.course.roguelike.game.domain.combat.ProjectileEntity
 import ru.course.roguelike.shared.dto.GameSnapshot
 import ru.course.roguelike.shared.dto.PlayerSnapshot
 import ru.course.roguelike.shared.engine.TileMap
@@ -27,9 +29,15 @@ data class GameSession(
     var currentLevel: Int = 0,
     /** Стоял ли герой на лифте в прошлом тике — чтобы не зациклить переход. */
     var onElevator: Boolean = false,
+    val mobs: MutableList<MobEntity> = mutableListOf(),
+    val projectiles: MutableList<ProjectileEntity> = mutableListOf(),
+    var nextEntityId: Long = 1,
+    var playerAttackCooldownMs: Int = 0,
 ) {
     /** Карта активного уровня — её видят системы движения, урона и снимок. */
     val activeMap: TileMap get() = if (currentLevel == 1) secondLevel ?: map else map
+
+    fun allocateEntityId(): Long = nextEntityId++
 
     fun touchClock() {
         tick++
@@ -51,5 +59,7 @@ data class GameSession(
         tick = tick,
         serverTimeMs = serverTimeMs,
         currentLevel = currentLevel,
+        mobs = mobs.filter { it.alive }.map { it.toSnapshot() },
+        projectiles = projectiles.map { it.toSnapshot() },
     )
 }

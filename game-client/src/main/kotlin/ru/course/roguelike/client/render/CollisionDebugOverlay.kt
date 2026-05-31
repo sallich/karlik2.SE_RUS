@@ -3,15 +3,15 @@ package ru.course.roguelike.client.render
 import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer
 import com.badlogic.gdx.math.Matrix4
+import ru.course.roguelike.shared.dto.MobSnapshot
 import ru.course.roguelike.shared.engine.CollisionDebug
 import ru.course.roguelike.shared.engine.TileMap
 import ru.course.roguelike.shared.model.FpsConstants
 import ru.course.roguelike.shared.model.GridPos
+import ru.course.roguelike.shared.model.MobKind
 import ru.course.roguelike.shared.model.PlayerPose
 import ru.course.roguelike.shared.model.TileType
-import kotlin.math.cos
-import kotlin.math.hypot
-import kotlin.math.sin
+import ru.course.roguelike.shared.render.MiniMapProjection
 
 class CollisionDebugOverlay(
     private val shapeRenderer: ShapeRenderer,
@@ -22,13 +22,15 @@ class CollisionDebugOverlay(
         map: TileMap,
         pose: PlayerPose,
         debug: CollisionDebug,
+        mobs: List<MobSnapshot> = emptyList(),
     ) {
-        val layout = miniMapLayout(pose)
+        val layout = miniMapLayout()
         shapeRenderer.projectionMatrix = Matrix4().setToOrtho2D(0f, 0f, screenWidth, screenHeight)
         shapeRenderer.begin(ShapeRenderer.ShapeType.Line)
         drawMiniMapFrame(layout)
-        drawWallCells(map, layout)
-        drawHitCells(debug, layout)
+        drawWallCells(map, pose, layout)
+        drawHitCells(pose, debug, layout)
+        drawMobs(pose, mobs, layout)
         drawPlayerAndVectors(pose, debug, layout)
         shapeRenderer.end()
     }
@@ -38,79 +40,129 @@ class CollisionDebugOverlay(
         shapeRenderer.rect(layout.left, layout.bottom, layout.mapSize, layout.mapSize)
     }
 
-    private fun drawWallCells(map: TileMap, layout: MiniMapLayout) {
+    private fun drawWallCells(map: TileMap, pose: PlayerPose, layout: MiniMapLayout) {
         val half = layout.cellsVisible / 2
-        for (dy in -half..half) {
-            for (dx in -half..half) {
-                val gx = layout.centerGx + dx
-                val gy = layout.centerGy + dy
-                val cellColor = miniMapCellColor(map.get(GridPos(gx, gy))) ?: continue
-                val x0 = layout.originX + dx * layout.cellPx - layout.cellPx / 2f
-                val y0 = layout.originY + dy * layout.cellPx - layout.cellPx / 2f
-                shapeRenderer.color = cellColor
-                shapeRenderer.rect(x0, y0, layout.cellPx, layout.cellPx)
+        for (gy in 0 until map.height) {
+            for (gx in 0 until map.width) {
+                drawWallCell(map, pose, layout, gx, gy, half)
             }
         }
     }
 
-    /** Цвет клетки миникарты: стены/колонны — серый, лава — красная, пол — не рисуем. */
+    private fun drawWallCell(
+        map: TileMap,
+        pose: PlayerPose,
+        layout: MiniMapLayout,
+        gx: Int,
+        gy: Int,
+        half: Int,
+    ) {
+        val point = MiniMapProjection.worldToMinimap(pose, gx + 0.5f, gy + 0.5f)
+        if (!MiniMapProjection.isVisible(point, half.toFloat())) return
+        val cellColor = miniMapCellColor(map.get(GridPos(gx, gy))) ?: return
+        val (sx, sy) = MiniMapProjection.toScreen(layout.originX, layout.originY, layout.cellPx, point)
+        shapeRenderer.color = cellColor
+        shapeRenderer.rect(
+            sx - layout.cellPx / 2f,
+            sy - layout.cellPx / 2f,
+            layout.cellPx,
+            layout.cellPx,
+        )
+    }
+
     private fun miniMapCellColor(tile: TileType?): Color? = when (tile) {
         TileType.WALL -> Color.DARK_GRAY
         TileType.COLUMN -> Color.GRAY
         TileType.LAVA -> Color.RED
         TileType.ELEVATOR -> Color.CYAN
+        TileType.FLOOR -> Color(0.16f, 0.18f, 0.22f, 0.55f)
         else -> null
     }
 
-    private fun drawHitCells(debug: CollisionDebug, layout: MiniMapLayout) {
+    private fun drawHitCells(pose: PlayerPose, debug: CollisionDebug, layout: MiniMapLayout) {
         for (cell in debug.hitCells) {
-            val dx = cell.x - layout.centerGx
-            val dy = cell.y - layout.centerGy
-            val x0 = layout.originX + dx * layout.cellPx - layout.cellPx / 2f
-            val y0 = layout.originY + dy * layout.cellPx - layout.cellPx / 2f
+            val point = MiniMapProjection.worldToMinimap(pose, cell.x + 0.5f, cell.y + 0.5f)
+            val (sx, sy) = MiniMapProjection.toScreen(layout.originX, layout.originY, layout.cellPx, point)
             shapeRenderer.color = Color.RED
-            shapeRenderer.rect(x0, y0, layout.cellPx, layout.cellPx)
+            shapeRenderer.rect(
+                sx - layout.cellPx / 2f,
+                sy - layout.cellPx / 2f,
+                layout.cellPx,
+                layout.cellPx,
+            )
+        }
+    }
+
+    private fun drawMobs(pose: PlayerPose, mobs: List<MobSnapshot>, layout: MiniMapLayout) {
+        val half = layout.cellsVisible / 2
+        for (mob in mobs) {
+            val point = MiniMapProjection.worldToMinimap(pose, mob.x, mob.y)
+            if (!MiniMapProjection.isVisible(point, half.toFloat())) continue
+            val (sx, sy) = MiniMapProjection.toScreen(layout.originX, layout.originY, layout.cellPx, point)
+            shapeRenderer.color = when (mob.kind) {
+                MobKind.MELEE -> Color.GOLD
+                MobKind.RANGED -> Color.SKY
+            }
+            shapeRenderer.circle(sx, sy, layout.cellPx * 0.35f, 10)
         }
     }
 
     private fun drawPlayerAndVectors(pose: PlayerPose, debug: CollisionDebug, layout: MiniMapLayout) {
-        val playerSx = layout.originX + (pose.x - layout.centerGx - 0.5f) * layout.cellPx
-        val playerSy = layout.originY + (pose.y - layout.centerGy - 0.5f) * layout.cellPx
+        val playerPoint = MiniMapProjection.MinimapPoint(0f, 0f)
+        val (playerSx, playerSy) = MiniMapProjection.toScreen(
+            layout.originX,
+            layout.originY,
+            layout.cellPx,
+            playerPoint,
+        )
         val radiusPx = FpsConstants.PLAYER_RADIUS * layout.cellPx
         shapeRenderer.color = Color.SKY
         shapeRenderer.circle(playerSx, playerSy, radiusPx, 32)
 
-        val endSx = playerSx + debug.actualDx * layout.cellPx
-        val endSy = playerSy + debug.actualDy * layout.cellPx
+        val movePoint = MiniMapProjection.worldToMinimap(
+            pose,
+            pose.x + debug.actualDx,
+            pose.y + debug.actualDy,
+        )
+        val (endSx, endSy) = MiniMapProjection.toScreen(layout.originX, layout.originY, layout.cellPx, movePoint)
         shapeRenderer.color = Color.GREEN
         shapeRenderer.line(playerSx, playerSy, endSx, endSy)
 
-        val aimLen = 0.45f * layout.cellPx
-        val aimEndSx = playerSx + cos(debug.moveYaw) * aimLen
-        val aimEndSy = playerSy + sin(debug.moveYaw) * aimLen
+        val aim = MiniMapProjection.aimEnd(pose)
+        val (aimEndSx, aimEndSy) = MiniMapProjection.toScreen(layout.originX, layout.originY, layout.cellPx, aim)
         shapeRenderer.color = Color.YELLOW
         shapeRenderer.line(playerSx, playerSy, aimEndSx, aimEndSy)
 
         if (debug.blocked) {
-            drawRequestedMove(playerSx, playerSy, debug, layout.cellPx)
+            drawRequestedMove(playerSx, playerSy, pose, debug, layout)
         }
     }
 
     private fun drawRequestedMove(
         playerSx: Float,
         playerSy: Float,
+        pose: PlayerPose,
         debug: CollisionDebug,
-        cellPx: Float,
+        layout: MiniMapLayout,
     ) {
-        val reqLen = hypot(debug.requestedDx.toDouble(), debug.requestedDy.toDouble()).toFloat()
+        val reqLen = kotlin.math.hypot(debug.requestedDx.toDouble(), debug.requestedDy.toDouble()).toFloat()
         if (reqLen <= 1e-5f) return
-        val reqEndSx = playerSx + (debug.requestedDx / reqLen) * reqLen * cellPx
-        val reqEndSy = playerSy + (debug.requestedDy / reqLen) * reqLen * cellPx
+        val reqPoint = MiniMapProjection.worldToMinimap(
+            pose,
+            pose.x + debug.requestedDx,
+            pose.y + debug.requestedDy,
+        )
+        val (reqEndSx, reqEndSy) = MiniMapProjection.toScreen(
+            layout.originX,
+            layout.originY,
+            layout.cellPx,
+            reqPoint,
+        )
         shapeRenderer.color = Color.ORANGE
         shapeRenderer.line(playerSx, playerSy, reqEndSx, reqEndSy)
     }
 
-    private fun miniMapLayout(pose: PlayerPose): MiniMapLayout {
+    private fun miniMapLayout(): MiniMapLayout {
         val pad = 12f
         val mapSize = 140f
         val left = pad
@@ -123,8 +175,6 @@ class CollisionDebugOverlay(
             mapSize = mapSize,
             cellPx = cellPx,
             cellsVisible = cellsVisible,
-            centerGx = pose.x.toInt(),
-            centerGy = pose.y.toInt(),
             originX = left + mapSize / 2f,
             originY = bottom + mapSize / 2f,
         )
@@ -136,8 +186,6 @@ class CollisionDebugOverlay(
         val mapSize: Float,
         val cellPx: Float,
         val cellsVisible: Int,
-        val centerGx: Int,
-        val centerGy: Int,
         val originX: Float,
         val originY: Float,
     )

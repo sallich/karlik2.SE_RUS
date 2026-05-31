@@ -11,13 +11,17 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import ru.course.roguelike.client.audio.GameAudio
 import ru.course.roguelike.client.input.InputSampler
 import ru.course.roguelike.client.net.GameApiClient
 import ru.course.roguelike.client.render.CollisionDebugOverlay
 import ru.course.roguelike.client.render.FpsViewportRenderer
+import ru.course.roguelike.client.render.GameTextures
 import ru.course.roguelike.client.render.LocationMapOverlay
 import ru.course.roguelike.shared.dto.GameSnapshot
 import ru.course.roguelike.shared.dto.InputSyncRequest
+import ru.course.roguelike.shared.dto.MobSnapshot
+import ru.course.roguelike.shared.dto.ProjectileSnapshot
 import ru.course.roguelike.shared.engine.CollisionDebug
 import ru.course.roguelike.shared.engine.FpsMovementSystem
 import ru.course.roguelike.shared.engine.TileMap
@@ -31,10 +35,12 @@ class RoguelikeGame : ApplicationAdapter() {
     private lateinit var font: BitmapFont
     private lateinit var hud: RoguelikeHud
     private lateinit var viewport: FpsViewportRenderer
+    private lateinit var gameTextures: GameTextures
     private lateinit var shapeRenderer: ShapeRenderer
     private lateinit var collisionDebugOverlay: CollisionDebugOverlay
     private lateinit var locationMapOverlay: LocationMapOverlay
     private lateinit var sync: RoguelikeSync
+    private lateinit var audio: GameAudio
 
     private var tileMap: TileMap? = null
 
@@ -59,6 +65,12 @@ class RoguelikeGame : ApplicationAdapter() {
     private var playerHp = 0
     private var playerMaxHp = 0
 
+    @Volatile
+    private var serverMobs: List<MobSnapshot> = emptyList()
+
+    @Volatile
+    private var serverProjectiles: List<ProjectileSnapshot> = emptyList()
+
     override fun create() {
         batch = SpriteBatch()
         font = BitmapFont()
@@ -66,19 +78,29 @@ class RoguelikeGame : ApplicationAdapter() {
         shapeRenderer = ShapeRenderer()
         collisionDebugOverlay = CollisionDebugOverlay(shapeRenderer)
         locationMapOverlay = LocationMapOverlay(shapeRenderer)
-        viewport = FpsViewportRenderer(640, 360)
+        gameTextures = GameTextures.load()
+        audio = GameAudio()
+        audio.load()
+        audio.playAmbient()
+        viewport = FpsViewportRenderer(640, 360, gameTextures)
         sync = RoguelikeSync(
             scope = scope,
             api = api,
             onStatusLine = { statusLine = it },
             onSnapshot = { applySnapshotFromServer(it) },
-            poseAccessor = { predictedPose },
-            poseMutator = { predictedPose = it },
-            authoritativeMutator = { authoritativePose = it },
-            vitalsMutator = { hp, maxHp ->
-                playerHp = hp
-                playerMaxHp = maxHp
-            },
+            bindings = SyncBindings(
+                poseAccessor = { predictedPose },
+                poseMutator = { predictedPose = it },
+                authoritativeMutator = { authoritativePose = it },
+                vitalsMutator = { hp, maxHp ->
+                    playerHp = hp
+                    playerMaxHp = maxHp
+                },
+                combatMutator = { mobs, projectiles ->
+                    serverMobs = mobs
+                    serverProjectiles = projectiles
+                },
+            ),
         )
         Gdx.graphics.setForegroundFPS(60)
         InputSampler.enableMouseLook()
@@ -129,6 +151,10 @@ class RoguelikeGame : ApplicationAdapter() {
         pendingSyncInput = sync.mergeInput(pendingSyncInput, sample.input)
         pendingSyncDeltaMs = (pendingSyncDeltaMs + sample.input.deltaMs).coerceAtMost(250)
 
+        if (sample.input.attack) {
+            audio.playHit()
+        }
+
         val movement = FpsMovementSystem.applyInputWithDebug(map, pose, sample.input)
         lastCollisionDebug = movement.debug
         val localPose = movement.pose
@@ -136,7 +162,7 @@ class RoguelikeGame : ApplicationAdapter() {
         maybeSendSync(localPose)
         pose = localPose
         predictedPose = pose
-        frameTexture = viewport.render(map, pose)
+        frameTexture = viewport.render(map, pose, serverMobs, serverProjectiles)
         return pose
     }
 
@@ -159,9 +185,13 @@ class RoguelikeGame : ApplicationAdapter() {
         Gdx.gl.glClearColor(0f, 0f, 0f, 1f)
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT)
         val tex = frameTexture ?: return
+        val blendSrc = batch.blendSrcFunc
+        val blendDst = batch.blendDstFunc
+        batch.setBlendFunction(GL20.GL_ONE, GL20.GL_ZERO)
         batch.begin()
         batch.draw(tex, 0f, 0f, Gdx.graphics.width.toFloat(), Gdx.graphics.height.toFloat())
         batch.end()
+        batch.setBlendFunction(blendSrc, blendDst)
     }
 
     private fun drawDebugOverlays(pose: PlayerPose?) {
@@ -170,10 +200,17 @@ class RoguelikeGame : ApplicationAdapter() {
         val screenH = Gdx.graphics.height.toFloat()
         Gdx.gl.glEnable(GL20.GL_BLEND)
         if (showLocationMap) {
-            tileMap?.let { locationMapOverlay.render(screenW, screenH, it, pose) }
+            tileMap?.let { locationMapOverlay.render(screenW, screenH, it, pose, serverMobs) }
         }
         collisionOverlayParams(pose)?.let { overlay ->
-            collisionDebugOverlay.render(screenW, screenH, overlay.map, overlay.pose, overlay.debug)
+            collisionDebugOverlay.render(
+                screenW,
+                screenH,
+                overlay.map,
+                overlay.pose,
+                overlay.debug,
+                serverMobs,
+            )
         }
         Gdx.gl.glDisable(GL20.GL_BLEND)
     }
@@ -188,6 +225,9 @@ class RoguelikeGame : ApplicationAdapter() {
 
     private fun applySnapshotFromServer(snap: GameSnapshot) {
         tileMap = TileMap.fromFlat(snap.width, snap.height, snap.tiles)
+        serverMobs = snap.mobs
+        serverProjectiles = snap.projectiles
+        audio.onCombatSnapshot(snap.player.hp, snap.projectiles)
         sync.applySnapshot(snap)
     }
 
@@ -197,6 +237,7 @@ class RoguelikeGame : ApplicationAdapter() {
         InputSampler.disableMouseLook()
         frameTexture?.dispose()
         viewport.dispose()
+        audio.dispose()
         shapeRenderer.dispose()
         batch.dispose()
         font.dispose()
