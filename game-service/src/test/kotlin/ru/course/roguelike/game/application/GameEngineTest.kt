@@ -3,6 +3,7 @@ package ru.course.roguelike.game.application
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import ru.course.roguelike.shared.model.ExperienceProgression
 import ru.course.roguelike.shared.model.SessionPhase
 import ru.course.roguelike.shared.model.TileType
 import kotlin.math.floor
@@ -17,6 +18,10 @@ class GameEngineTest {
         assertEquals(123L, snap.seed)
         assertEquals(100, snap.player.hp)
         assertEquals(100, snap.player.maxHp)
+        assertEquals(ExperienceProgression.STARTING_LEVEL, snap.player.level)
+        assertEquals(0, snap.player.experience)
+        assertEquals(ExperienceProgression.xpRequiredForNextLevel(1), snap.player.experienceToNextLevel)
+        assertEquals(ExperienceProgression.attackDamageForLevel(1), snap.player.attackDamage)
         assertEquals(snap.width * snap.height, snap.tiles.size)
         assertTrue(snap.mobs.isNotEmpty(), "expected starter mobs in session")
     }
