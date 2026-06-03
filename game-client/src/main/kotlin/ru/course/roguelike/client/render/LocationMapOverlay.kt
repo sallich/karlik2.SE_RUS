@@ -58,8 +58,8 @@ class LocationMapOverlay(
                 val color = cellColor(map.get(GridPos(x, y))) ?: continue
                 shapeRenderer.color = color
                 shapeRenderer.rect(
-                    layout.left + x * layout.cellPx,
-                    layout.bottom + y * layout.cellPx,
+                    layout.left + y * layout.cellPx,     // было x, стало y
+                    layout.bottom + x * layout.cellPx,   // было y, стало x
                     layout.cellPx,
                     layout.cellPx,
                 )
@@ -70,8 +70,9 @@ class LocationMapOverlay(
     private fun drawKeys(keys: List<KeySnapshot>, layout: Layout) {
         for (key in keys) {
             shapeRenderer.color = Color.GOLD
-            val px = layout.left + key.x * layout.cellPx
-            val py = layout.bottom + key.y * layout.cellPx
+            val px = layout.left + key.y * layout.cellPx
+            val py = layout.bottom + key.x * layout.cellPx
+            // рисуем квадрат как обычно
             shapeRenderer.rect(
                 px - layout.cellPx * 0.2f,
                 py - layout.cellPx * 0.2f,
@@ -83,8 +84,8 @@ class LocationMapOverlay(
 
     private fun drawExitGate(gate: GridPos, layout: Layout) {
         shapeRenderer.color = Color.GREEN
-        val px = layout.left + gate.x * layout.cellPx
-        val py = layout.bottom + gate.y * layout.cellPx
+        val px = layout.left + gate.y * layout.cellPx
+        val py = layout.bottom + gate.x * layout.cellPx
         shapeRenderer.rect(px, py, layout.cellPx, layout.cellPx)
     }
 
@@ -95,20 +96,21 @@ class LocationMapOverlay(
                 MobKind.RANGED -> Color.SKY
                 MobKind.LLM_GUARD -> Color.MAGENTA
             }
-            val px = layout.left + mob.x * layout.cellPx
-            val py = layout.bottom + mob.y * layout.cellPx
+            val px = layout.left + mob.y * layout.cellPx
+            val py = layout.bottom + mob.x * layout.cellPx
             shapeRenderer.circle(px, py, layout.cellPx * 0.45f, 12)
         }
     }
 
     private fun drawPlayer(pose: PlayerPose, layout: Layout) {
-        val px = layout.left + pose.x * layout.cellPx
-        val py = layout.bottom + pose.y * layout.cellPx
+        val px = layout.left + pose.y * layout.cellPx
+        val py = layout.bottom + pose.x * layout.cellPx
         val marker = (layout.cellPx * 1.5f).coerceAtLeast(3f)
         shapeRenderer.color = Color.SKY
         shapeRenderer.circle(px, py, marker, 12)
         val aimLen = marker * 2.2f
-        shapeRenderer.rectLine(px, py, px + cos(pose.yaw) * aimLen, py + sin(pose.yaw) * aimLen, 1.5f)
+        val angle = -pose.yaw + (Math.PI / 2).toFloat()
+        shapeRenderer.rectLine(px, py, px + cos(angle) * aimLen, py + sin(angle) * aimLen, 1.5f)
     }
 
     private fun cellColor(tile: TileType?): Color? = when (tile) {
