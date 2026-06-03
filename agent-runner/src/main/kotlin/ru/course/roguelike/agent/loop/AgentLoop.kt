@@ -11,11 +11,15 @@ import ru.course.roguelike.agent.AgentRunResponse
 import ru.course.roguelike.agent.config.AgentConfig
 import ru.course.roguelike.agent.llm.HeuristicDecisionClient
 import ru.course.roguelike.agent.llm.LlmClientFactory
+import ru.course.roguelike.agent.llm.YandexGptClient
 import ru.course.roguelike.agent.mcp.McpClient
 import ru.course.roguelike.agent.mcp.McpClientFactory
 import ru.course.roguelike.agent.planner.KeyHuntPlanner
 import ru.course.roguelike.shared.dto.GameSnapshot
+import ru.course.roguelike.shared.engine.TileMap
+import ru.course.roguelike.shared.model.GridPos
 import ru.course.roguelike.shared.model.SessionPhase
+import kotlin.math.abs
 
 class AgentLoop(
     private val config: AgentConfig,
@@ -84,6 +88,7 @@ class AgentLoop(
         stepIndex: Int,
         actor: String,
     ) {
+        log.info("Try to choose tool from {}", llm)
         val decision = llm.chooseTool(snapshot, sessionId, actor)
         val args = decision.arguments.toMutableMap()
         if (actor == KeyHuntPlanner.ACTOR_AGENT) {
@@ -94,6 +99,31 @@ class AgentLoop(
         log.info("step=$stepIndex tool=${decision.tool} err=${result.isError}")
         if (result.isError) {
             toolLog.add(result.text)
+        }
+
+        if (llm is YandexGptClient) {
+            val newSnapshot = observe(mcp, sessionId, toolLog)
+            val x = newSnapshot?.agent?.pose?.x ?: newSnapshot?.player?.pose?.x ?: 0.0F
+            val y = newSnapshot?.agent?.pose?.y ?: newSnapshot?.player?.pose?.y ?: 0.0F
+            var yaw = newSnapshot?.agent?.pose?.yaw ?: newSnapshot?.player?.pose?.yaw ?: 0.0F
+            if ( yaw >= 0.000001F || yaw <= -0.000001F) {
+                val res = calibrate(mcp, sessionId, -1 * yaw)
+                yaw = res?.agent?.pose?.yaw ?: newSnapshot?.player?.pose?.yaw ?: 0.0F
+            }
+            val oldX = llm.getX()
+            val oldY = llm.getY()
+            val oldYaw = llm.getYaw()
+            val moved = abs(x - oldX) + abs(y - oldY) > 0.05
+            val isMove = decision.tool == "game_act" && decision.arguments["action"].toString().contains("move_")
+            val outcome = when {
+                result.isError -> "ОШИБКА: ${result.text.take(80)}"
+                isMove && !moved -> "НЕВОЗМОЖНО (стена)"
+                else -> "УСПЕХ"
+            }
+            llm.updatePlayerPosition(x, y, yaw)
+            val desc = "${decision.tool}(${decision.arguments.values.joinToString()}) -> $outcome"
+            llm.recordActionName(decision.arguments["action"].toString())
+            llm.addToHistory(sessionId, "Предыдущая позиция: x $oldY, y $oldX, yaw $oldYaw. Текущая позиция: x $y, y $x, yaw $yaw. Результат от tool: ${outcome}, Описание: $desc")
         }
     }
 
@@ -128,4 +158,58 @@ class AgentLoop(
         message = message,
         toolCallLog = log,
     )
+
+    private suspend fun calibrate(mcp: McpClient, sessionId: String, yaw: Float): GameSnapshot? {
+        val args = mapOf<String, JsonElement>(
+            "sessionId" to json.parseToJsonElement("\"$sessionId\""),
+            "yawDelta" to JsonPrimitive(yaw),
+            "deltaMS" to JsonPrimitive(50),
+        )
+        val result = mcp.callTool("game_sync", args)
+        log.debug("game_sync -> error=${result.isError}")
+        if (result.isError) return null
+        return json.decodeFromString<GameSnapshot>(result.text)
+    }
+
+    fun formatFullMap(snapshot: GameSnapshot): String {
+        val w = snapshot.width
+        val h = snapshot.height
+        val map = TileMap.fromFlat(w, h, snapshot.tiles)
+        val px = snapshot.player.pose.x.toInt()
+        val py = snapshot.player.pose.y.toInt()
+        val keys = snapshot.keyPickups.map { it.x.toInt() to it.y.toInt() }.toSet()
+        val exit = snapshot.exitGate?.let { it.x to it.y }
+
+        val grid = Array(h) { y ->
+            CharArray(w) { x ->
+                when {
+                    x == px && y == py -> '@'
+                    (x to y) in keys -> 'K'
+                    exit != null && x == exit.first && y == exit.second -> 'E'
+                    map.get(GridPos(x, y))?.walkable == true -> '.'
+                    else -> '#'
+                }
+            }
+        }
+
+        val sb = StringBuilder()
+        sb.append("     ")
+        for (x in 0 until w) {
+            if (x % 10 == 0) sb.append("|")
+            sb.append(x % 10)
+        }
+        sb.append('\n')
+        sb.append("     ")
+        repeat(w) { sb.append('-') }
+        sb.append('\n')
+
+        for (y in 0 until h) {
+            sb.append(String.format("%3d |", y))
+            for (x in 0 until w) {
+                sb.append(grid[y][x])
+            }
+            sb.append('\n')
+        }
+        return sb.toString()
+    }
 }

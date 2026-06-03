@@ -42,7 +42,9 @@ services:
       - "8082:8082"
     environment:
       PORT: "8082"
-      LLM_PROVIDER: heuristic
+      LLM_PROVIDER: yandex
+      LLM_API_KEY: ${LLM_API_KEY}
+      YANDEX_FOLDER_ID: ${YANDEX_FOLDER_ID}
       MCP_TRANSPORT: stdio
       MCP_SERVER_COMMAND: "/opt/mcp-server/bin/mcp-server stdio"
       GAME_SERVICE_URL: http://game-service:8080
