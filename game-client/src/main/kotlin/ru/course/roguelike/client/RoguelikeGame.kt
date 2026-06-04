@@ -22,6 +22,7 @@ import ru.course.roguelike.client.render.GameTextures
 import ru.course.roguelike.client.render.LocationMapOverlay
 import ru.course.roguelike.shared.dto.GameSnapshot
 import ru.course.roguelike.shared.dto.InputSyncRequest
+import ru.course.roguelike.shared.dto.ItemSnapshot
 import ru.course.roguelike.shared.dto.KeySnapshot
 import ru.course.roguelike.shared.dto.MobSnapshot
 import ru.course.roguelike.shared.dto.ProjectileSnapshot
@@ -74,6 +75,8 @@ class RoguelikeGame : ApplicationAdapter() {
     private var playerLevel = 1
     private var playerExperience = 0
     private var playerExperienceToNextLevel = 100
+    private var playerAmmo = 0
+    private var playerMaxAmmo = 0
     private var keysCollected = 0
     private var keysRequired = 0
 
@@ -91,6 +94,9 @@ class RoguelikeGame : ApplicationAdapter() {
 
     @Volatile
     private var keyPickups: List<KeySnapshot> = emptyList()
+
+    @Volatile
+    private var items: List<ItemSnapshot> = emptyList()
 
     @Volatile
     private var exitGate: GridPos? = null
@@ -117,22 +123,25 @@ class RoguelikeGame : ApplicationAdapter() {
                 poseAccessor = { predictedPose },
                 poseMutator = { predictedPose = it },
                 authoritativeMutator = { authoritativePose = it },
-                vitalsMutator = { hp, maxHp, level, experience, experienceToNextLevel ->
+                vitalsMutator = { hp, maxHp, level, experience, experienceToNextLevel, ammo, maxAmmo ->
                     playerHp = hp
                     playerMaxHp = maxHp
                     playerLevel = level
                     playerExperience = experience
                     playerExperienceToNextLevel = experienceToNextLevel
+                    playerAmmo = ammo
+                    playerMaxAmmo = maxAmmo
                 },
                 combatMutator = { mobs, projectiles ->
                     serverMobs = mobs
                     serverProjectiles = projectiles
                 },
-                progressMutator = { phase, collected, required, keys, gate ->
+                progressMutator = { phase, collected, required, keys, locationItems, gate ->
                     sessionPhase = parseSessionPhase(phase)
                     keysCollected = collected
                     keysRequired = required
                     keyPickups = keys
+                    items = locationItems
                     exitGate = gate
                 },
                 agentMutator = { agentPose = it },
@@ -148,13 +157,13 @@ class RoguelikeGame : ApplicationAdapter() {
         fpsSmoothed = fpsSmoothed * 0.9f + (1f / delta) * 0.1f
         handleDebugKeys()
 
-        if (!isSessionEnded()) {
+        if (!isSessionEnded) {
             syncAccum += delta
             simulateFrame(delta)
         }
 
         drawWorldFrame()
-        if (!isSessionEnded()) {
+        if (!isSessionEnded) {
             drawDebugOverlays(
                 DebugOverlayContext(
                     showCollisionDebug = showCollisionDebug,
@@ -165,6 +174,7 @@ class RoguelikeGame : ApplicationAdapter() {
                     pose = predictedPose,
                     serverMobs = serverMobs,
                     keyPickups = keyPickups,
+                    items = items,
                     exitGate = exitGate,
                     lastCollisionDebug = lastCollisionDebug,
                     locationMapOverlay = locationMapOverlay,
@@ -173,42 +183,48 @@ class RoguelikeGame : ApplicationAdapter() {
             )
         }
 
+        drawHud()
+
+        if (isSessionEnded) {
+            gameEndOverlay.render(sessionPhase)
+        }
+    }
+
+    private fun drawHud() {
         val pose = predictedPose
-        val onLava = !isSessionEnded() && pose != null && tileMap?.getTileAt(pose.x, pose.y)?.damaging == true
+        val onLava = !isSessionEnded && pose != null && tileMap?.getTileAt(pose.x, pose.y)?.damaging == true
         hud.draw(
             statusLine,
             pose,
             fpsSmoothed,
             lastCollisionDebug,
-            showCollisionDebug && !isSessionEnded(),
+            showCollisionDebug && !isSessionEnded,
             onLava = onLava,
             hp = playerHp,
             maxHp = playerMaxHp,
             level = playerLevel,
             experience = playerExperience,
             experienceToNextLevel = playerExperienceToNextLevel,
+            ammo = playerAmmo,
+            maxAmmo = playerMaxAmmo,
             keysCollected = keysCollected,
             keysRequired = keysRequired,
             interactionHint = interactionHint(
                 pose,
-                isSessionEnded(),
+                isSessionEnded,
                 tileMap,
                 exitGate,
-                keysCollected,
-                keysRequired,
+                KeyProgress(keysCollected, keysRequired),
                 keyPickups,
+                items,
             ),
         )
-
-        if (isSessionEnded()) {
-            gameEndOverlay.render(sessionPhase)
-        }
     }
 
     private var syncAccum = 0f
 
-    private fun isSessionEnded(): Boolean =
-        sessionPhase == SessionPhase.GAME_OVER || sessionPhase == SessionPhase.LEVEL_COMPLETE
+    private val isSessionEnded: Boolean
+        get() = sessionPhase == SessionPhase.GAME_OVER || sessionPhase == SessionPhase.LEVEL_COMPLETE
 
     private fun handleDebugKeys() {
         if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
@@ -230,6 +246,7 @@ class RoguelikeGame : ApplicationAdapter() {
         authoritativePose = null
         tileMap = null
         keyPickups = emptyList()
+        items = emptyList()
         exitGate = null
         sessionPhase = SessionPhase.EXPLORATION
         playerHp = 0
@@ -237,6 +254,8 @@ class RoguelikeGame : ApplicationAdapter() {
         playerLevel = 1
         playerExperience = 0
         playerExperienceToNextLevel = 100
+        playerAmmo = 0
+        playerMaxAmmo = 0
         keysCollected = 0
         keysRequired = 0
         serverMobs = emptyList()
@@ -271,7 +290,7 @@ class RoguelikeGame : ApplicationAdapter() {
         maybeSendSync(localPose)
         pose = localPose
         predictedPose = pose
-        frameTexture = viewport.render(map, pose, serverMobs, serverProjectiles, keyPickups, agentPose)
+        frameTexture = viewport.render(map, pose, serverMobs, serverProjectiles, keyPickups, items, agentPose)
     }
 
     private fun maybeSendSync(localPose: PlayerPose) {
@@ -310,6 +329,7 @@ class RoguelikeGame : ApplicationAdapter() {
         keysCollected = snap.keysCollected
         keysRequired = snap.keysRequired
         keyPickups = snap.keyPickups
+        items = snap.items
         exitGate = snap.exitGate
         audio.onCombatSnapshot(snap.player.hp, snap.projectiles)
         sync.applySnapshot(snap)

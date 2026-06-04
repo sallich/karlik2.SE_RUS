@@ -23,7 +23,12 @@ class GameTextures private constructor(
         BillboardRenderer.SpriteTexture.MELEE -> meleeMob
         BillboardRenderer.SpriteTexture.RANGED -> rangedMob
         BillboardRenderer.SpriteTexture.BLAST -> blast
-        BillboardRenderer.SpriteTexture.KEY -> null
+        BillboardRenderer.SpriteTexture.KEY,
+        BillboardRenderer.SpriteTexture.ITEM_HEALTH,
+        BillboardRenderer.SpriteTexture.ITEM_EXPERIENCE,
+        BillboardRenderer.SpriteTexture.ITEM_WEAPON,
+        BillboardRenderer.SpriteTexture.ITEM_AMMO,
+        -> null
         BillboardRenderer.SpriteTexture.COLOR_FALLBACK -> null
     }
 
@@ -34,6 +39,10 @@ class GameTextures private constructor(
         BillboardRenderer.SpriteTexture.BLAST,
         -> true
         BillboardRenderer.SpriteTexture.KEY,
+        BillboardRenderer.SpriteTexture.ITEM_HEALTH,
+        BillboardRenderer.SpriteTexture.ITEM_EXPERIENCE,
+        BillboardRenderer.SpriteTexture.ITEM_WEAPON,
+        BillboardRenderer.SpriteTexture.ITEM_AMMO,
         BillboardRenderer.SpriteTexture.COLOR_FALLBACK,
         -> false
     }

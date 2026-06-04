@@ -12,6 +12,8 @@ import ru.course.roguelike.game.domain.level.Room
 import ru.course.roguelike.game.domain.session.AgentCompanionSpawner
 import ru.course.roguelike.game.domain.session.ExitGatePlacer
 import ru.course.roguelike.game.domain.session.GameSession
+import ru.course.roguelike.game.domain.session.ItemPickup
+import ru.course.roguelike.game.domain.session.ItemSpawner
 import ru.course.roguelike.game.domain.session.KeyPickup
 import ru.course.roguelike.game.domain.session.KeySpawner
 import ru.course.roguelike.game.infrastructure.level.LevelGeneratorFactory
@@ -72,6 +74,8 @@ class GameEngine(
                 null
             },
             keyPickups = progress.keys,
+            itemPickups = progress.items,
+            nextItemId = progress.items.size,
             bossRoom = progress.bossRoom,
             exitGate = progress.exitGate,
         )
@@ -95,6 +99,8 @@ class GameEngine(
             },
             secondLevel = dungeon.levels[1].map,
             keyPickups = progress.keys,
+            itemPickups = progress.items,
+            nextItemId = progress.items.size,
             bossRoom = progress.bossRoom,
             exitGate = progress.exitGate,
         )
@@ -103,6 +109,7 @@ class GameEngine(
     private data class ProgressSetup(
         val map: TileMap,
         val keys: MutableList<KeyPickup>,
+        val items: MutableList<ItemPickup>,
         val bossRoom: Room?,
         val exitGate: GridPos?,
     )
@@ -110,11 +117,13 @@ class GameEngine(
     private fun setupProgress(level: GeneratedLevel, seed: Long): ProgressSetup {
         val boss = KeySpawner.bossRoomOf(level)
         val keys = KeySpawner.spawn(level, seed).toMutableList()
+        val occupied = keys.map { GridPos(it.x.toInt(), it.y.toInt()) }.toSet()
+        val items = ItemSpawner.spawn(level, seed, occupied).toMutableList()
         if (boss == null) {
-            return ProgressSetup(level.map, keys, null, null)
+            return ProgressSetup(level.map, keys, items, null, null)
         }
         val (mapWithGate, exitGate) = ExitGatePlacer.place(level, boss)
-        return ProgressSetup(mapWithGate, keys, boss, exitGate)
+        return ProgressSetup(mapWithGate, keys, items, boss, exitGate)
     }
 
     fun getSnapshot(sessionId: String): GameSnapshot? = sessions[sessionId]?.toSnapshot()

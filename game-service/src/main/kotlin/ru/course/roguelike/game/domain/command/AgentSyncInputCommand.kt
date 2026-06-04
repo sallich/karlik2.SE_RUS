@@ -3,6 +3,7 @@ package ru.course.roguelike.game.domain.command
 import ru.course.roguelike.game.domain.combat.CombatSystem
 import ru.course.roguelike.game.domain.event.GameEvent
 import ru.course.roguelike.game.domain.session.GameSession
+import ru.course.roguelike.game.domain.session.ItemPickupSystem
 import ru.course.roguelike.game.domain.session.LevelProgressSystem
 import ru.course.roguelike.shared.dto.InputSyncRequest
 import ru.course.roguelike.shared.engine.FpsMovementSystem
@@ -27,6 +28,7 @@ class AgentSyncInputCommand(
             GameEvent.CommandExecuted(name, accepted = true),
         )
         events.addAll(LevelProgressSystem.applyForPose(session, input, session.agentPose!!))
+        events.addAll(ItemPickupSystem.apply(session, session.agentPose!!, input.interact))
         events.addAll(CombatSystem.tick(session, input.deltaMs, playerAttacking = false))
         return CommandExecutionResult(
             accepted = true,

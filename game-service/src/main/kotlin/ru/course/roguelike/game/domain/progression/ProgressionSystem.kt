@@ -9,6 +9,10 @@ object ProgressionSystem {
     fun awardMobKill(session: GameSession, kind: MobKind): List<GameEvent> =
         awardExperience(session, ExperienceProgression.mobKillXp(kind), "mob_kill")
 
+    /** Опыт за подобранный предмет (issue #9). */
+    fun awardItemXp(session: GameSession, amount: Int): List<GameEvent> =
+        awardExperience(session, amount, "item_pickup")
+
     fun checkLocationCompletion(session: GameSession): List<GameEvent> {
         if (session.locationCompletionAwarded) return emptyList()
         if (session.mobs.isNotEmpty()) return emptyList()
@@ -46,7 +50,9 @@ object ProgressionSystem {
             val hpGain = newMaxHp - session.playerMaxHp
             session.playerMaxHp = newMaxHp
             session.playerHp = (session.playerHp + hpGain).coerceAtMost(newMaxHp)
-            session.playerAttackDamage = ExperienceProgression.attackDamageForLevel(level)
+            // Сохраняем прибавку от подобранных предметов-оружия поверх базового урона уровня.
+            session.playerAttackDamage =
+                ExperienceProgression.attackDamageForLevel(level) + session.playerWeaponBonus
             events.add(
                 GameEvent.PlayerLevelUp(
                     newLevel = level,

@@ -9,6 +9,10 @@ object CombatConstants {
     const val PLAYER_ATTACK_COOLDOWN_MS = 450
     const val PLAYER_PROJECTILE_SPEED = 7f
 
+    /** Боезапас героя: стартовый, максимальный и сколько даёт подобранный ящик с патронами (issue #9). */
+    const val PLAYER_STARTING_AMMO = 50
+    const val PLAYER_MAX_AMMO = 99
+
     const val MELEE_MOB_HP = 10
     const val MELEE_MOB_DAMAGE = 1
     const val MELEE_ATTACK_RANGE = 0.85f

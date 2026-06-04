@@ -17,6 +17,10 @@ object BillboardRenderer {
         RANGED,
         BLAST,
         KEY,
+        ITEM_HEALTH,
+        ITEM_EXPERIENCE,
+        ITEM_WEAPON,
+        ITEM_AMMO,
         COLOR_FALLBACK,
     }
 
@@ -121,7 +125,19 @@ object BillboardRenderer {
 
     private fun fallbackColor(texture: SpriteTexture, default: Int): Int = when (texture) {
         SpriteTexture.KEY -> rgb(0xFF, 0xD7, 0x00)
+        SpriteTexture.ITEM_HEALTH -> rgb(0xFF, 0x3B, 0x3B)
+        SpriteTexture.ITEM_EXPERIENCE -> rgb(0x4C, 0xD9, 0x64)
+        SpriteTexture.ITEM_WEAPON -> rgb(0xC0, 0xC8, 0xD0)
+        SpriteTexture.ITEM_AMMO -> rgb(0xFF, 0xB0, 0x30)
         else -> default
+    }
+
+    /** Спрайт-текстура для предмета данного вида. */
+    fun itemTexture(kind: ru.course.roguelike.shared.model.ItemKind): SpriteTexture = when (kind) {
+        ru.course.roguelike.shared.model.ItemKind.HEALTH -> SpriteTexture.ITEM_HEALTH
+        ru.course.roguelike.shared.model.ItemKind.EXPERIENCE -> SpriteTexture.ITEM_EXPERIENCE
+        ru.course.roguelike.shared.model.ItemKind.WEAPON -> SpriteTexture.ITEM_WEAPON
+        ru.course.roguelike.shared.model.ItemKind.AMMO -> SpriteTexture.ITEM_AMMO
     }
 
   /** true, если спрайт целиком за стеной (ни один столбец не ближе стены). */

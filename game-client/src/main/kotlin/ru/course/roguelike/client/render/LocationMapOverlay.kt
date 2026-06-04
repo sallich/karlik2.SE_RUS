@@ -3,10 +3,12 @@ package ru.course.roguelike.client.render
 import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer
 import com.badlogic.gdx.math.Matrix4
+import ru.course.roguelike.shared.dto.ItemSnapshot
 import ru.course.roguelike.shared.dto.KeySnapshot
 import ru.course.roguelike.shared.dto.MobSnapshot
 import ru.course.roguelike.shared.engine.TileMap
 import ru.course.roguelike.shared.model.GridPos
+import ru.course.roguelike.shared.model.ItemKind
 import ru.course.roguelike.shared.model.MobKind
 import ru.course.roguelike.shared.model.PlayerPose
 import ru.course.roguelike.shared.model.TileType
@@ -24,6 +26,7 @@ import kotlin.math.sin
 class LocationMapOverlay(
     private val shapeRenderer: ShapeRenderer,
 ) {
+    @Suppress("LongParameterList")
     fun render(
         screenWidth: Float,
         screenHeight: Float,
@@ -31,6 +34,7 @@ class LocationMapOverlay(
         pose: PlayerPose?,
         mobs: List<MobSnapshot> = emptyList(),
         keyPickups: List<KeySnapshot> = emptyList(),
+        items: List<ItemSnapshot> = emptyList(),
         exitGate: GridPos? = null,
     ) {
         val layout = layout(screenWidth, screenHeight, map)
@@ -42,6 +46,7 @@ class LocationMapOverlay(
         drawTiles(map, layout)
         exitGate?.let { drawExitGate(it, layout) }
         drawKeys(keyPickups, layout)
+        drawItems(items, layout)
         drawMobs(mobs, layout)
         pose?.let { drawPlayer(it, layout) }
         shapeRenderer.end()
@@ -79,6 +84,22 @@ class LocationMapOverlay(
                 layout.cellPx * 0.4f,
             )
         }
+    }
+
+    private fun drawItems(items: List<ItemSnapshot>, layout: Layout) {
+        for (item in items) {
+            shapeRenderer.color = itemColor(item.kind)
+            val px = layout.left + item.x * layout.cellPx
+            val py = layout.bottom + item.y * layout.cellPx
+            shapeRenderer.circle(px, py, layout.cellPx * 0.25f, 10)
+        }
+    }
+
+    private fun itemColor(kind: ItemKind): Color = when (kind) {
+        ItemKind.HEALTH -> Color.SCARLET
+        ItemKind.EXPERIENCE -> Color.LIME
+        ItemKind.WEAPON -> Color.LIGHT_GRAY
+        ItemKind.AMMO -> Color.ORANGE
     }
 
     private fun drawExitGate(gate: GridPos, layout: Layout) {
