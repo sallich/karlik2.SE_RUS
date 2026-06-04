@@ -7,6 +7,7 @@ import ru.course.roguelike.shared.dto.BossRoomSnapshot
 import ru.course.roguelike.shared.dto.GameSnapshot
 import ru.course.roguelike.shared.dto.PlayerSnapshot
 import ru.course.roguelike.shared.engine.TileMap
+import ru.course.roguelike.shared.model.CombatConstants
 import ru.course.roguelike.shared.model.ExperienceProgression
 import ru.course.roguelike.shared.model.GridPos
 import ru.course.roguelike.shared.model.PlayerPose
@@ -26,6 +27,10 @@ data class GameSession(
     var playerLevel: Int = ExperienceProgression.STARTING_LEVEL,
     var playerExperience: Int = 0,
     var playerAttackDamage: Int = ExperienceProgression.attackDamageForLevel(ExperienceProgression.STARTING_LEVEL),
+    /** Постоянная прибавка к урону от подобранных предметов-оружия (issue #9). */
+    var playerWeaponBonus: Int = 0,
+    /** Боезапас героя; выстрел тратит патрон, ящики с патронами пополняют (issue #9). */
+    var playerAmmo: Int = CombatConstants.PLAYER_STARTING_AMMO,
     var locationCompletionAwarded: Boolean = false,
     /** Накопитель дробного урона лавой (HP списывается целыми единицами). */
     var lavaDamageBuffer: Float = 0f,
@@ -42,6 +47,8 @@ data class GameSession(
     var nextEntityId: Long = 1,
     var playerAttackCooldownMs: Int = 0,
     val keyPickups: MutableList<KeyPickup> = mutableListOf(),
+    val itemPickups: MutableList<ItemPickup> = mutableListOf(),
+    var nextItemId: Int = 0,
     val bossRoom: Room? = null,
     val exitGate: GridPos? = null,
     var levelCompleted: Boolean = false,
@@ -55,6 +62,8 @@ data class GameSession(
     val activeMap: TileMap get() = if (currentLevel == 1) secondLevel ?: map else map
 
     fun allocateEntityId(): Long = nextEntityId++
+
+    fun allocateItemId(): Int = nextItemId++
 
     fun touchClock() {
         tick++
@@ -78,6 +87,7 @@ data class GameSession(
         keysCollected = keysCollected,
         keysRequired = keysRequired,
         keyPickups = keyPickups.filter { !it.collected }.map { it.toSnapshot() },
+        items = itemPickups.filter { !it.collected }.map { it.toSnapshot() },
         bossRoom = bossRoom?.toSnapshot(),
         exitGate = exitGate,
     )
@@ -92,6 +102,8 @@ data class GameSession(
             experience = xpInLevel,
             experienceToNextLevel = xpToNext,
             attackDamage = playerAttackDamage,
+            ammo = playerAmmo,
+            maxAmmo = CombatConstants.PLAYER_MAX_AMMO,
         )
     }
 }

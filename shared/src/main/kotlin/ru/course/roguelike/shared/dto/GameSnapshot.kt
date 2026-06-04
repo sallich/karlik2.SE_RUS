@@ -26,6 +26,8 @@ data class GameSnapshot(
     val keysCollected: Int = 0,
     val keysRequired: Int = 0,
     val keyPickups: List<KeySnapshot> = emptyList(),
+    /** Предметы, ещё лежащие на локации (issue #9). */
+    val items: List<ItemSnapshot> = emptyList(),
     val bossRoom: BossRoomSnapshot? = null,
     /** Ячейка ворот выхода в комнате босса (куда нужно принести ключи). */
     val exitGate: GridPos? = null,
@@ -40,4 +42,6 @@ data class PlayerSnapshot(
     val experience: Int = 0,
     val experienceToNextLevel: Int = 100,
     val attackDamage: Int = 25,
+    val ammo: Int = 0,
+    val maxAmmo: Int = 0,
 )

@@ -1,5 +1,6 @@
 package ru.course.roguelike.client.render
 
+import ru.course.roguelike.shared.dto.ItemSnapshot
 import ru.course.roguelike.shared.dto.KeySnapshot
 import ru.course.roguelike.shared.dto.MobSnapshot
 import ru.course.roguelike.shared.dto.ProjectileSnapshot
@@ -98,59 +99,36 @@ internal class TexturedScenePainter(
         }
     }
 
+    @Suppress("LongParameterList")
     fun paintSprites(
         pose: PlayerPose,
         horizon: Float,
         mobs: List<MobSnapshot>,
         projectiles: List<ProjectileSnapshot>,
         keyPickups: List<KeySnapshot>,
+        items: List<ItemSnapshot>,
         agentPose: PlayerPose? = null,
         wallDistances: FloatArray,
     ) {
         spriteScratch.clear()
-        agentPose?.let { agent ->
-            spriteScratch.add(
-                BillboardRenderer.Sprite(
-                    worldX = agent.x,
-                    worldY = agent.y,
-                    texture = BillboardRenderer.SpriteTexture.PLAYER,
-                    sizeScale = 0.85f,
-                ),
-            )
+        fun add(x: Float, y: Float, texture: BillboardRenderer.SpriteTexture, scale: Float = 1f) {
+            spriteScratch.add(BillboardRenderer.Sprite(worldX = x, worldY = y, texture = texture, sizeScale = scale))
         }
-        keyPickups.forEach { key ->
-            spriteScratch.add(
-                BillboardRenderer.Sprite(
-                    worldX = key.x,
-                    worldY = key.y,
-                    texture = BillboardRenderer.SpriteTexture.KEY,
-                    sizeScale = 0.55f,
-                ),
-            )
+
+        agentPose?.let { add(it.x, it.y, BillboardRenderer.SpriteTexture.PLAYER, 0.85f) }
+        keyPickups.forEach { add(it.x, it.y, BillboardRenderer.SpriteTexture.KEY, 0.55f) }
+        items.forEach { add(it.x, it.y, BillboardRenderer.itemTexture(it.kind), 0.45f) }
+        mobs.forEach {
+            val texture = when (it.kind) {
+                MobKind.MELEE -> BillboardRenderer.SpriteTexture.MELEE
+                MobKind.RANGED, MobKind.LLM_GUARD -> BillboardRenderer.SpriteTexture.RANGED
+            }
+            add(it.x, it.y, texture)
         }
-        mobs.forEach { mob ->
-            spriteScratch.add(
-                BillboardRenderer.Sprite(
-                    worldX = mob.x,
-                    worldY = mob.y,
-                    texture = when (mob.kind) {
-                        MobKind.MELEE -> BillboardRenderer.SpriteTexture.MELEE
-                        MobKind.RANGED -> BillboardRenderer.SpriteTexture.RANGED
-                        MobKind.LLM_GUARD -> BillboardRenderer.SpriteTexture.RANGED
-                    },
-                ),
-            )
+        projectiles.forEach {
+            add(it.x, it.y, BillboardRenderer.SpriteTexture.BLAST, if (it.fromPlayer) 0.4f else 0.35f)
         }
-        projectiles.forEach { projectile ->
-            spriteScratch.add(
-                BillboardRenderer.Sprite(
-                    worldX = projectile.x,
-                    worldY = projectile.y,
-                    texture = BillboardRenderer.SpriteTexture.BLAST,
-                    sizeScale = if (projectile.fromPlayer) 0.4f else 0.35f,
-                ),
-            )
-        }
+
         val commands = BillboardRenderer.projectSprites(
             pose,
             viewWidth,

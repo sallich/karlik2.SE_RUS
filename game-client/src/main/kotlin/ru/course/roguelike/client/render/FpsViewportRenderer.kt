@@ -2,6 +2,7 @@ package ru.course.roguelike.client.render
 
 import com.badlogic.gdx.graphics.Pixmap
 import com.badlogic.gdx.graphics.Texture
+import ru.course.roguelike.shared.dto.ItemSnapshot
 import ru.course.roguelike.shared.dto.KeySnapshot
 import ru.course.roguelike.shared.dto.MobSnapshot
 import ru.course.roguelike.shared.dto.ProjectileSnapshot
@@ -27,6 +28,7 @@ class FpsViewportRenderer(
         mobs: List<MobSnapshot> = emptyList(),
         projectiles: List<ProjectileSnapshot> = emptyList(),
         keyPickups: List<KeySnapshot> = emptyList(),
+        items: List<ItemSnapshot> = emptyList(),
         agentPose: PlayerPose? = null,
     ): Texture {
         val horizon = SceneRenderConfig.horizonY(viewHeight, pose.pitch)
@@ -38,7 +40,7 @@ class FpsViewportRenderer(
         painter.paintFloor(map, pose, horizon, horizonInt)
         val scene = Raycaster.castScene(map, pose, viewWidth, viewHeight, horizon)
         painter.paintWalls(scene)
-        painter.paintSprites(pose, horizon, mobs, projectiles, keyPickups, agentPose, scene.wallDistances)
+        painter.paintSprites(pose, horizon, mobs, projectiles, keyPickups, items, agentPose, scene.wallDistances)
 
         frameBuffer.flushTo(pixmap)
 

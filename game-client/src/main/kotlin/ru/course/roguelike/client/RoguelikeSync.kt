@@ -104,9 +104,18 @@ class RoguelikeSync(
             snap.player.level,
             snap.player.experience,
             snap.player.experienceToNextLevel,
+            snap.player.ammo,
+            snap.player.maxAmmo,
         )
         bindings.combatMutator(snap.mobs, snap.projectiles)
-        bindings.progressMutator(snap.phase, snap.keysCollected, snap.keysRequired, snap.keyPickups, snap.exitGate)
+        bindings.progressMutator(
+            snap.phase,
+            snap.keysCollected,
+            snap.keysRequired,
+            snap.keyPickups,
+            snap.items,
+            snap.exitGate,
+        )
         bindings.agentMutator(snap.agent?.pose)
         currentLevel = snap.currentLevel
     }
@@ -138,6 +147,7 @@ class RoguelikeSync(
             snap.keysCollected,
             snap.keysRequired,
             snap.keyPickups,
+            snap.items,
             snap.exitGate,
         )
         notifyLevelChange(snap.currentLevel)
@@ -178,6 +188,8 @@ class RoguelikeSync(
             snap.player.level,
             snap.player.experience,
             snap.player.experienceToNextLevel,
+            snap.player.ammo,
+            snap.player.maxAmmo,
         )
         bindings.combatMutator(snap.mobs, snap.projectiles)
         bindings.agentMutator(snap.agent?.pose)
@@ -186,6 +198,7 @@ class RoguelikeSync(
             snap.keysCollected,
             snap.keysRequired,
             snap.keyPickups,
+            snap.items,
             snap.exitGate,
         )
         notifyLevelChange(snap.currentLevel)

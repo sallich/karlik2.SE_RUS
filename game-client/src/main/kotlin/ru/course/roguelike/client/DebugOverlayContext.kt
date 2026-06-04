@@ -3,6 +3,7 @@ package ru.course.roguelike.client
 import com.badlogic.gdx.graphics.GL20
 import ru.course.roguelike.client.render.CollisionDebugOverlay
 import ru.course.roguelike.client.render.LocationMapOverlay
+import ru.course.roguelike.shared.dto.ItemSnapshot
 import ru.course.roguelike.shared.dto.KeySnapshot
 import ru.course.roguelike.shared.dto.MobSnapshot
 import ru.course.roguelike.shared.engine.CollisionDebug
@@ -19,6 +20,7 @@ data class DebugOverlayContext(
     val pose: PlayerPose?,
     val serverMobs: List<MobSnapshot>,
     val keyPickups: List<KeySnapshot>,
+    val items: List<ItemSnapshot>,
     val exitGate: GridPos?,
     val lastCollisionDebug: CollisionDebug?,
     val locationMapOverlay: LocationMapOverlay,
@@ -37,6 +39,7 @@ fun drawDebugOverlays(context: DebugOverlayContext) {
                 context.pose,
                 context.serverMobs,
                 context.keyPickups,
+                context.items,
                 context.exitGate,
             )
         }

@@ -6,6 +6,7 @@ import ru.course.roguelike.game.domain.ai.distanceTo
 import ru.course.roguelike.game.domain.event.GameEvent
 import ru.course.roguelike.game.domain.progression.ProgressionSystem
 import ru.course.roguelike.game.domain.session.GameSession
+import ru.course.roguelike.game.domain.session.MobLootDropper
 import ru.course.roguelike.shared.engine.EntityCollision
 import ru.course.roguelike.shared.engine.TileMap
 import ru.course.roguelike.shared.model.CombatConstants
@@ -139,6 +140,7 @@ object CombatSystem {
 
     private fun firePlayerProjectile(session: GameSession): GameEvent? {
         if (session.playerAttackCooldownMs > 0) return null
+        if (session.playerAmmo <= 0) return null
         session.projectiles.add(
             ProjectileEntity.fromPlayer(
                 session.playerPose,
@@ -147,7 +149,8 @@ object CombatSystem {
             ),
         )
         session.playerAttackCooldownMs = CombatConstants.PLAYER_ATTACK_COOLDOWN_MS
-        return null
+        session.playerAmmo -= 1
+        return GameEvent.AmmoChanged(-1, session.playerAmmo)
     }
 
     private fun damagePlayer(session: GameSession, amount: Int, events: MutableList<GameEvent>) {
@@ -170,6 +173,7 @@ object CombatSystem {
 
     private fun onMobKilled(session: GameSession, mob: MobEntity, events: MutableList<GameEvent>) {
         events.addAll(ProgressionSystem.awardMobKill(session, mob.kind))
+        MobLootDropper.dropFrom(session, mob)?.let { events.add(it) }
     }
 
     private fun moveToward(

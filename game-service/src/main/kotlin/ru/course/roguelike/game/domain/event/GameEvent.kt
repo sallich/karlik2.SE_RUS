@@ -1,5 +1,6 @@
 package ru.course.roguelike.game.domain.event
 
+import ru.course.roguelike.shared.model.ItemKind
 import ru.course.roguelike.shared.model.SessionPhase
 
 sealed interface GameEvent {
@@ -28,4 +29,14 @@ sealed interface GameEvent {
     data class KeyCollected(val keyId: Int, val totalCollected: Int) : GameEvent
 
     data class LevelCompleted(val keysCollected: Int, val keysRequired: Int) : GameEvent
+
+    data class ItemCollected(val itemId: Int, val kind: ItemKind) : GameEvent
+
+    data class ItemDropped(val itemId: Int, val kind: ItemKind, val x: Float, val y: Float) : GameEvent
+
+    data class PlayerHealed(val amount: Int, val hp: Int) : GameEvent
+
+    data class WeaponUpgraded(val bonus: Int, val attackDamage: Int) : GameEvent
+
+    data class AmmoChanged(val delta: Int, val ammo: Int) : GameEvent
 }

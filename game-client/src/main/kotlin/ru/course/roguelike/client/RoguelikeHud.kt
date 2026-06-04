@@ -24,6 +24,8 @@ class RoguelikeHud(
         level: Int = 1,
         experience: Int = 0,
         experienceToNextLevel: Int = 100,
+        ammo: Int = 0,
+        maxAmmo: Int = 0,
         keysCollected: Int = 0,
         keysRequired: Int = 0,
         interactionHint: String? = null,
@@ -33,6 +35,9 @@ class RoguelikeHud(
         pose?.let { drawPoseHud(it, fpsSmoothed) }
         if (maxHp > 0) {
             drawHp(hp, maxHp)
+        }
+        if (maxAmmo > 0) {
+            drawAmmo(ammo, maxAmmo)
         }
         if (keysRequired > 0) {
             drawKeys(keysCollected, keysRequired)
@@ -53,6 +58,14 @@ class RoguelikeHud(
         val previous = font.color.cpy()
         font.color = if (hp <= maxHp / 4) Color.SCARLET else Color.LIME
         font.draw(batch, "HP $hp / $maxHp", 12f, Gdx.graphics.height - 84f)
+        font.color = previous
+    }
+
+    /** Боезапас героя — оранжевый, краснеет когда патроны на исходе (issue #9). */
+    private fun drawAmmo(ammo: Int, maxAmmo: Int) {
+        val previous = font.color.cpy()
+        font.color = if (ammo <= 0) Color.SCARLET else Color.ORANGE
+        font.draw(batch, "AMMO $ammo / $maxAmmo", 12f, Gdx.graphics.height - 156f)
         font.color = previous
     }
 
