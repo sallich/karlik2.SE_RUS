@@ -39,6 +39,19 @@ class LabyrinthLevelGeneratorTest {
     }
 
     @Test
+    fun `player never spawns on lava`() {
+        // issue #13: декор может ставить лаву в стартовой комнате, но не на спавне.
+        for (seed in 1L..100L) {
+            val level = LabyrinthLevelGenerator.generate(seed)
+            assertEquals(
+                TileType.FLOOR,
+                level.map.get(level.playerSpawn),
+                "seed=$seed spawned the player on a non-floor tile",
+            )
+        }
+    }
+
+    @Test
     fun `exactly one boss room and it is larger than every normal room`() {
         val level = LabyrinthLevelGenerator.generate(7L)
         val bossRooms = level.rooms.filter { it.isBoss }

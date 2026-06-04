@@ -9,8 +9,8 @@ import ru.course.roguelike.shared.model.TileType
 /** Размещает тайл ворот выхода в комнате босса. */
 object ExitGatePlacer {
     /**
-     * Ставит [TileType.EXIT_GATE] у дальней от спавна стены комнаты босса
-     * (центр противоположного от входа края).
+     * Ставит [TileType.EXIT_GATE] в дальнем от спавна углу комнаты босса
+     * (issue #13: выход должен быть у стены, желательно в углу).
      */
     fun place(level: GeneratedLevel, bossRoom: Room): Pair<TileMap, GridPos> {
         val width = level.map.width
@@ -20,16 +20,20 @@ object ExitGatePlacer {
         return TileMap.fromFlat(width, level.map.height, tiles) to cell
     }
 
-    /** Клетка у «дальнего» края комнаты — туда ведёт проход с ключами. */
+    /**
+     * Дальний от спавна угол комнаты. Угловые тайлы — это периметр комнаты,
+     * который декоратор не трогает (колонны/лава ставятся только во внутренних
+     * бакетах), поэтому угол гарантированно проходимый пол у двух стен.
+     */
     private fun gateCell(boss: Room, spawn: GridPos): GridPos {
-        val candidates = listOf(
-            GridPos(boss.x + boss.width - 2, boss.y + boss.height / 2),
-            GridPos(boss.x + boss.width / 2, boss.y + boss.height - 2),
-            GridPos(boss.x + 1, boss.y + boss.height / 2),
-            GridPos(boss.x + boss.width / 2, boss.y + 1),
+        val corners = listOf(
+            GridPos(boss.x, boss.y),
+            GridPos(boss.x + boss.width - 1, boss.y),
+            GridPos(boss.x, boss.y + boss.height - 1),
+            GridPos(boss.x + boss.width - 1, boss.y + boss.height - 1),
         ).filter { boss.contains(it) }
 
-        return candidates.maxByOrNull { cell ->
+        return corners.maxByOrNull { cell ->
             kotlin.math.hypot(
                 (cell.x - spawn.x).toDouble(),
                 (cell.y - spawn.y).toDouble(),

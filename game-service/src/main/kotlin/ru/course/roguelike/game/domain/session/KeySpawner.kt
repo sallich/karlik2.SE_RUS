@@ -23,20 +23,56 @@ object KeySpawner {
     fun spawn(level: GeneratedLevel, seed: Long, count: Int = DEFAULT_KEY_COUNT): List<KeyPickup> {
         val safeCells = MapConnectivity.reachableSafeFloorCells(level.map, level.playerSpawn)
         val random = Random(seed xor KEY_SALT)
-        val roomsWithSpots = level.rooms
+        val candidates = level.rooms
             .filter { !it.isBoss }
             .mapNotNull { room ->
                 keySpawnCellsInRoom(room, safeCells)
                     .takeIf { it.isNotEmpty() }
                     ?.let { room to it }
             }
-            .shuffled(random)
-            .take(count)
+        val roomsWithSpots = spreadAcrossLocation(candidates, level.playerSpawn, count, random)
 
         return roomsWithSpots.mapIndexed { index, (_, spots) ->
             val cell = spots[random.nextInt(spots.size)]
             KeyPickup(id = index, x = cell.x + 0.5f, y = cell.y + 0.5f)
         }
+    }
+
+    /**
+     * Выбирает [count] комнат, разнесённых по разным углам локации (issue #13).
+     *
+     * Жадная выборка по принципу «самой дальней точки»: первой берём комнату,
+     * максимально удалённую от спавна, затем каждую следующую — ту, что дальше
+     * всего от спавна и уже выбранных комнат. Это раскидывает ключи по углам,
+     * а не группирует их в соседних комнатах. Детерминировано при равном seed.
+     */
+    private fun spreadAcrossLocation(
+        candidates: List<Pair<Room, List<GridPos>>>,
+        spawn: GridPos,
+        count: Int,
+        random: Random,
+    ): List<Pair<Room, List<GridPos>>> {
+        if (candidates.size <= count) return candidates.shuffled(random)
+
+        val remaining = candidates.toMutableList()
+        val selected = ArrayList<Pair<Room, List<GridPos>>>(count)
+        // Якоря, от которых отталкиваемся: спавн + центры уже выбранных комнат.
+        val anchors = mutableListOf(spawn)
+        while (selected.size < count && remaining.isNotEmpty()) {
+            val next = remaining.maxBy { (room, _) ->
+                anchors.minOf { anchor -> squaredDistance(room.center, anchor) }
+            }
+            selected.add(next)
+            anchors.add(next.first.center)
+            remaining.remove(next)
+        }
+        return selected
+    }
+
+    private fun squaredDistance(a: GridPos, b: GridPos): Long {
+        val dx = (a.x - b.x).toLong()
+        val dy = (a.y - b.y).toLong()
+        return dx * dx + dy * dy
     }
 
     fun bossRoomOf(level: GeneratedLevel): Room? = level.rooms.singleOrNull { it.isBoss }
