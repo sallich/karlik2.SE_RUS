@@ -32,7 +32,7 @@ class SyncInputCommand(
         LavaDamageSystem.apply(session, input.deltaMs)?.let { events.add(it) }
         ElevatorSystem.apply(session)?.let { events.add(it) }
         events.addAll(LevelProgressSystem.apply(session, input))
-        events.addAll(ItemPickupSystem.apply(session, session.playerPose))
+        events.addAll(ItemPickupSystem.apply(session, session.playerPose, input.interact))
         events.addAll(CombatSystem.tick(session, input.deltaMs, input.attack))
         return CommandExecutionResult(
             accepted = true,

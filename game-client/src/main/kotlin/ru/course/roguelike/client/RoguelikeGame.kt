@@ -214,9 +214,9 @@ class RoguelikeGame : ApplicationAdapter() {
                 isSessionEnded,
                 tileMap,
                 exitGate,
-                keysCollected,
-                keysRequired,
+                KeyProgress(keysCollected, keysRequired),
                 keyPickups,
+                items,
             ),
         )
     }

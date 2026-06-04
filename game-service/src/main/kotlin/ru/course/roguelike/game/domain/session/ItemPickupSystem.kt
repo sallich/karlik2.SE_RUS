@@ -10,9 +10,15 @@ import kotlin.math.hypot
 /**
  * Подбор предметов на локации (issue #9): герой автоматически собирает предмет,
  * проходя рядом с ним, и сразу получает его эффект.
+ *
+ * Исключение — оружие ([ItemKind.WEAPON]): его нужно подобрать вручную, нажав E
+ * (interact), стоя рядом, как с ключами.
  */
 object ItemPickupSystem {
     private const val PICKUP_RADIUS = 0.6f
+
+    /** Радиус ручного подбора оружия по нажатию E (как у ключей). */
+    private const val WEAPON_PICKUP_RADIUS = 0.65f
 
     /** На сколько предмет здоровья восстанавливает HP. */
     const val HEALTH_RESTORE = 30
@@ -26,12 +32,12 @@ object ItemPickupSystem {
     /** Сколько патронов даёт предмет с боезапасом. */
     const val AMMO_REFILL = 20
 
-    fun apply(session: GameSession, pose: PlayerPose): List<GameEvent> {
+    fun apply(session: GameSession, pose: PlayerPose, interact: Boolean = false): List<GameEvent> {
         if (session.playerHp <= 0) return emptyList()
 
         val events = mutableListOf<GameEvent>()
         session.itemPickups
-            .filter { !it.collected && withinReach(it, pose) }
+            .filter { !it.collected && canCollect(it, pose, interact) }
             .forEach { item ->
                 item.collected = true
                 events.add(GameEvent.ItemCollected(item.id, item.kind))
@@ -40,8 +46,19 @@ object ItemPickupSystem {
         return events
     }
 
-    private fun withinReach(item: ItemPickup, pose: PlayerPose): Boolean =
-        hypot((item.x - pose.x).toDouble(), (item.y - pose.y).toDouble()) <= PICKUP_RADIUS
+    /**
+     * Оружие подбирается только вручную (interact=E) в радиусе [WEAPON_PICKUP_RADIUS];
+     * остальные предметы — автоматически, стоит подойти ближе [PICKUP_RADIUS].
+     */
+    private fun canCollect(item: ItemPickup, pose: PlayerPose, interact: Boolean): Boolean =
+        if (item.kind == ItemKind.WEAPON) {
+            interact && withinReach(item, pose, WEAPON_PICKUP_RADIUS)
+        } else {
+            withinReach(item, pose, PICKUP_RADIUS)
+        }
+
+    private fun withinReach(item: ItemPickup, pose: PlayerPose, radius: Float): Boolean =
+        hypot((item.x - pose.x).toDouble(), (item.y - pose.y).toDouble()) <= radius
 
     private fun applyEffect(session: GameSession, kind: ItemKind): List<GameEvent> = when (kind) {
         ItemKind.HEALTH -> healPlayer(session)

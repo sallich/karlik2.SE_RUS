@@ -28,7 +28,7 @@ class AgentSyncInputCommand(
             GameEvent.CommandExecuted(name, accepted = true),
         )
         events.addAll(LevelProgressSystem.applyForPose(session, input, session.agentPose!!))
-        events.addAll(ItemPickupSystem.apply(session, session.agentPose!!))
+        events.addAll(ItemPickupSystem.apply(session, session.agentPose!!, input.interact))
         events.addAll(CombatSystem.tick(session, input.deltaMs, playerAttacking = false))
         return CommandExecutionResult(
             accepted = true,

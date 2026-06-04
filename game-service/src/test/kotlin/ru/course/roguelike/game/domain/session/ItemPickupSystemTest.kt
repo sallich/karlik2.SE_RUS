@@ -71,12 +71,31 @@ class ItemPickupSystemTest {
     }
 
     @Test
+    fun `weapon item is only picked up on interact`() {
+        val session = session()
+        val baseDamage = session.playerAttackDamage
+        itemAtPlayer(session, ItemKind.WEAPON)
+
+        // Просто стоять рядом — мало: оружие не подбирается без нажатия E.
+        val passive = ItemPickupSystem.apply(session, session.playerPose, interact = false)
+        assertTrue(passive.isEmpty())
+        assertFalse(session.itemPickups.single().collected)
+        assertEquals(baseDamage, session.playerAttackDamage)
+
+        // Нажали E рядом — оружие подбирается.
+        val events = ItemPickupSystem.apply(session, session.playerPose, interact = true)
+        assertTrue(events.any { it is GameEvent.ItemCollected })
+        assertTrue(session.itemPickups.single().collected)
+        assertEquals(baseDamage + ItemPickupSystem.WEAPON_DAMAGE_BONUS, session.playerAttackDamage)
+    }
+
+    @Test
     fun `weapon item permanently raises attack damage and survives level ups`() {
         val session = session()
         val baseDamage = session.playerAttackDamage
         itemAtPlayer(session, ItemKind.WEAPON)
 
-        ItemPickupSystem.apply(session, session.playerPose)
+        ItemPickupSystem.apply(session, session.playerPose, interact = true)
         assertEquals(baseDamage + ItemPickupSystem.WEAPON_DAMAGE_BONUS, session.playerAttackDamage)
 
         // After leveling up the weapon bonus must still be applied on top of the level damage.
