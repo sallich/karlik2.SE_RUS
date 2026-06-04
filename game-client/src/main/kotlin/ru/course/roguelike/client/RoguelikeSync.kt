@@ -77,7 +77,7 @@ class RoguelikeSync(
                 onStatusLine(
                     "Co-op agent enabled. Session ${created.sessionId.take(8)}… — " +
                         "curl agent: POST /api/v1/agent/run with sessionId. " +
-                        "Esc — мышь, F4 — карта, R — новый забег.",
+                        "Esc — мышь, M — миникарта, F4 — карта, R — новый забег.",
                 )
             } catch (ex: Exception) {
                 if (gen == sessionGeneration.get()) {
