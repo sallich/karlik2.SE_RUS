@@ -36,11 +36,16 @@ object TwoLevelLabyrinthGenerator {
         val groundSpawn = index(ground.playerSpawn, width)
         val upperSpawn = index(upper.playerSpawn, width)
         // Клетки, где на обоих уровнях пол и это не точка спавна.
-        val candidates = groundTiles.indices.filter { i ->
+        val floorCells = groundTiles.indices.filter { i ->
             i != groundSpawn && i != upperSpawn &&
                 groundTiles[i] == TileType.FLOOR && upperTiles[i] == TileType.FLOOR
         }
-        val chosen = candidates.shuffled(Random(seed)).take(ELEVATOR_COUNT)
+        // Лифты ставим вплотную к колоннам: подняться имеет смысл там, где путь
+        // загромождён колоннами. Если соседних с колоннами клеток не хватает,
+        // добиваем остаток обычным полом, чтобы лифты всегда существовали.
+        val (besideColumns, rest) = floorCells.partition { isAdjacentToColumn(it, groundTiles, width, height) }
+        val random = Random(seed)
+        val chosen = (besideColumns.shuffled(random) + rest.shuffled(random)).take(ELEVATOR_COUNT)
         for (i in chosen) {
             groundTiles[i] = TileType.ELEVATOR
             upperTiles[i] = TileType.ELEVATOR
@@ -52,6 +57,23 @@ object TwoLevelLabyrinthGenerator {
                 upper.copy(map = TileMap.fromFlat(width, height, upperTiles)),
             ),
         )
+    }
+
+    /** Есть ли среди 8 соседей клетки [cell] хотя бы одна колонна. */
+    private fun isAdjacentToColumn(cell: Int, tiles: List<TileType>, width: Int, height: Int): Boolean {
+        val cx = cell % width
+        val cy = cell / width
+        for (dy in -1..1) {
+            for (dx in -1..1) {
+                if (dx == 0 && dy == 0) continue
+                val nx = cx + dx
+                val ny = cy + dy
+                if (nx in 0 until width && ny in 0 until height && tiles[ny * width + nx] == TileType.COLUMN) {
+                    return true
+                }
+            }
+        }
+        return false
     }
 
     private fun index(pos: GridPos, width: Int): Int = pos.y * width + pos.x

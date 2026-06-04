@@ -59,6 +59,30 @@ class TwoLevelLabyrinthGeneratorTest {
     }
 
     @Test
+    fun `every elevator is generated next to a column`() {
+        // issue: подниматься имеет смысл только у колонн, поэтому лифты ставятся
+        // вплотную к ним (8 соседей).
+        for (seed in 1L..20L) {
+            val dungeon = TwoLevelLabyrinthGenerator.generate(seed)
+            val ground = dungeon.levels[0].map
+            val elevators = elevatorCells(dungeon.levels[0])
+            assertTrue(elevators.isNotEmpty(), "seed=$seed produced no elevators")
+            for (cell in elevators) {
+                val beside = neighbors(cell).any { ground.get(it) == TileType.COLUMN }
+                assertTrue(beside, "seed=$seed elevator at $cell is not next to a column")
+            }
+        }
+    }
+
+    private fun neighbors(cell: GridPos): List<GridPos> = buildList {
+        for (dy in -1..1) {
+            for (dx in -1..1) {
+                if (dx != 0 || dy != 0) add(GridPos(cell.x + dx, cell.y + dy))
+            }
+        }
+    }
+
+    @Test
     fun `each level stays fully connected with elevators in place`() {
         for (seed in 1L..10L) {
             val dungeon = TwoLevelLabyrinthGenerator.generate(seed)
