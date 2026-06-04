@@ -20,6 +20,7 @@ import ru.course.roguelike.client.render.FpsViewportRenderer
 import ru.course.roguelike.client.render.GameEndOverlay
 import ru.course.roguelike.client.render.GameTextures
 import ru.course.roguelike.client.render.LocationMapOverlay
+import ru.course.roguelike.client.render.MiniMapOverlay
 import ru.course.roguelike.shared.dto.GameSnapshot
 import ru.course.roguelike.shared.dto.InputSyncRequest
 import ru.course.roguelike.shared.dto.ItemSnapshot
@@ -46,6 +47,7 @@ class RoguelikeGame : ApplicationAdapter() {
     private lateinit var shapeRenderer: ShapeRenderer
     private lateinit var collisionDebugOverlay: CollisionDebugOverlay
     private lateinit var locationMapOverlay: LocationMapOverlay
+    private lateinit var miniMapOverlay: MiniMapOverlay
     private lateinit var gameEndOverlay: GameEndOverlay
     private lateinit var sync: RoguelikeSync
     private lateinit var audio: GameAudio
@@ -67,6 +69,9 @@ class RoguelikeGame : ApplicationAdapter() {
     private var accumulatedYawDelta = 0f
     private var showCollisionDebug = false
     private var showLocationMap = false
+    private var showMiniMap = true
+    private val visitedTracker = VisitedTracker()
+    private var currentLevel = 0
     private var lastCollisionDebug: CollisionDebug? = null
 
     /** HP/maxHP, уровень и опыт, присланные сервером. */
@@ -108,6 +113,7 @@ class RoguelikeGame : ApplicationAdapter() {
         shapeRenderer = ShapeRenderer()
         collisionDebugOverlay = CollisionDebugOverlay(shapeRenderer)
         locationMapOverlay = LocationMapOverlay(shapeRenderer)
+        miniMapOverlay = MiniMapOverlay(shapeRenderer)
         gameEndOverlay = GameEndOverlay(batch, font, shapeRenderer)
         gameTextures = GameTextures.load()
         audio = GameAudio()
@@ -168,16 +174,19 @@ class RoguelikeGame : ApplicationAdapter() {
                 DebugOverlayContext(
                     showCollisionDebug = showCollisionDebug,
                     showLocationMap = showLocationMap,
+                    showMiniMap = showMiniMap,
                     screenW = Gdx.graphics.width.toFloat(),
                     screenH = Gdx.graphics.height.toFloat(),
                     tileMap = tileMap,
                     pose = predictedPose,
+                    visitedTiles = visitedTracker.cells,
                     serverMobs = serverMobs,
                     keyPickups = keyPickups,
                     items = items,
                     exitGate = exitGate,
                     lastCollisionDebug = lastCollisionDebug,
                     locationMapOverlay = locationMapOverlay,
+                    miniMapOverlay = miniMapOverlay,
                     collisionDebugOverlay = collisionDebugOverlay,
                 ),
             )
@@ -236,6 +245,9 @@ class RoguelikeGame : ApplicationAdapter() {
         if (Gdx.input.isKeyJustPressed(Input.Keys.F4)) {
             showLocationMap = !showLocationMap
         }
+        if (Gdx.input.isKeyJustPressed(Input.Keys.M)) {
+            showMiniMap = !showMiniMap
+        }
         if (Gdx.input.isKeyJustPressed(Input.Keys.R)) {
             restartSession()
         }
@@ -245,6 +257,8 @@ class RoguelikeGame : ApplicationAdapter() {
         predictedPose = null
         authoritativePose = null
         tileMap = null
+        visitedTracker.clear()
+        currentLevel = 0
         keyPickups = emptyList()
         items = emptyList()
         exitGate = null
@@ -290,6 +304,7 @@ class RoguelikeGame : ApplicationAdapter() {
         maybeSendSync(localPose)
         pose = localPose
         predictedPose = pose
+        visitedTracker.reveal(map, pose)
         frameTexture = viewport.render(map, pose, serverMobs, serverProjectiles, keyPickups, items, agentPose)
     }
 
@@ -322,6 +337,10 @@ class RoguelikeGame : ApplicationAdapter() {
     }
 
     private fun applySnapshotFromServer(snap: GameSnapshot) {
+        if (snap.currentLevel != currentLevel) {
+            currentLevel = snap.currentLevel
+            visitedTracker.clear()
+        }
         tileMap = TileMap.fromFlat(snap.width, snap.height, snap.tiles)
         serverMobs = snap.mobs
         serverProjectiles = snap.projectiles

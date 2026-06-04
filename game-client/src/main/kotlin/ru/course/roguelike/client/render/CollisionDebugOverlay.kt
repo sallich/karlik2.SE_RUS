@@ -24,7 +24,7 @@ class CollisionDebugOverlay(
         debug: CollisionDebug,
         mobs: List<MobSnapshot> = emptyList(),
     ) {
-        val layout = miniMapLayout()
+        val layout = miniMapLayout(screenWidth)
         shapeRenderer.projectionMatrix = Matrix4().setToOrtho2D(0f, 0f, screenWidth, screenHeight)
         shapeRenderer.begin(ShapeRenderer.ShapeType.Line)
         drawMiniMapFrame(layout)
@@ -163,10 +163,10 @@ class CollisionDebugOverlay(
         shapeRenderer.line(playerSx, playerSy, reqEndSx, reqEndSy)
     }
 
-    private fun miniMapLayout(): MiniMapLayout {
+    private fun miniMapLayout(screenWidth: Float): MiniMapLayout {
         val pad = 12f
         val mapSize = 140f
-        val left = pad
+        val left = screenWidth - mapSize - pad
         val bottom = pad
         val cellsVisible = 7
         val cellPx = mapSize / cellsVisible
