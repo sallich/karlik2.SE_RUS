@@ -7,6 +7,7 @@ import ru.course.roguelike.game.domain.session.ItemPickupSystem
 import ru.course.roguelike.game.domain.session.LevelProgressSystem
 import ru.course.roguelike.shared.dto.InputSyncRequest
 import ru.course.roguelike.shared.engine.FpsMovementSystem
+import ru.course.roguelike.shared.model.PlayerPose
 
 /** Движение и interact кооп-агента (отдельная поза, не playerPose). */
 class AgentSyncInputCommand(
@@ -21,20 +22,35 @@ class AgentSyncInputCommand(
     }
 
     override fun execute(session: GameSession): CommandExecutionResult {
-        val pose = session.agentPose!!
-        session.agentPose = FpsMovementSystem.applyInput(session.activeMap, pose, input)
+        val poseBeforeMove = session.agentPose!!
+        session.agentPose = FpsMovementSystem.applyInput(session.activeMap, poseBeforeMove, input)
         session.touchClock()
         val events = mutableListOf<GameEvent>(
             GameEvent.CommandExecuted(name, accepted = true),
         )
-        events.addAll(LevelProgressSystem.applyForPose(session, input, session.agentPose!!))
-        events.addAll(ItemPickupSystem.apply(session, session.agentPose!!, input.interact))
+        events.addAll(applyInteract(session, poseBeforeMove, session.agentPose!!))
         events.addAll(CombatSystem.tick(session, input.deltaMs, playerAttacking = false))
         return CommandExecutionResult(
             accepted = true,
             message = "agent sync ok",
             events = events,
         )
+    }
+
+    private fun applyInteract(
+        session: GameSession,
+        poseBeforeMove: PlayerPose,
+        poseAfterMove: PlayerPose,
+    ): List<GameEvent> {
+        if (!input.interact) {
+            return ItemPickupSystem.apply(session, poseAfterMove, interact = false)
+        }
+        val events = mutableListOf<GameEvent>()
+        for (pose in listOf(poseBeforeMove, poseAfterMove)) {
+            events.addAll(LevelProgressSystem.applyForPose(session, input, pose))
+            events.addAll(ItemPickupSystem.apply(session, pose, interact = true))
+        }
+        return events
     }
 
     companion object {

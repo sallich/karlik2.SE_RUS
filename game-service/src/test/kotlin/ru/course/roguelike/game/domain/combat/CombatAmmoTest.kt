@@ -6,7 +6,6 @@ import org.junit.jupiter.api.Test
 import ru.course.roguelike.game.domain.inventory.StarterLoadout
 import ru.course.roguelike.game.domain.session.GameSession
 import ru.course.roguelike.shared.engine.TileMap
-import ru.course.roguelike.shared.model.CombatConstants
 import ru.course.roguelike.shared.model.InventoryConstants
 import ru.course.roguelike.shared.model.InventoryItemType
 import ru.course.roguelike.shared.model.MobKind

@@ -42,14 +42,15 @@ data class ProjectileEntity(
             )
         }
 
-        fun fromPlayer(pose: PlayerPose, id: Long, damage: Int): ProjectileEntity {
+        fun fromPlayer(pose: PlayerPose, id: Long, damage: Int, yawOffset: Float = 0f): ProjectileEntity {
             val speed = CombatConstants.PLAYER_PROJECTILE_SPEED
+            val yaw = pose.yaw + yawOffset
             return ProjectileEntity(
                 id = id,
                 x = pose.x,
                 y = pose.y,
-                velocityX = cos(pose.yaw) * speed,
-                velocityY = sin(pose.yaw) * speed,
+                velocityX = cos(yaw) * speed,
+                velocityY = sin(yaw) * speed,
                 damage = damage,
                 ownerMobId = null,
             )

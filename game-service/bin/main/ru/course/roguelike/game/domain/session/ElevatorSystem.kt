@@ -1,36 +1,52 @@
 package ru.course.roguelike.game.domain.session
 
 import ru.course.roguelike.game.domain.event.GameEvent
+import ru.course.roguelike.shared.engine.ElevatorPhase
+import ru.course.roguelike.shared.engine.ElevatorPhysics
 import ru.course.roguelike.shared.model.TileType
 
 /**
- * Переход между уровнями двухуровневой локации (issue #3, лифты).
+ * Переход между ярусами двухуровневой локации (issue #3, лифты).
  *
- * Лифты расположены в одинаковых координатах на обоих уровнях («стопкой»),
- * поэтому вход на тайл ELEVATOR переключает активный уровень, сохраняя позицию
- * героя по X/Y. Переход срабатывает только в момент входа на лифт
- * ([GameSession.onElevator] не даёт зациклиться, пока герой стоит на нём).
+ * Лифты расположены в одинаковых координатах на обоих уровнях («стопкой»).
+ * При входе на лифт герой поднимается с анимацией, на пике меняется активный
+ * ярус (та же локация, другой этаж), затем опускается на новый пол.
  */
 object ElevatorSystem {
-    /**
-     * Проверяет тайл под героем и при входе на лифт переключает уровень.
-     * Возвращает [GameEvent.LevelChanged], если уровень сменился, иначе null.
-     */
-    fun apply(session: GameSession): GameEvent? {
-        if (session.secondLevel == null) return null
+    fun apply(session: GameSession, deltaMs: Int): GameEvent? {
+        if (session.secondLevel == null) {
+            session.onElevator = false
+            return null
+        }
 
         val onElevatorNow = session.activeMap
             .getTileAt(session.playerPose.x, session.playerPose.y) == TileType.ELEVATOR
 
-        if (onElevatorNow && !session.onElevator) {
+        if (session.elevatorPhase == ElevatorPhase.IDLE) {
+            if (onElevatorNow && !session.onElevator) {
+                session.elevatorPhase = ElevatorPhase.ASCENDING
+            } else {
+                session.onElevator = onElevatorNow
+                return null
+            }
+        }
+
+        session.onElevator = true
+        val result = ElevatorPhysics.tick(session.elevatorPhase, session.playerPose.height, deltaMs)
+        session.elevatorPhase = result.phase
+        session.playerVerticalVelocity = result.verticalVelocity
+        session.playerPose = session.playerPose.copy(height = result.height)
+
+        if (result.levelSwitch) {
             session.currentLevel = 1 - session.currentLevel
-            // Герой оказывается на парном лифте другого уровня — помечаем, чтобы
-            // не переключиться снова на следующем тике.
-            session.onElevator = true
+            session.playerPose = session.playerPose.copy(height = ElevatorPhysics.PEAK_HEIGHT)
+            session.playerVerticalVelocity = result.verticalVelocity
             return GameEvent.LevelChanged(session.currentLevel)
         }
 
-        session.onElevator = onElevatorNow
+        if (result.phase == ElevatorPhase.IDLE) {
+            session.onElevator = onElevatorNow
+        }
         return null
     }
 }

@@ -3,14 +3,14 @@ package ru.course.roguelike.game.domain.session
 import ru.course.roguelike.game.domain.combat.MobEntity
 import ru.course.roguelike.game.domain.combat.ProjectileEntity
 import ru.course.roguelike.game.domain.inventory.InventoryGrid
-import ru.course.roguelike.game.domain.inventory.InventorySystem
+import ru.course.roguelike.game.domain.inventory.InventorySnapshots
+import ru.course.roguelike.game.domain.inventory.InventoryWeapons
 import ru.course.roguelike.game.domain.level.Room
 import ru.course.roguelike.shared.dto.BossRoomSnapshot
 import ru.course.roguelike.shared.dto.GameSnapshot
 import ru.course.roguelike.shared.dto.PlayerSnapshot
 import ru.course.roguelike.shared.engine.ElevatorPhase
 import ru.course.roguelike.shared.engine.TileMap
-import ru.course.roguelike.shared.model.CombatConstants
 import ru.course.roguelike.shared.model.ExperienceProgression
 import ru.course.roguelike.shared.model.GridPos
 import ru.course.roguelike.shared.model.InventoryConstants
@@ -118,11 +118,11 @@ data class GameSession(
             experienceToNextLevel = xpToNext,
             attackDamage = playerAttackDamage,
             ammo = playerAmmo,
-            maxAmmo = InventorySystem.magazineCapacity(this),
-            inventory = InventorySystem.toInventorySnapshot(inventory),
-            hotbar = InventorySystem.toHotbarSnapshot(this),
-            equippedWeaponName = InventorySystem.equippedWeaponName(this),
-            equippedWeaponType = InventorySystem.equippedWeaponType(this)?.name,
+            maxAmmo = InventoryWeapons.magazineCapacity(this),
+            inventory = InventorySnapshots.toInventorySnapshot(inventory),
+            hotbar = InventorySnapshots.toHotbarSnapshot(this),
+            equippedWeaponName = InventoryWeapons.equippedWeaponName(this),
+            equippedWeaponType = InventoryWeapons.equippedWeaponType(this)?.name,
             verticalVelocity = playerVerticalVelocity,
         )
     }

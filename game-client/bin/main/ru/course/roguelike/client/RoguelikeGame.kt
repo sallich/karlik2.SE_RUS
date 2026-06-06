@@ -2,7 +2,6 @@ package ru.course.roguelike.client
 
 import com.badlogic.gdx.ApplicationAdapter
 import com.badlogic.gdx.Gdx
-import com.badlogic.gdx.Input
 import com.badlogic.gdx.graphics.GL20
 import com.badlogic.gdx.graphics.Texture
 import com.badlogic.gdx.graphics.g2d.BitmapFont
@@ -18,134 +17,113 @@ import ru.course.roguelike.client.net.GameApiClient
 import ru.course.roguelike.client.render.CollisionDebugOverlay
 import ru.course.roguelike.client.render.FpsViewportRenderer
 import ru.course.roguelike.client.render.GameEndOverlay
-import ru.course.roguelike.client.render.GameTextures
+import ru.course.roguelike.client.render.InventoryUiOverlay
 import ru.course.roguelike.client.render.LocationMapOverlay
-import ru.course.roguelike.shared.dto.GameSnapshot
+import ru.course.roguelike.client.render.MiniMapOverlay
+import ru.course.roguelike.client.render.ViewportRenderScene
+import ru.course.roguelike.shared.dto.HotbarSnapshot
 import ru.course.roguelike.shared.dto.InputSyncRequest
+import ru.course.roguelike.shared.dto.InventorySnapshot
 import ru.course.roguelike.shared.dto.ItemSnapshot
 import ru.course.roguelike.shared.dto.KeySnapshot
 import ru.course.roguelike.shared.dto.MobSnapshot
 import ru.course.roguelike.shared.dto.ProjectileSnapshot
 import ru.course.roguelike.shared.engine.CollisionDebug
+import ru.course.roguelike.shared.engine.ElevatorPhase
 import ru.course.roguelike.shared.engine.FpsMovementSystem
 import ru.course.roguelike.shared.engine.TileMap
 import ru.course.roguelike.shared.model.GridPos
 import ru.course.roguelike.shared.model.PlayerPose
 import ru.course.roguelike.shared.model.SessionPhase
-import ru.course.roguelike.shared.render.SceneRenderConfig
 
 class RoguelikeGame : ApplicationAdapter() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val api = GameApiClient(System.getenv("GAME_SERVICE_URL") ?: "http://localhost:8080")
 
-    private lateinit var batch: SpriteBatch
-    private lateinit var font: BitmapFont
-    private lateinit var hud: RoguelikeHud
-    private lateinit var viewport: FpsViewportRenderer
-    private lateinit var gameTextures: GameTextures
-    private lateinit var shapeRenderer: ShapeRenderer
-    private lateinit var collisionDebugOverlay: CollisionDebugOverlay
-    private lateinit var locationMapOverlay: LocationMapOverlay
-    private lateinit var gameEndOverlay: GameEndOverlay
-    private lateinit var sync: RoguelikeSync
-    private lateinit var audio: GameAudio
+    internal lateinit var batch: SpriteBatch
+    internal lateinit var font: BitmapFont
+    internal lateinit var hud: RoguelikeHud
+    internal lateinit var viewport: FpsViewportRenderer
+    internal lateinit var shapeRenderer: ShapeRenderer
+    internal lateinit var collisionDebugOverlay: CollisionDebugOverlay
+    internal lateinit var locationMapOverlay: LocationMapOverlay
+    internal lateinit var miniMapOverlay: MiniMapOverlay
+    internal lateinit var inventoryUiOverlay: InventoryUiOverlay
+    internal lateinit var gameEndOverlay: GameEndOverlay
+    internal lateinit var sync: RoguelikeSync
+    internal lateinit var audio: GameAudio
 
-    private var tileMap: TileMap? = null
+    internal var tileMap: TileMap? = null
+    internal var predictedPose: PlayerPose? = null
 
-    /** Локальная симуляция (только render thread). */
-    private var predictedPose: PlayerPose? = null
-
-    /** Последняя поза с сервера (IO thread пишет, @Volatile для render). */
     @Volatile
-    private var authoritativePose: PlayerPose? = null
+    internal var authoritativePose: PlayerPose? = null
 
-    private var statusLine = "Connecting..."
+    internal var statusLine = "Connecting..."
     private var frameTexture: Texture? = null
-    private var fpsSmoothed = 0f
-    private var pendingSyncInput = InputSyncRequest()
-    private var pendingSyncDeltaMs = 0
-    private var accumulatedYawDelta = 0f
-    private var showCollisionDebug = false
-    private var showLocationMap = false
-    private var lastCollisionDebug: CollisionDebug? = null
+    internal var pendingSyncInput = InputSyncRequest()
+    internal var pendingSyncDeltaMs = 0
+    internal var accumulatedYawDelta = 0f
+    internal var showCollisionDebug = false
+    internal var showLocationMap = false
+    internal var showMiniMap = true
+    internal val visitedTracker = VisitedTracker()
+    internal var currentLevel = 0
+    internal var lastCollisionDebug: CollisionDebug? = null
 
-    /** HP/maxHP, уровень и опыт, присланные сервером. */
-    private var playerHp = 0
-    private var playerMaxHp = 0
-    private var playerLevel = 1
-    private var playerExperience = 0
-    private var playerExperienceToNextLevel = 100
-    private var playerAmmo = 0
-    private var playerMaxAmmo = 0
-    private var keysCollected = 0
-    private var keysRequired = 0
-
-    @Volatile
-    private var sessionPhase = SessionPhase.EXPLORATION
-
-    @Volatile
-    private var agentPose: PlayerPose? = null
-
-    @Volatile
-    private var serverMobs: List<MobSnapshot> = emptyList()
-
-    @Volatile
-    private var serverProjectiles: List<ProjectileSnapshot> = emptyList()
+    internal var playerHp = 0
+    internal var playerMaxHp = 0
+    internal var playerLevel = 1
+    internal var playerExperience = 0
+    internal var playerExperienceToNextLevel = 100
+    internal var playerAmmo = 0
+    internal var playerMaxAmmo = 0
+    internal var equippedWeaponName: String? = null
+    internal var equippedWeaponType: String? = null
+    internal var playerInventory: InventorySnapshot? = null
+    internal var playerHotbar: HotbarSnapshot? = null
+    internal var showInventoryGrid = false
+    internal var clientVerticalVelocity = 0f
+    internal var clientElevatorPhase = ElevatorPhase.IDLE
+    internal var clientWasOnElevator = false
+    internal var twoLevelLocation = true
+    internal var keysCollected = 0
+    internal var keysRequired = 0
 
     @Volatile
-    private var keyPickups: List<KeySnapshot> = emptyList()
+    internal var sessionPhase = SessionPhase.EXPLORATION
 
     @Volatile
-    private var items: List<ItemSnapshot> = emptyList()
+    internal var agentPose: PlayerPose? = null
 
     @Volatile
-    private var exitGate: GridPos? = null
+    internal var serverMobs: List<MobSnapshot> = emptyList()
+
+    @Volatile
+    internal var serverProjectiles: List<ProjectileSnapshot> = emptyList()
+
+    @Volatile
+    internal var keyPickups: List<KeySnapshot> = emptyList()
+
+    @Volatile
+    internal var items: List<ItemSnapshot> = emptyList()
+
+    @Volatile
+    internal var exitGate: GridPos? = null
+
+    internal var syncAccum = 0f
+
+    internal val isSessionEnded: Boolean
+        get() = sessionPhase == SessionPhase.GAME_OVER || sessionPhase == SessionPhase.LEVEL_COMPLETE
 
     override fun create() {
-        batch = SpriteBatch()
-        font = BitmapFont()
-        hud = RoguelikeHud(batch, font)
-        shapeRenderer = ShapeRenderer()
-        collisionDebugOverlay = CollisionDebugOverlay(shapeRenderer)
-        locationMapOverlay = LocationMapOverlay(shapeRenderer)
-        gameEndOverlay = GameEndOverlay(batch, font, shapeRenderer)
-        gameTextures = GameTextures.load()
-        audio = GameAudio()
-        audio.load()
-        audio.playAmbient()
-        viewport = FpsViewportRenderer(SceneRenderConfig.VIEW_WIDTH, SceneRenderConfig.VIEW_HEIGHT, gameTextures)
+        initRendering()
         sync = RoguelikeSync(
             scope = scope,
             api = api,
             onStatusLine = { statusLine = it },
-            onSnapshot = { applySnapshotFromServer(it) },
-            bindings = SyncBindings(
-                poseAccessor = { predictedPose },
-                poseMutator = { predictedPose = it },
-                authoritativeMutator = { authoritativePose = it },
-                vitalsMutator = { hp, maxHp, level, experience, experienceToNextLevel, ammo, maxAmmo ->
-                    playerHp = hp
-                    playerMaxHp = maxHp
-                    playerLevel = level
-                    playerExperience = experience
-                    playerExperienceToNextLevel = experienceToNextLevel
-                    playerAmmo = ammo
-                    playerMaxAmmo = maxAmmo
-                },
-                combatMutator = { mobs, projectiles ->
-                    serverMobs = mobs
-                    serverProjectiles = projectiles
-                },
-                progressMutator = { phase, collected, required, keys, locationItems, gate ->
-                    sessionPhase = parseSessionPhase(phase)
-                    keysCollected = collected
-                    keysRequired = required
-                    keyPickups = keys
-                    items = locationItems
-                    exitGate = gate
-                },
-                agentMutator = { agentPose = it },
-            ),
+            onSnapshot = { applyServerSnapshot(it) },
+            bindings = buildSyncBindings(),
         )
         Gdx.graphics.setForegroundFPS(60)
         InputSampler.enableMouseLook()
@@ -154,7 +132,6 @@ class RoguelikeGame : ApplicationAdapter() {
 
     override fun render() {
         val delta = Gdx.graphics.deltaTime.coerceAtMost(0.05f)
-        fpsSmoothed = fpsSmoothed * 0.9f + (1f / delta) * 0.1f
         handleDebugKeys()
 
         if (!isSessionEnded) {
@@ -168,133 +145,114 @@ class RoguelikeGame : ApplicationAdapter() {
                 DebugOverlayContext(
                     showCollisionDebug = showCollisionDebug,
                     showLocationMap = showLocationMap,
+                    showMiniMap = showMiniMap,
                     screenW = Gdx.graphics.width.toFloat(),
                     screenH = Gdx.graphics.height.toFloat(),
                     tileMap = tileMap,
                     pose = predictedPose,
+                    visitedTiles = visitedTracker.cells,
                     serverMobs = serverMobs,
                     keyPickups = keyPickups,
                     items = items,
                     exitGate = exitGate,
                     lastCollisionDebug = lastCollisionDebug,
                     locationMapOverlay = locationMapOverlay,
+                    miniMapOverlay = miniMapOverlay,
                     collisionDebugOverlay = collisionDebugOverlay,
                 ),
             )
         }
 
-        drawHud()
+        drawInventoryPanel()
+        drawGameHud()
 
         if (isSessionEnded) {
             gameEndOverlay.render(sessionPhase)
         }
     }
 
-    private fun drawHud() {
-        val pose = predictedPose
-        val onLava = !isSessionEnded && pose != null && tileMap?.getTileAt(pose.x, pose.y)?.damaging == true
-        hud.draw(
-            statusLine,
-            pose,
-            fpsSmoothed,
-            lastCollisionDebug,
-            showCollisionDebug && !isSessionEnded,
-            onLava = onLava,
-            hp = playerHp,
-            maxHp = playerMaxHp,
-            level = playerLevel,
-            experience = playerExperience,
-            experienceToNextLevel = playerExperienceToNextLevel,
-            ammo = playerAmmo,
-            maxAmmo = playerMaxAmmo,
-            keysCollected = keysCollected,
-            keysRequired = keysRequired,
-            interactionHint = interactionHint(
-                pose,
-                isSessionEnded,
-                tileMap,
-                exitGate,
-                KeyProgress(keysCollected, keysRequired),
-                keyPickups,
-                items,
+    private fun handleDebugKeys() {
+        val keys = DebugKeyHandler.handle(
+            DebugKeyState(
+                showCollisionDebug = showCollisionDebug,
+                showLocationMap = showLocationMap,
+                showMiniMap = showMiniMap,
+                showInventoryGrid = showInventoryGrid,
             ),
         )
-    }
-
-    private var syncAccum = 0f
-
-    private val isSessionEnded: Boolean
-        get() = sessionPhase == SessionPhase.GAME_OVER || sessionPhase == SessionPhase.LEVEL_COMPLETE
-
-    private fun handleDebugKeys() {
-        if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
-            InputSampler.toggleMouseLook()
+        showCollisionDebug = keys.showCollisionDebug
+        showLocationMap = keys.showLocationMap
+        showMiniMap = keys.showMiniMap
+        showInventoryGrid = keys.showInventoryGrid
+        if (keys.restartRequested) {
+            resetSessionState()
+            sync.restart()
         }
-        if (Gdx.input.isKeyJustPressed(Input.Keys.F3)) {
-            showCollisionDebug = !showCollisionDebug
-        }
-        if (Gdx.input.isKeyJustPressed(Input.Keys.F4)) {
-            showLocationMap = !showLocationMap
-        }
-        if (Gdx.input.isKeyJustPressed(Input.Keys.R)) {
-            restartSession()
-        }
-    }
-
-    private fun restartSession() {
-        predictedPose = null
-        authoritativePose = null
-        tileMap = null
-        keyPickups = emptyList()
-        items = emptyList()
-        exitGate = null
-        sessionPhase = SessionPhase.EXPLORATION
-        playerHp = 0
-        playerMaxHp = 0
-        playerLevel = 1
-        playerExperience = 0
-        playerExperienceToNextLevel = 100
-        playerAmmo = 0
-        playerMaxAmmo = 0
-        keysCollected = 0
-        keysRequired = 0
-        serverMobs = emptyList()
-        serverProjectiles = emptyList()
-        agentPose = null
-        pendingSyncInput = InputSyncRequest()
-        pendingSyncDeltaMs = 0
-        accumulatedYawDelta = 0f
-        syncAccum = 0f
-        lastCollisionDebug = null
-        statusLine = "Starting new run..."
-        sync.restart()
     }
 
     private fun simulateFrame(delta: Float) {
         val map = tileMap ?: return
         var pose = predictedPose ?: return
 
-        val sample = InputSampler.sample(delta)
+        val sample = InputSampler.sample(delta, showInventoryGrid)
         accumulatedYawDelta += sample.input.yawDelta
-        pendingSyncInput = sync.mergeInput(pendingSyncInput, sample.input)
+        pendingSyncInput = mergeInputSync(pendingSyncInput, sample.input)
         pendingSyncDeltaMs = (pendingSyncDeltaMs + sample.input.deltaMs).coerceAtMost(250)
 
         if (sample.input.attack) {
             audio.playHit()
         }
 
-        val movement = FpsMovementSystem.applyInputWithDebug(map, pose, sample.input)
+        val vertical = ClientVerticalMotion.tick(
+            ClientVerticalMotion.TickInput(
+                map = map,
+                pose = pose,
+                verticalVelocity = clientVerticalVelocity,
+                elevatorPhase = clientElevatorPhase,
+                wasOnElevator = clientWasOnElevator,
+                twoLevel = twoLevelLocation,
+                jumpRequested = sample.input.jump,
+                deltaMs = sample.input.deltaMs,
+            ),
+        )
+        val movement = FpsMovementSystem.applyInputWithDebug(
+            map,
+            vertical.pose.copy(yaw = pose.yaw, pitch = pose.pitch),
+            sample.input,
+        )
         lastCollisionDebug = movement.debug
+        clientVerticalVelocity = vertical.verticalVelocity
+        clientElevatorPhase = vertical.elevatorPhase
+        if (vertical.levelSwitched) {
+            currentLevel = 1 - currentLevel
+            visitedTracker.clear()
+        }
+        val onElevatorTile = map.getTileAt(vertical.pose.x, vertical.pose.y) ==
+            ru.course.roguelike.shared.model.TileType.ELEVATOR
+        clientWasOnElevator = onElevatorTile || clientElevatorPhase != ElevatorPhase.IDLE
         val localPose = movement.pose
 
         maybeSendSync(localPose)
         pose = localPose
         predictedPose = pose
-        frameTexture = viewport.render(map, pose, serverMobs, serverProjectiles, keyPickups, items, agentPose)
+        visitedTracker.reveal(map, pose)
+        frameTexture = viewport.render(
+            ViewportRenderScene(
+                map = map,
+                pose = pose,
+                floorLevel = currentLevel,
+                mobs = serverMobs,
+                projectiles = serverProjectiles,
+                keyPickups = keyPickups,
+                items = items,
+                agentPose = agentPose,
+            ),
+        )
     }
 
     private fun maybeSendSync(localPose: PlayerPose) {
-        if (!InputSampler.shouldSync(syncAccum) || sync.sessionId == null) return
+        val urgentInteract = pendingSyncInput.interact
+        if ((!InputSampler.shouldSync(syncAccum) && !urgentInteract) || sync.sessionId == null) return
         syncAccum = 0f
         val syncPayload = pendingSyncInput.copy(
             yawDelta = accumulatedYawDelta,
@@ -319,20 +277,6 @@ class RoguelikeGame : ApplicationAdapter() {
         batch.draw(tex, 0f, 0f, Gdx.graphics.width.toFloat(), Gdx.graphics.height.toFloat())
         batch.end()
         batch.setBlendFunction(blendSrc, blendDst)
-    }
-
-    private fun applySnapshotFromServer(snap: GameSnapshot) {
-        tileMap = TileMap.fromFlat(snap.width, snap.height, snap.tiles)
-        serverMobs = snap.mobs
-        serverProjectiles = snap.projectiles
-        sessionPhase = parseSessionPhase(snap.phase)
-        keysCollected = snap.keysCollected
-        keysRequired = snap.keysRequired
-        keyPickups = snap.keyPickups
-        items = snap.items
-        exitGate = snap.exitGate
-        audio.onCombatSnapshot(snap.player.hp, snap.projectiles)
-        sync.applySnapshot(snap)
     }
 
     override fun dispose() {

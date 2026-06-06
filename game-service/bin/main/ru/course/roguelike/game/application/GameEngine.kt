@@ -6,6 +6,7 @@ import ru.course.roguelike.game.domain.command.GameCommand
 import ru.course.roguelike.game.domain.event.GameEvent
 import ru.course.roguelike.game.domain.event.GameEventBus
 import ru.course.roguelike.game.domain.event.GameEventListener
+import ru.course.roguelike.game.domain.inventory.InventorySystem
 import ru.course.roguelike.game.domain.level.GeneratedLevel
 import ru.course.roguelike.game.domain.level.LevelGenerator
 import ru.course.roguelike.game.domain.level.Room
@@ -52,6 +53,7 @@ class GameEngine(
         } else {
             buildSession(sessionId, resolvedSeed, coopAgent)
         }
+        InventorySystem.initialize(session)
         sessions[sessionId] = session
         MobSpawner.spawnStarterPack(session)
         eventBus.publish(listOf(GameEvent.SessionCreated(sessionId, resolvedSeed)))

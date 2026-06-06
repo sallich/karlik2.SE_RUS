@@ -6,10 +6,10 @@ import ru.course.roguelike.game.domain.command.GameCommand
 import ru.course.roguelike.game.domain.event.GameEvent
 import ru.course.roguelike.game.domain.event.GameEventBus
 import ru.course.roguelike.game.domain.event.GameEventListener
+import ru.course.roguelike.game.domain.inventory.InventorySystem
 import ru.course.roguelike.game.domain.level.GeneratedLevel
 import ru.course.roguelike.game.domain.level.LevelGenerator
 import ru.course.roguelike.game.domain.level.Room
-import ru.course.roguelike.game.domain.inventory.InventorySystem
 import ru.course.roguelike.game.domain.session.AgentCompanionSpawner
 import ru.course.roguelike.game.domain.session.ExitGatePlacer
 import ru.course.roguelike.game.domain.session.GameSession

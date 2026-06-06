@@ -2,12 +2,6 @@ package ru.course.roguelike.client.render
 
 import com.badlogic.gdx.graphics.Pixmap
 import com.badlogic.gdx.graphics.Texture
-import ru.course.roguelike.shared.dto.ItemSnapshot
-import ru.course.roguelike.shared.dto.KeySnapshot
-import ru.course.roguelike.shared.dto.MobSnapshot
-import ru.course.roguelike.shared.dto.ProjectileSnapshot
-import ru.course.roguelike.shared.engine.TileMap
-import ru.course.roguelike.shared.model.PlayerPose
 import ru.course.roguelike.shared.render.CameraProjection
 import ru.course.roguelike.shared.render.Raycaster
 import ru.course.roguelike.shared.render.SceneRenderConfig
@@ -23,47 +17,38 @@ class FpsViewportRenderer(
     private lateinit var texture: Texture
     private var textureReady = false
 
-    fun render(
-        map: TileMap,
-        pose: PlayerPose,
-        floorLevel: Int = 0,
-        mobs: List<MobSnapshot> = emptyList(),
-        projectiles: List<ProjectileSnapshot> = emptyList(),
-        keyPickups: List<KeySnapshot> = emptyList(),
-        items: List<ItemSnapshot> = emptyList(),
-        agentPose: PlayerPose? = null,
-    ): Texture {
-        val pitchHorizon = SceneRenderConfig.horizonY(viewHeight, pose.pitch)
-        val viewerHeight = CameraProjection.viewerHeight(pose.height)
+    fun render(scene: ViewportRenderScene): Texture {
+        val pitchHorizon = SceneRenderConfig.horizonY(viewHeight, scene.pose.pitch)
+        val viewerHeight = CameraProjection.viewerHeight(scene.pose.height)
         val horizonInt = kotlin.math.ceil(pitchHorizon).toInt().coerceIn(0, viewHeight)
 
         painter.beginFrame()
-        painter.paintSky(horizonInt, pose.yaw)
+        painter.paintSky(horizonInt, scene.pose.yaw)
         painter.fillFloorBase(horizonInt)
-        painter.paintFloor(map, pose, pitchHorizon, horizonInt, pose.height)
-        painter.paintColumnUnderfoot(map, pose, pitchHorizon, viewerHeight)
-        val scene = Raycaster.castScene(
-            map,
-            pose,
+        painter.paintFloor(scene.map, scene.pose, pitchHorizon, horizonInt, scene.pose.height)
+        painter.paintColumnUnderfoot(scene.map, scene.pose, pitchHorizon, viewerHeight)
+        val cast = Raycaster.castScene(
+            scene.map,
+            scene.pose,
             viewWidth,
             viewHeight,
             pitchHorizonY = pitchHorizon,
-            floorLevel = floorLevel,
+            floorLevel = scene.floorLevel,
             viewerHeight = viewerHeight,
         )
-        painter.paintWalls(scene, pitchHorizon, viewerHeight)
-        painter.paintHorizontalTops(scene, pose, pitchHorizon, viewerHeight)
-        painter.paintWallCaps(scene)
+        painter.paintWalls(cast, pitchHorizon, viewerHeight)
+        painter.paintHorizontalTops(cast, pitchHorizon, viewerHeight)
+        painter.paintWallCaps(cast)
         painter.paintSprites(
-            pose,
+            scene.pose,
             pitchHorizon,
             viewerHeight,
-            mobs,
-            projectiles,
-            keyPickups,
-            items,
-            agentPose,
-            scene.wallDistances,
+            scene.mobs,
+            scene.projectiles,
+            scene.keyPickups,
+            scene.items,
+            scene.agentPose,
+            cast.wallDistances,
         )
 
         frameBuffer.flushTo(pixmap)

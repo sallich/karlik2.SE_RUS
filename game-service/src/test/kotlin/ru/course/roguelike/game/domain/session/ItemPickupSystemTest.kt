@@ -1,11 +1,8 @@
 package ru.course.roguelike.game.domain.session
 
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import ru.course.roguelike.game.domain.event.GameEvent
-import ru.course.roguelike.game.domain.inventory.InventorySystem
 import ru.course.roguelike.game.domain.inventory.StarterLoadout
 import ru.course.roguelike.game.domain.progression.ProgressionSystem
 import ru.course.roguelike.shared.engine.TileMap

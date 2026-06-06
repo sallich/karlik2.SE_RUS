@@ -13,6 +13,7 @@ import ru.course.roguelike.shared.engine.ElevatorPhase
 import ru.course.roguelike.shared.engine.FpsMovementSystem
 import ru.course.roguelike.shared.engine.VerticalMotion
 import ru.course.roguelike.shared.model.FpsConstants
+import ru.course.roguelike.shared.model.PlayerPose
 import kotlin.math.ceil
 
 class SyncInputCommand(
@@ -29,6 +30,7 @@ class SyncInputCommand(
 
     override fun execute(session: GameSession): CommandExecutionResult {
         val levelEvent = ElevatorSystem.apply(session, input.deltaMs)
+        val poseBeforeMove = session.playerPose
         applyVerticalMotion(session, input)
         session.playerPose = FpsMovementSystem.applyInput(session.activeMap, session.playerPose, input)
         session.touchClock()
@@ -38,8 +40,7 @@ class SyncInputCommand(
         )
         LavaDamageSystem.apply(session, input.deltaMs)?.let { events.add(it) }
         levelEvent?.let { events.add(it) }
-        events.addAll(LevelProgressSystem.apply(session, input))
-        events.addAll(ItemPickupSystem.apply(session, session.playerPose, input.interact))
+        events.addAll(applyInteract(session, poseBeforeMove, session.playerPose))
         events.addAll(InventorySystem.handleHotbarInput(session, input.hotbarSelect, input.hotbarAssign, input.reload))
         events.addAll(CombatSystem.tick(session, input.deltaMs, input.attack))
         return CommandExecutionResult(
@@ -47,6 +48,26 @@ class SyncInputCommand(
             message = "sync ok",
             events = events,
         )
+    }
+
+    /**
+     * E обрабатывается и до, и после шага движения в батче: иначе при удержании WASD
+     * игрок успевает выйти из радиуса ключа/предмета/выхода к моменту проверки interact.
+     */
+    private fun applyInteract(
+        session: GameSession,
+        poseBeforeMove: PlayerPose,
+        poseAfterMove: PlayerPose,
+    ): List<GameEvent> {
+        if (!input.interact) {
+            return ItemPickupSystem.apply(session, poseAfterMove, interact = false)
+        }
+        val events = mutableListOf<GameEvent>()
+        for (pose in listOf(poseBeforeMove, poseAfterMove)) {
+            events.addAll(LevelProgressSystem.applyForPose(session, input, pose))
+            events.addAll(ItemPickupSystem.apply(session, pose, interact = true))
+        }
+        return events
     }
 
     companion object {

@@ -31,7 +31,7 @@ class RoguelikeSync(
         syncOutboundSeq = syncOutboundSeq,
         pendingInput = pendingInput,
         sessionIdProvider = { sessionId },
-        mergeInput = ::mergeInput,
+        mergeInput = ::mergeInputSync,
         onBatch = { id, seq, input, gen ->
             runSyncRequest(
                 SyncRequestContext(
@@ -79,7 +79,8 @@ class RoguelikeSync(
                 onStatusLine(
                     "Co-op agent enabled. Session ${created.sessionId.take(8)}… — " +
                         "curl agent: POST /api/v1/agent/run with sessionId. " +
-                        "1/2 — оружие | Tab+1/2 — в слот | F — перезарядка | Shift — прыжок | Tab — инвентарь | F5 — новый забег.",
+                        "1/2 — оружие | Tab+1/2 — в слот | F — перезарядка | " +
+                        "Shift — прыжок | Tab — инвентарь | F5 — новый забег.",
                 )
             } catch (ex: Exception) {
                 if (gen == sessionGeneration.get()) {
@@ -170,27 +171,6 @@ class RoguelikeSync(
         currentLevel = 0
         connect(seed)
     }
-
-    fun mergeInput(prev: InputSyncRequest, frame: InputSyncRequest): InputSyncRequest =
-        InputSyncRequest(
-            forward = prev.forward || frame.forward,
-            backward = prev.backward || frame.backward,
-            strafeLeft = prev.strafeLeft || frame.strafeLeft,
-            strafeRight = prev.strafeRight || frame.strafeRight,
-            turnLeft = prev.turnLeft || frame.turnLeft,
-            turnRight = prev.turnRight || frame.turnRight,
-            lookUp = prev.lookUp || frame.lookUp,
-            lookDown = prev.lookDown || frame.lookDown,
-            yawDelta = prev.yawDelta + frame.yawDelta,
-            pitchDelta = prev.pitchDelta + frame.pitchDelta,
-            deltaMs = prev.deltaMs + frame.deltaMs,
-            attack = prev.attack || frame.attack,
-            interact = prev.interact || frame.interact,
-            hotbarSelect = frame.hotbarSelect ?: prev.hotbarSelect,
-            hotbarAssign = frame.hotbarAssign ?: prev.hotbarAssign,
-            reload = prev.reload || frame.reload,
-            jump = prev.jump || frame.jump,
-        )
 
     private fun applySyncSnapshot(snap: GameSnapshot) {
         bindings.vitalsMutator(

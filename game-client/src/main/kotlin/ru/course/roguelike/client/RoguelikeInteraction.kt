@@ -31,7 +31,12 @@ fun interactionHint(
 private fun exitGateHint(pose: PlayerPose, exitGate: GridPos?, keys: KeyProgress): String? {
     val gate = exitGate ?: return null
     if (floor(pose.x).toInt() != gate.x || floor(pose.y).toInt() != gate.y) return null
-    return if (keys.collected >= keys.required) "E — открыть выход" else "Нужны ключи ${keys.collected}/${keys.required}"
+    val keyProgress = "${keys.collected}/${keys.required}"
+    return if (keys.collected >= keys.required) {
+        "E — открыть выход"
+    } else {
+        "Нужны ключи $keyProgress"
+    }
 }
 
 private fun nearKeyHint(pose: PlayerPose, keyPickups: List<ru.course.roguelike.shared.dto.KeySnapshot>): String? {

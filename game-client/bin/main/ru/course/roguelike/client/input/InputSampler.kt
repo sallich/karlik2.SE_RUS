@@ -12,12 +12,11 @@ object InputSampler {
 
     data class Sample(val input: InputSyncRequest)
 
-    fun sample(deltaSec: Float): Sample {
+    fun sample(deltaSec: Float, inventoryOpen: Boolean): Sample {
         val deltaMs = (deltaSec * 1000f).toInt().coerceIn(1, 100)
         val frameScale = (deltaSec * 60f).coerceIn(0.25f, 2.5f)
 
-        val mouseLook = Gdx.input.isCursorCatched ||
-            Gdx.input.isButtonPressed(Input.Buttons.RIGHT)
+        val mouseLook = Gdx.input.isCursorCatched || Gdx.input.isButtonPressed(Input.Buttons.RIGHT)
         val yawDelta = if (mouseLook) {
             FpsConstants.MOUSE_YAW_SIGN * Gdx.input.deltaX * MOUSE_YAW_PER_PIXEL * frameScale
         } else {
@@ -45,8 +44,27 @@ object InputSampler {
                 attack = Gdx.input.isButtonJustPressed(Input.Buttons.LEFT) ||
                     Gdx.input.isKeyJustPressed(Input.Keys.SPACE),
                 interact = Gdx.input.isKeyJustPressed(Input.Keys.E),
+                hotbarSelect = if (inventoryOpen) null else hotbarEquipSelect(),
+                hotbarAssign = if (inventoryOpen) hotbarAssignSelect() else null,
+                reload = Gdx.input.isKeyJustPressed(Input.Keys.F),
+                jump = Gdx.input.isKeyJustPressed(Input.Keys.SHIFT_LEFT) ||
+                    Gdx.input.isKeyJustPressed(Input.Keys.SHIFT_RIGHT),
             ),
         )
+    }
+
+    /** 1/2 — экипировать оружие из слота hotbar. */
+    private fun hotbarEquipSelect(): Int? = when {
+        Gdx.input.isKeyJustPressed(Input.Keys.NUM_1) -> 0
+        Gdx.input.isKeyJustPressed(Input.Keys.NUM_2) -> 1
+        else -> null
+    }
+
+    /** Tab+1/2 — назначить оружие из инвентаря в слот. */
+    private fun hotbarAssignSelect(): Int? = when {
+        Gdx.input.isKeyJustPressed(Input.Keys.NUM_1) -> 0
+        Gdx.input.isKeyJustPressed(Input.Keys.NUM_2) -> 1
+        else -> null
     }
 
     fun shouldSync(accumulatedSec: Float): Boolean = accumulatedSec >= FpsConstants.SYNC_INTERVAL_SEC
@@ -62,11 +80,7 @@ object InputSampler {
     }
 
     fun toggleMouseLook() {
-        if (Gdx.input.isCursorCatched) {
-            disableMouseLook()
-        } else {
-            enableMouseLook()
-        }
+        if (Gdx.input.isCursorCatched) disableMouseLook() else enableMouseLook()
     }
 
     private fun hideCursor() {

@@ -1,6 +1,7 @@
 package ru.course.roguelike.game.domain.progression
 
 import ru.course.roguelike.game.domain.event.GameEvent
+import ru.course.roguelike.game.domain.inventory.InventorySystem
 import ru.course.roguelike.game.domain.session.GameSession
 import ru.course.roguelike.shared.model.ExperienceProgression
 import ru.course.roguelike.shared.model.MobKind
@@ -50,9 +51,7 @@ object ProgressionSystem {
             val hpGain = newMaxHp - session.playerMaxHp
             session.playerMaxHp = newMaxHp
             session.playerHp = (session.playerHp + hpGain).coerceAtMost(newMaxHp)
-            // Сохраняем прибавку от подобранных предметов-оружия поверх базового урона уровня.
-            session.playerAttackDamage =
-                ExperienceProgression.attackDamageForLevel(level) + session.playerWeaponBonus
+            session.playerAttackDamage = InventorySystem.recalculateAttackDamage(session)
             events.add(
                 GameEvent.PlayerLevelUp(
                     newLevel = level,

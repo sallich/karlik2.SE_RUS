@@ -38,5 +38,15 @@ sealed interface GameEvent {
 
     data class WeaponUpgraded(val bonus: Int, val attackDamage: Int) : GameEvent
 
+    data class WeaponEquipped(val itemId: Int, val weaponName: String, val attackDamage: Int) : GameEvent
+
+    data class ItemAddedToInventory(val itemId: Int, val type: String) : GameEvent
+
+    data class ItemStackedInInventory(val type: String) : GameEvent
+
+    data class InventoryFull(val type: String) : GameEvent
+
+    data class HotbarWeaponAssigned(val slot: Int, val itemId: Int, val weaponType: String) : GameEvent
+
     data class AmmoChanged(val delta: Int, val ammo: Int) : GameEvent
 }

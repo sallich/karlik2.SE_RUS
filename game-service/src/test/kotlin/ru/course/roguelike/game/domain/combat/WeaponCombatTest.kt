@@ -1,7 +1,6 @@
 package ru.course.roguelike.game.domain.combat
 
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import ru.course.roguelike.game.domain.inventory.AddItemResult
 import ru.course.roguelike.game.domain.inventory.InventorySystem

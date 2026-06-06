@@ -4,7 +4,7 @@ import ru.course.roguelike.game.domain.ai.MobDecisionContext
 import ru.course.roguelike.game.domain.ai.MobIntent
 import ru.course.roguelike.game.domain.ai.distanceTo
 import ru.course.roguelike.game.domain.event.GameEvent
-import ru.course.roguelike.game.domain.inventory.InventorySystem
+import ru.course.roguelike.game.domain.inventory.InventoryWeapons
 import ru.course.roguelike.game.domain.progression.ProgressionSystem
 import ru.course.roguelike.game.domain.session.GameSession
 import ru.course.roguelike.game.domain.session.MobLootDropper
@@ -26,7 +26,7 @@ object CombatSystem {
         tickCooldowns(session, deltaMs)
         if (playerAttacking) {
             firePlayerProjectile(session)?.let { events.add(it) }
-            events.addAll(InventorySystem.tryAutoReload(session))
+            events.addAll(InventoryWeapons.tryAutoReload(session))
         }
         tickMobs(session, map, deltaSec, events)
         tickProjectiles(session, map, deltaSec, events)
@@ -143,7 +143,7 @@ object CombatSystem {
     }
 
     private fun firePlayerProjectile(session: GameSession): GameEvent? {
-        val weaponType = InventorySystem.equippedWeaponType(session) ?: InventoryItemType.PISTOL
+        val weaponType = InventoryWeapons.equippedWeaponType(session) ?: InventoryItemType.PISTOL
         val ammoCost = InventoryDefinitions.ammoCost(weaponType)
         if (session.playerAttackCooldownMs > 0) return null
         if (session.playerAmmo < ammoCost) return null

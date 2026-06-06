@@ -105,7 +105,7 @@ class InventorySystemTest {
         session.inventory.add(InventoryItemType.SHOTGUN_AMMO, InventoryConstants.AMMO_STACK_SIZE)
         session.playerAmmo = 0
 
-        val events = InventorySystem.reloadEquippedWeapon(session)
+        val events = InventoryWeapons.reloadEquippedWeapon(session)
 
         assertTrue(events.isEmpty())
     }

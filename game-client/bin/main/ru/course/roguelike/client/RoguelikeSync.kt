@@ -31,7 +31,7 @@ class RoguelikeSync(
         syncOutboundSeq = syncOutboundSeq,
         pendingInput = pendingInput,
         sessionIdProvider = { sessionId },
-        mergeInput = ::mergeInput,
+        mergeInput = ::mergeInputSync,
         onBatch = { id, seq, input, gen ->
             runSyncRequest(
                 SyncRequestContext(
@@ -44,12 +44,14 @@ class RoguelikeSync(
                     syncAppliedSeq = syncAppliedSeq,
                     onStatusLine = onStatusLine,
                     onApplied = ::applySyncSnapshot,
-                    applyServerCorrection = { auth ->
+                    applyServerCorrection = { auth, verticalVelocity ->
                         applyServerCorrection(
                             auth,
+                            verticalVelocity,
                             bindings.poseAccessor,
                             bindings.authoritativeMutator,
                             bindings.poseMutator,
+                            bindings.verticalMutator,
                         )
                     },
                 ),
@@ -77,7 +79,8 @@ class RoguelikeSync(
                 onStatusLine(
                     "Co-op agent enabled. Session ${created.sessionId.take(8)}… — " +
                         "curl agent: POST /api/v1/agent/run with sessionId. " +
-                        "Esc — мышь, F4 — карта, R — новый забег.",
+                        "1/2 — оружие | Tab+1/2 — в слот | F — перезарядка | " +
+                        "Shift — прыжок | Tab — инвентарь | F5 — новый забег.",
                 )
             } catch (ex: Exception) {
                 if (gen == sessionGeneration.get()) {
@@ -106,7 +109,10 @@ class RoguelikeSync(
             snap.player.experienceToNextLevel,
             snap.player.ammo,
             snap.player.maxAmmo,
+            snap.player.equippedWeaponName,
+            snap.player.equippedWeaponType,
         )
+        bindings.inventoryMutator(snap.player.inventory, snap.player.hotbar)
         bindings.combatMutator(snap.mobs, snap.projectiles)
         bindings.progressMutator(
             snap.phase,
@@ -117,6 +123,8 @@ class RoguelikeSync(
             snap.exitGate,
         )
         bindings.agentMutator(snap.agent?.pose)
+        bindings.verticalMutator(snap.player.verticalVelocity)
+        bindings.elevatorPhaseMutator(snap.elevatorPhase)
         currentLevel = snap.currentLevel
     }
 
@@ -164,23 +172,6 @@ class RoguelikeSync(
         connect(seed)
     }
 
-    fun mergeInput(prev: InputSyncRequest, frame: InputSyncRequest): InputSyncRequest =
-        InputSyncRequest(
-            forward = prev.forward || frame.forward,
-            backward = prev.backward || frame.backward,
-            strafeLeft = prev.strafeLeft || frame.strafeLeft,
-            strafeRight = prev.strafeRight || frame.strafeRight,
-            turnLeft = prev.turnLeft || frame.turnLeft,
-            turnRight = prev.turnRight || frame.turnRight,
-            lookUp = prev.lookUp || frame.lookUp,
-            lookDown = prev.lookDown || frame.lookDown,
-            yawDelta = prev.yawDelta + frame.yawDelta,
-            pitchDelta = prev.pitchDelta + frame.pitchDelta,
-            deltaMs = prev.deltaMs + frame.deltaMs,
-            attack = prev.attack || frame.attack,
-            interact = prev.interact || frame.interact,
-        )
-
     private fun applySyncSnapshot(snap: GameSnapshot) {
         bindings.vitalsMutator(
             snap.player.hp,
@@ -190,9 +181,14 @@ class RoguelikeSync(
             snap.player.experienceToNextLevel,
             snap.player.ammo,
             snap.player.maxAmmo,
+            snap.player.equippedWeaponName,
+            snap.player.equippedWeaponType,
         )
+        bindings.inventoryMutator(snap.player.inventory, snap.player.hotbar)
         bindings.combatMutator(snap.mobs, snap.projectiles)
         bindings.agentMutator(snap.agent?.pose)
+        bindings.verticalMutator(snap.player.verticalVelocity)
+        bindings.elevatorPhaseMutator(snap.elevatorPhase)
         bindings.progressMutator(
             snap.phase,
             snap.keysCollected,
@@ -208,7 +204,7 @@ class RoguelikeSync(
         if (level == currentLevel) return
         currentLevel = level
         onStatusLine(
-            if (level == 1) "Elevator: went up to the 2nd floor" else "Elevator: went down to the 1st floor",
+            if (level == 1) "Лифт: 2-й ярус (над колоннами)" else "Лифт: 1-й ярус",
         )
     }
 }
