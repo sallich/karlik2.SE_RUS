@@ -174,8 +174,9 @@ class TextureMappingTest {
         val distance = 5f
         val viewHeight = 200
         val lineHeight = viewHeight / distance
-        val v0 = TextureMapping.wallTextureV(50, wallStart, distance, viewHeight, TileType.WALL)
-        val v1 = TextureMapping.wallTextureV((50 + lineHeight).toInt(), wallStart, distance, viewHeight, TileType.WALL)
+        val wallEnd = wallStart + lineHeight
+        val v0 = TextureMapping.wallTextureV(50, wallStart, wallEnd, TileType.WALL)
+        val v1 = TextureMapping.wallTextureV((50 + lineHeight).toInt(), wallStart, wallEnd, TileType.WALL)
         assertEquals(v0, v1, 0.02f)
     }
 

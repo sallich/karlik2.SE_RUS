@@ -4,6 +4,8 @@ import ru.course.roguelike.shared.dto.InputSyncRequest
 import ru.course.roguelike.shared.model.FpsConstants
 import ru.course.roguelike.shared.model.GridPos
 import ru.course.roguelike.shared.model.PlayerPose
+import ru.course.roguelike.shared.model.TileType
+import ru.course.roguelike.shared.model.WorldVertical
 import kotlin.math.ceil
 import kotlin.math.cos
 import kotlin.math.floor
@@ -17,6 +19,11 @@ object FpsMovementSystem {
 
     fun applyInput(map: TileMap, pose: PlayerPose, input: InputSyncRequest): PlayerPose =
         applyInputWithDebug(map, pose, input).pose
+
+    private fun withSurfaceHeight(map: TileMap, pose: PlayerPose): PlayerPose {
+        val h = VerticalMotion.snapHeightToSupport(map, pose.x, pose.y, pose.height)
+        return if (h == pose.height) pose else pose.copy(height = h)
+    }
 
     /**
      * Движение и поворот разбиваются на подшаги (~16 ms): W всегда «вперёд по камере»,
@@ -138,11 +145,12 @@ object FpsMovementSystem {
     }
 
     private fun applyInputStep(map: TileMap, pose: PlayerPose, input: InputSyncRequest): MovementOutcome {
-        val startX = pose.x
-        val startY = pose.y
+        val groundedPose = withSurfaceHeight(map, pose)
+        val startX = groundedPose.x
+        val startY = groundedPose.y
         val dt = input.deltaMs.coerceIn(1, 200) / 1000f
-        var yaw = pose.yaw + input.yawDelta
-        var pitch = pose.pitch + input.pitchDelta
+        var yaw = groundedPose.yaw + input.yawDelta
+        var pitch = groundedPose.pitch + input.pitchDelta
         if (input.turnLeft) yaw -= FpsConstants.TURN_SPEED * dt
         if (input.turnRight) yaw += FpsConstants.TURN_SPEED * dt
         if (input.lookUp) pitch += FpsConstants.PITCH_SPEED * dt
@@ -177,7 +185,7 @@ object FpsMovementSystem {
         }
 
         val hits = linkedSetOf<GridPos>()
-        val moved = moveWithCollision(map, startX, startY, dx, dy, hits)
+        val moved = moveWithCollision(map, startX, startY, dx, dy, groundedPose.height, hits)
         val actualDx = moved.first - startX
         val actualDy = moved.second - startY
         val requestedLen = hypot(dx.toDouble(), dy.toDouble()).toFloat()
@@ -201,7 +209,7 @@ object FpsMovementSystem {
             moveYaw = yaw,
         )
         return MovementOutcome(
-            pose = PlayerPose(moved.first, moved.second, yaw, pitch),
+            pose = groundedPose.copy(x = moved.first, y = moved.second, yaw = yaw, pitch = pitch),
             debug = debug,
         )
     }
@@ -218,28 +226,30 @@ object FpsMovementSystem {
         y: Float,
         dx: Float,
         dy: Float,
+        height: Float,
         hits: MutableSet<GridPos>,
     ): Pair<Float, Float> {
         if (dx == 0f && dy == 0f) return x to y
 
         var px = x
         var py = y
-        val afterX = sweepTo(map, px, py, dx, 0f, hits)
+        val afterX = sweepTo(map, px, py, dx, 0f, height, hits)
         px = afterX.first
         py = afterX.second
-        val afterY = sweepTo(map, px, py, 0f, dy, hits)
+        val afterY = sweepTo(map, px, py, 0f, dy, height, hits)
         px = afterY.first
         py = afterY.second
-        return resolveOverlap(map, px, py, hits)
+        return resolveOverlap(map, px, py, height, hits)
     }
 
     private fun resolveOverlap(
         map: TileMap,
         x: Float,
         y: Float,
+        height: Float,
         hits: MutableSet<GridPos>,
     ): Pair<Float, Float> {
-        if (!overlapsWall(map, x, y, null)) return x to y
+        if (!overlapsWall(map, x, y, height, null)) return x to y
         val nudge = 0.04f
         val candidates = arrayOf(
             nudge to 0f,
@@ -250,7 +260,7 @@ object FpsMovementSystem {
         for ((ox, oy) in candidates) {
             val nx = x + ox
             val ny = y + oy
-            if (!overlapsWall(map, nx, ny, hits)) return nx to ny
+            if (!overlapsWall(map, nx, ny, height, hits)) return nx to ny
         }
         return x to y
     }
@@ -261,19 +271,20 @@ object FpsMovementSystem {
         y: Float,
         dx: Float,
         dy: Float,
+        height: Float,
         hits: MutableSet<GridPos>,
     ): Pair<Float, Float> {
         if (dx == 0f && dy == 0f) return x to y
 
         val endX = x + dx
         val endY = y + dy
-        if (!overlapsWall(map, endX, endY, hits)) return endX to endY
+        if (!overlapsWall(map, endX, endY, height, hits)) return endX to endY
 
         var lo = 0f
         var hi = 1f
         repeat(SWEEP_ITERATIONS) {
             val mid = (lo + hi) * 0.5f
-            if (overlapsWall(map, x + dx * mid, y + dy * mid, null)) {
+            if (overlapsWall(map, x + dx * mid, y + dy * mid, height, null)) {
                 hi = mid
             } else {
                 lo = mid
@@ -282,7 +293,7 @@ object FpsMovementSystem {
 
         val contactX = x + dx * lo
         val contactY = y + dy * lo
-        overlapsWall(map, contactX + dx * SWEEP_EPSILON, contactY + dy * SWEEP_EPSILON, hits)
+        overlapsWall(map, contactX + dx * SWEEP_EPSILON, contactY + dy * SWEEP_EPSILON, height, hits)
         return contactX to contactY
     }
 
@@ -290,6 +301,7 @@ object FpsMovementSystem {
         map: TileMap,
         x: Float,
         y: Float,
+        height: Float,
         hits: MutableSet<GridPos>?,
     ): Boolean {
         val r = effectiveRadius()
@@ -300,11 +312,12 @@ object FpsMovementSystem {
         var blocked = false
         for (cy in minCellY..maxCellY) {
             for (cx in minCellX..maxCellX) {
-                val tile = map.get(GridPos(cx, cy))
-                if (tile == null || tile.walkable) continue
-                if (circleOverlapsCell(x, y, r, cx, cy)) {
-                    hits?.add(GridPos(cx, cy))
-                    blocked = true
+                val tile = map.get(GridPos(cx, cy)) ?: continue
+                if (WorldVertical.blocksMovementAt(floorLevel = 0, tile, height)) {
+                    if (circleOverlapsCell(x, y, r, cx, cy)) {
+                        hits?.add(GridPos(cx, cy))
+                        blocked = true
+                    }
                 }
             }
         }

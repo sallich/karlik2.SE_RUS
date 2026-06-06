@@ -8,6 +8,7 @@ import ru.course.roguelike.shared.dto.MobSnapshot
 import ru.course.roguelike.shared.dto.ProjectileSnapshot
 import ru.course.roguelike.shared.engine.TileMap
 import ru.course.roguelike.shared.model.PlayerPose
+import ru.course.roguelike.shared.render.CameraProjection
 import ru.course.roguelike.shared.render.Raycaster
 import ru.course.roguelike.shared.render.SceneRenderConfig
 
@@ -25,22 +26,45 @@ class FpsViewportRenderer(
     fun render(
         map: TileMap,
         pose: PlayerPose,
+        floorLevel: Int = 0,
         mobs: List<MobSnapshot> = emptyList(),
         projectiles: List<ProjectileSnapshot> = emptyList(),
         keyPickups: List<KeySnapshot> = emptyList(),
         items: List<ItemSnapshot> = emptyList(),
         agentPose: PlayerPose? = null,
     ): Texture {
-        val horizon = SceneRenderConfig.horizonY(viewHeight, pose.pitch)
-        val horizonInt = kotlin.math.ceil(horizon).toInt().coerceIn(0, viewHeight)
+        val pitchHorizon = SceneRenderConfig.horizonY(viewHeight, pose.pitch)
+        val viewerHeight = CameraProjection.viewerHeight(pose.height)
+        val horizonInt = kotlin.math.ceil(pitchHorizon).toInt().coerceIn(0, viewHeight)
 
         painter.beginFrame()
         painter.paintSky(horizonInt, pose.yaw)
         painter.fillFloorBase(horizonInt)
-        painter.paintFloor(map, pose, horizon, horizonInt)
-        val scene = Raycaster.castScene(map, pose, viewWidth, viewHeight, horizon)
-        painter.paintWalls(scene)
-        painter.paintSprites(pose, horizon, mobs, projectiles, keyPickups, items, agentPose, scene.wallDistances)
+        painter.paintFloor(map, pose, pitchHorizon, horizonInt, pose.height)
+        painter.paintColumnUnderfoot(map, pose, pitchHorizon, viewerHeight)
+        val scene = Raycaster.castScene(
+            map,
+            pose,
+            viewWidth,
+            viewHeight,
+            pitchHorizonY = pitchHorizon,
+            floorLevel = floorLevel,
+            viewerHeight = viewerHeight,
+        )
+        painter.paintWalls(scene, pitchHorizon, viewerHeight)
+        painter.paintHorizontalTops(scene, pose, pitchHorizon, viewerHeight)
+        painter.paintWallCaps(scene)
+        painter.paintSprites(
+            pose,
+            pitchHorizon,
+            viewerHeight,
+            mobs,
+            projectiles,
+            keyPickups,
+            items,
+            agentPose,
+            scene.wallDistances,
+        )
 
         frameBuffer.flushTo(pixmap)
 

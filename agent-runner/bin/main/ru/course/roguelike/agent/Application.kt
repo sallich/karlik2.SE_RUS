@@ -15,6 +15,7 @@ import io.ktor.server.routing.routing
 import kotlinx.serialization.json.Json
 import org.slf4j.event.Level
 import ru.course.roguelike.agent.api.configureAgentRoutes
+import ru.course.roguelike.agent.api.configureMobRoutes
 import ru.course.roguelike.agent.config.AgentConfig
 
 fun main() {
@@ -58,6 +59,9 @@ fun Application.module() {
         }
         route("/api/v1/agent") {
             configureAgentRoutes(config)
+        }
+        route("/api/v1") {
+            configureMobRoutes(config)
         }
     }
 }

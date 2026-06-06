@@ -1,6 +1,7 @@
 package ru.course.roguelike.game.domain.level
 
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import ru.course.roguelike.game.infrastructure.level.TwoLevelLabyrinthGenerator
@@ -39,15 +40,17 @@ class TwoLevelLabyrinthGeneratorTest {
     }
 
     @Test
-    fun `upper tier reuses the same location layout, not a different maze`() {
-        // Лифт поднимает на 2-й ярус той же локации, поэтому раскладка обоих
-        // ярусов (включая лифты в общих координатах) полностью совпадает.
+    fun `upper tier replaces columns with walkable floor`() {
         val dungeon = TwoLevelLabyrinthGenerator.generate(7L)
-        assertEquals(
-            dungeon.levels[0].map.toFlatList(),
-            dungeon.levels[1].map.toFlatList(),
-            "верхний ярус должен повторять раскладку нижнего (та же локация)",
-        )
+        val ground = dungeon.levels[0].map.toFlatList()
+        val upper = dungeon.levels[1].map.toFlatList()
+        assertTrue(ground.any { it == TileType.COLUMN })
+        assertFalse(upper.any { it == TileType.COLUMN }, "upper walkable deck over column grid")
+        for (i in ground.indices) {
+            if (ground[i] == TileType.COLUMN) {
+                assertEquals(TileType.FLOOR, upper[i])
+            }
+        }
     }
 
     @Test

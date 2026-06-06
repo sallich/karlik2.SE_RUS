@@ -3,9 +3,12 @@ package ru.course.roguelike.game.domain.combat
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import ru.course.roguelike.game.domain.inventory.StarterLoadout
 import ru.course.roguelike.game.domain.session.GameSession
 import ru.course.roguelike.shared.engine.TileMap
 import ru.course.roguelike.shared.model.CombatConstants
+import ru.course.roguelike.shared.model.InventoryConstants
+import ru.course.roguelike.shared.model.InventoryItemType
 import ru.course.roguelike.shared.model.MobKind
 import ru.course.roguelike.shared.model.PlayerPose
 import ru.course.roguelike.shared.model.TileType
@@ -24,7 +27,7 @@ class CombatAmmoTest {
             seed = 1L,
             map = TileMap(5, 5, tiles),
             playerPose = PlayerPose(2.5f, 2.5f, yaw = 0f),
-        )
+        ).also { StarterLoadout.apply(it) }
     }
 
     @Test
@@ -39,9 +42,12 @@ class CombatAmmoTest {
     }
 
     @Test
-    fun `no projectile is fired when out of ammo`() {
+    fun `no projectile is fired when out of ammo and inventory is empty`() {
         val session = openArenaSession()
         session.playerAmmo = 0
+        session.inventory.items.removeAll {
+            it.type == InventoryItemType.PISTOL_AMMO || it.type == InventoryItemType.SHOTGUN_AMMO
+        }
 
         CombatSystem.tick(session, deltaMs = 50, playerAttacking = true)
 
@@ -51,8 +57,8 @@ class CombatAmmoTest {
 
     @Test
     fun `mob drops never exceed the configured max ammo cap`() {
-        // Sanity: ammo from a fresh session starts at the documented value.
-        assertEquals(CombatConstants.PLAYER_STARTING_AMMO, openArenaSession().playerAmmo)
+        assertEquals(InventoryConstants.STARTING_LOADED_AMMO, openArenaSession().playerAmmo)
+        assertEquals(12, openArenaSession().toSnapshot().player.maxAmmo)
     }
 
     @Test

@@ -24,19 +24,22 @@ class ElevatorDispatchTest {
     }
 
     @Test
-    fun `sync onto an elevator switches level and is reflected in the snapshot`() {
+    fun `sync onto an elevator animates and switches level in snapshot`() {
         val upper = centerElevatorLevel()
         val session = GameSession(
             sessionId = "lift",
             seed = 1L,
             map = centerElevatorLevel(),
-            playerPose = PlayerPose(1.5f, 1.5f, yaw = 0f), // на лифте, onElevator=false
+            playerPose = PlayerPose(1.5f, 1.5f, yaw = 0f),
             secondLevel = upper,
         )
         val events = mutableListOf<GameEvent>()
         bus.subscribe { events += it }
 
-        dispatcher.dispatch(session, SyncInputCommand(InputSyncRequest(deltaMs = 16)))
+        repeat(120) {
+            dispatcher.dispatch(session, SyncInputCommand(InputSyncRequest(deltaMs = 16)))
+            if (session.currentLevel == 1) return@repeat
+        }
 
         assertEquals(1, session.currentLevel)
         assertEquals(1, session.toSnapshot().currentLevel)

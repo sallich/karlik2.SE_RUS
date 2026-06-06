@@ -2,14 +2,18 @@ package ru.course.roguelike.game.domain.session
 
 import ru.course.roguelike.game.domain.combat.MobEntity
 import ru.course.roguelike.game.domain.combat.ProjectileEntity
+import ru.course.roguelike.game.domain.inventory.InventoryGrid
+import ru.course.roguelike.game.domain.inventory.InventorySystem
 import ru.course.roguelike.game.domain.level.Room
 import ru.course.roguelike.shared.dto.BossRoomSnapshot
 import ru.course.roguelike.shared.dto.GameSnapshot
 import ru.course.roguelike.shared.dto.PlayerSnapshot
+import ru.course.roguelike.shared.engine.ElevatorPhase
 import ru.course.roguelike.shared.engine.TileMap
 import ru.course.roguelike.shared.model.CombatConstants
 import ru.course.roguelike.shared.model.ExperienceProgression
 import ru.course.roguelike.shared.model.GridPos
+import ru.course.roguelike.shared.model.InventoryConstants
 import ru.course.roguelike.shared.model.PlayerPose
 import ru.course.roguelike.shared.model.SessionPhase
 
@@ -27,10 +31,20 @@ data class GameSession(
     var playerLevel: Int = ExperienceProgression.STARTING_LEVEL,
     var playerExperience: Int = 0,
     var playerAttackDamage: Int = ExperienceProgression.attackDamageForLevel(ExperienceProgression.STARTING_LEVEL),
-    /** Постоянная прибавка к урону от подобранных предметов-оружия (issue #9). */
-    var playerWeaponBonus: Int = 0,
-    /** Боезапас героя; выстрел тратит патрон, ящики с патронами пополняют (issue #9). */
-    var playerAmmo: Int = CombatConstants.PLAYER_STARTING_AMMO,
+    /** Боезапас в магазине экипированного оружия. */
+    var playerAmmo: Int = InventoryConstants.STARTING_LOADED_AMMO,
+    val inventory: InventoryGrid = InventoryGrid(
+        columns = InventoryConstants.GRID_COLUMNS,
+        rows = InventoryConstants.GRID_ROWS,
+    ),
+    /** Слоты hotbar (id предметов в инвентаре). */
+    val hotbarSlots: Array<Int?> = arrayOfNulls(InventoryConstants.HOTBAR_SLOTS),
+    var selectedHotbarSlot: Int = 0,
+    var equippedWeaponItemId: Int? = null,
+    /** Заряженные патроны для каждого оружия (по id предмета в инвентаре). */
+    val weaponLoadedAmmo: MutableMap<Int, Int> = mutableMapOf(),
+    var elevatorPhase: ElevatorPhase = ElevatorPhase.IDLE,
+    var playerVerticalVelocity: Float = 0f,
     var locationCompletionAwarded: Boolean = false,
     /** Накопитель дробного урона лавой (HP списывается целыми единицами). */
     var lavaDamageBuffer: Float = 0f,
@@ -82,6 +96,7 @@ data class GameSession(
         tick = tick,
         serverTimeMs = serverTimeMs,
         currentLevel = currentLevel,
+        elevatorPhase = elevatorPhase.name,
         mobs = mobs.filter { it.alive }.map { it.toSnapshot() },
         projectiles = projectiles.map { it.toSnapshot() },
         keysCollected = keysCollected,
@@ -103,7 +118,12 @@ data class GameSession(
             experienceToNextLevel = xpToNext,
             attackDamage = playerAttackDamage,
             ammo = playerAmmo,
-            maxAmmo = CombatConstants.PLAYER_MAX_AMMO,
+            maxAmmo = InventorySystem.magazineCapacity(this),
+            inventory = InventorySystem.toInventorySnapshot(inventory),
+            hotbar = InventorySystem.toHotbarSnapshot(this),
+            equippedWeaponName = InventorySystem.equippedWeaponName(this),
+            equippedWeaponType = InventorySystem.equippedWeaponType(this)?.name,
+            verticalVelocity = playerVerticalVelocity,
         )
     }
 }

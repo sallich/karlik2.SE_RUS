@@ -4,6 +4,7 @@ import kotlinx.serialization.Serializable
 import ru.course.roguelike.shared.model.GridPos
 import ru.course.roguelike.shared.model.PlayerPose
 import ru.course.roguelike.shared.model.TileType
+import ru.course.roguelike.shared.engine.ElevatorPhase
 
 @Serializable
 data class GameSnapshot(
@@ -19,8 +20,10 @@ data class GameSnapshot(
     val tick: Long,
     /** Серверное время снимка (мс), для интерполяции на клиенте. */
     val serverTimeMs: Long = 0L,
-    /** Активный уровень локации (0 — нижний). Меняется при использовании лифта. */
+    /** Активный ярус локации (0 — нижний). Меняется при использовании лифта. */
     val currentLevel: Int = 0,
+    /** Фаза анимации лифта (IDLE / ASCENDING / DESCENDING). */
+    val elevatorPhase: String = ElevatorPhase.IDLE.name,
     val mobs: List<MobSnapshot> = emptyList(),
     val projectiles: List<ProjectileSnapshot> = emptyList(),
     val keysCollected: Int = 0,
@@ -44,4 +47,12 @@ data class PlayerSnapshot(
     val attackDamage: Int = 25,
     val ammo: Int = 0,
     val maxAmmo: Int = 0,
+    val inventory: InventorySnapshot? = null,
+    val hotbar: HotbarSnapshot? = null,
+    /** Название экипированного оружия для HUD. */
+    val equippedWeaponName: String? = null,
+    /** Тип экипированного оружия (PISTOL / SHOTGUN). */
+    val equippedWeaponType: String? = null,
+    /** Вертикальная скорость (прыжок / лифт). */
+    val verticalVelocity: Float = 0f,
 )

@@ -20,7 +20,11 @@ object BillboardRenderer {
         ITEM_HEALTH,
         ITEM_EXPERIENCE,
         ITEM_WEAPON,
+        ITEM_WEAPON_PISTOL,
+        ITEM_WEAPON_SHOTGUN,
         ITEM_AMMO,
+        ITEM_AMMO_PISTOL,
+        ITEM_AMMO_SHOTGUN,
         COLOR_FALLBACK,
     }
 
@@ -30,6 +34,8 @@ object BillboardRenderer {
         val texture: SpriteTexture = SpriteTexture.COLOR_FALLBACK,
         val colorRgb: Int = 0xFFFFFF,
         val sizeScale: Float = 1f,
+        /** Мировая Z (ноги/центр); 0 = пол яруса. */
+        val worldZ: Float = 0f,
     )
 
     data class DrawCommand(
@@ -47,9 +53,10 @@ object BillboardRenderer {
         pose: PlayerPose,
         screenWidth: Int,
         screenHeight: Int,
-        horizonY: Float,
+        pitchHorizonY: Float,
         sprites: List<Sprite>,
         wallDistances: FloatArray? = null,
+        viewerHeightAboveFloor: Float = 0f,
     ): List<DrawCommand> {
         if (sprites.isEmpty() || screenWidth <= 0) return emptyList()
 
@@ -66,7 +73,8 @@ object BillboardRenderer {
                     pose,
                     screenWidth,
                     screenHeight,
-                    horizonY,
+                    pitchHorizonY,
+                    viewerHeightAboveFloor,
                     sprite,
                     dirX,
                     dirY,
@@ -83,7 +91,8 @@ object BillboardRenderer {
         pose: PlayerPose,
         screenWidth: Int,
         screenHeight: Int,
-        horizonY: Float,
+        pitchHorizonY: Float,
+        viewerHeightAboveFloor: Float,
         sprite: Sprite,
         dirX: Float,
         dirY: Float,
@@ -101,9 +110,14 @@ object BillboardRenderer {
         val spriteScreenX = (screenWidth / 2f * (1f + transformX / transformY)).toInt()
         val spriteHeight = abs((screenHeight / transformY) * sprite.sizeScale).toInt().coerceAtLeast(2)
         val spriteWidth = spriteHeight
-        val halfH = spriteHeight / 2
-        val drawStartY = (horizonY - halfH).toInt().coerceIn(0, screenHeight - 1)
-        val drawEndY = (horizonY + halfH).toInt().coerceIn(drawStartY + 1, screenHeight)
+        val (drawStartY, drawEndY) = CameraProjection.projectSpriteSpan(
+            pitchHorizonY,
+            spriteHeight,
+            screenHeight,
+            transformY,
+            viewerHeightAboveFloor,
+            sprite.worldZ,
+        )
         val drawStartX = (spriteScreenX - spriteWidth / 2).coerceIn(0, screenWidth - 1)
         val drawEndX = (spriteScreenX + spriteWidth / 2).coerceIn(drawStartX + 1, screenWidth)
 
@@ -128,7 +142,11 @@ object BillboardRenderer {
         SpriteTexture.ITEM_HEALTH -> rgb(0xFF, 0x3B, 0x3B)
         SpriteTexture.ITEM_EXPERIENCE -> rgb(0x4C, 0xD9, 0x64)
         SpriteTexture.ITEM_WEAPON -> rgb(0xC0, 0xC8, 0xD0)
+        SpriteTexture.ITEM_WEAPON_PISTOL -> rgb(0x66, 0xAA, 0xFF)
+        SpriteTexture.ITEM_WEAPON_SHOTGUN -> rgb(0xCC, 0x44, 0x33)
         SpriteTexture.ITEM_AMMO -> rgb(0xFF, 0xB0, 0x30)
+        SpriteTexture.ITEM_AMMO_PISTOL -> rgb(0x55, 0xAA, 0xFF)
+        SpriteTexture.ITEM_AMMO_SHOTGUN -> rgb(0xFF, 0x77, 0x22)
         else -> default
     }
 
@@ -136,8 +154,16 @@ object BillboardRenderer {
     fun itemTexture(kind: ru.course.roguelike.shared.model.ItemKind): SpriteTexture = when (kind) {
         ru.course.roguelike.shared.model.ItemKind.HEALTH -> SpriteTexture.ITEM_HEALTH
         ru.course.roguelike.shared.model.ItemKind.EXPERIENCE -> SpriteTexture.ITEM_EXPERIENCE
-        ru.course.roguelike.shared.model.ItemKind.WEAPON -> SpriteTexture.ITEM_WEAPON
-        ru.course.roguelike.shared.model.ItemKind.AMMO -> SpriteTexture.ITEM_AMMO
+        ru.course.roguelike.shared.model.ItemKind.WEAPON_PISTOL -> SpriteTexture.ITEM_WEAPON_PISTOL
+        ru.course.roguelike.shared.model.ItemKind.WEAPON_SHOTGUN -> SpriteTexture.ITEM_WEAPON_SHOTGUN
+        ru.course.roguelike.shared.model.ItemKind.AMMO_PISTOL -> SpriteTexture.ITEM_AMMO_PISTOL
+        ru.course.roguelike.shared.model.ItemKind.AMMO_SHOTGUN -> SpriteTexture.ITEM_AMMO_SHOTGUN
+    }
+
+    fun itemSizeScale(kind: ru.course.roguelike.shared.model.ItemKind): Float = when (kind) {
+        ru.course.roguelike.shared.model.ItemKind.WEAPON_SHOTGUN -> 1.25f
+        ru.course.roguelike.shared.model.ItemKind.WEAPON_PISTOL -> 0.9f
+        else -> 1f
     }
 
   /** true, если спрайт целиком за стеной (ни один столбец не ближе стены). */

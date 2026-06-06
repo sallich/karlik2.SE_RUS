@@ -4,6 +4,9 @@ import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.g2d.BitmapFont
 import com.badlogic.gdx.graphics.g2d.SpriteBatch
+import ru.course.roguelike.shared.dto.HotbarSnapshot
+import ru.course.roguelike.shared.dto.InventoryItemSnapshot
+import ru.course.roguelike.shared.dto.InventorySnapshot
 import ru.course.roguelike.shared.engine.CollisionDebug
 import ru.course.roguelike.shared.model.PlayerPose
 
@@ -29,97 +32,109 @@ class RoguelikeHud(
         keysCollected: Int = 0,
         keysRequired: Int = 0,
         interactionHint: String? = null,
+        equippedWeaponName: String? = null,
+        equippedWeaponType: String? = null,
+        hotbar: HotbarSnapshot? = null,
+        inventory: InventorySnapshot? = null,
+        inventoryOpen: Boolean = false,
+        floorLevel: Int = 0,
+        floorCount: Int = 1,
     ) {
         batch.begin()
         font.draw(batch, statusLine, 12f, Gdx.graphics.height - 12f)
-        pose?.let { drawPoseHud(it, fpsSmoothed) }
-        if (maxHp > 0) {
-            drawHp(hp, maxHp)
-        }
-        if (maxAmmo > 0) {
-            drawAmmo(ammo, maxAmmo)
-        }
-        if (keysRequired > 0) {
-            drawKeys(keysCollected, keysRequired)
-        }
-        interactionHint?.let { drawInteractionHint(it) }
+        if (maxHp > 0) drawHp(hp, maxHp)
+        if (floorCount > 1) drawFloor(floorLevel, floorCount)
         drawProgression(level, experience, experienceToNextLevel)
-        if (onLava) {
-            drawLavaWarning()
-        }
-        if (showCollisionDebug && debug != null) {
-            drawCollisionHud(debug)
-        }
+        if (maxAmmo > 0) drawAmmo(ammo, maxAmmo, equippedWeaponName, equippedWeaponType)
+        if (keysRequired > 0) drawKeys(keysCollected, keysRequired)
+        hotbar?.let { drawHotbarSlotNumbers(it, inventory, inventoryOpen) }
+        interactionHint?.let { drawInteractionHint(it) }
+        if (onLava) drawLavaWarning()
+        if (showCollisionDebug && debug != null && pose != null) drawCollisionHud(debug)
         batch.end()
     }
 
-    /** HP игрока (с сервера) — красный текст при низком здоровье, чтобы был виден урон от лавы. */
     private fun drawHp(hp: Int, maxHp: Int) {
-        val previous = font.color.cpy()
+        val c = font.color.cpy()
         font.color = if (hp <= maxHp / 4) Color.SCARLET else Color.LIME
-        font.draw(batch, "HP $hp / $maxHp", 12f, Gdx.graphics.height - 84f)
-        font.color = previous
+        font.draw(batch, "HP $hp / $maxHp", 12f, Gdx.graphics.height - 36f)
+        font.color = c
     }
 
-    /** Боезапас героя — оранжевый, краснеет когда патроны на исходе (issue #9). */
-    private fun drawAmmo(ammo: Int, maxAmmo: Int) {
-        val previous = font.color.cpy()
-        font.color = if (ammo <= 0) Color.SCARLET else Color.ORANGE
-        font.draw(batch, "AMMO $ammo / $maxAmmo", 12f, Gdx.graphics.height - 156f)
-        font.color = previous
+    private fun drawFloor(floorLevel: Int, floorCount: Int) {
+        val c = font.color.cpy()
+        font.color = Color.CYAN
+        font.draw(batch, "Floor ${floorLevel + 1}/$floorCount", Gdx.graphics.width - 120f, Gdx.graphics.height - 12f)
+        font.color = c
     }
 
-    /** Уровень и прогресс опыта в текущем уровне. */
     private fun drawProgression(level: Int, experience: Int, experienceToNextLevel: Int) {
-        val previous = font.color.cpy()
+        val c = font.color.cpy()
         font.color = Color.GOLD
-        font.draw(
-            batch,
-            "LV $level | XP $experience / $experienceToNextLevel",
-            12f,
-            Gdx.graphics.height - 108f,
-        )
-        font.color = previous
+        font.draw(batch, "LV $level  XP $experience/$experienceToNextLevel", 12f, Gdx.graphics.height - 60f)
+        font.color = c
+    }
+
+    private fun drawAmmo(ammo: Int, maxAmmo: Int, weaponName: String?, weaponType: String?) {
+        val c = font.color.cpy()
+        font.color = if (ammo <= 0) Color.SCARLET else Color.ORANGE
+        val tag = when (weaponType) {
+            "SHOTGUN" -> "12ga"
+            "PISTOL" -> "9mm"
+            else -> weaponName.orEmpty()
+        }
+        font.draw(batch, "$tag  mag $ammo / $maxAmmo", 12f, Gdx.graphics.height - 84f)
+        font.color = c
     }
 
     private fun drawKeys(collected: Int, required: Int) {
-        val previous = font.color.cpy()
+        val c = font.color.cpy()
         font.color = if (collected >= required) Color.GOLD else Color.WHITE
-        font.draw(batch, "Keys $collected / $required — open boss room gate", 12f, Gdx.graphics.height - 132f)
-        font.color = previous
+        font.draw(batch, "Keys $collected/$required", 12f, Gdx.graphics.height - 108f)
+        font.color = c
+    }
+
+    private fun drawHotbarSlotNumbers(hotbar: HotbarSnapshot, inventory: InventorySnapshot?, inventoryOpen: Boolean) {
+        val slotW = 64f
+        val gap = 6f
+        val totalW = hotbar.slots.size * slotW + (hotbar.slots.size - 1) * gap
+        var x = (Gdx.graphics.width - totalW) / 2f + 4f
+        val y = 68f
+        val c = font.color.cpy()
+        hotbar.slots.forEachIndexed { index, itemId ->
+            val item = itemId?.let { id -> inventory?.items?.find { it.id == id } }
+            val suffix = item?.let { weaponLabel(it) }.orEmpty().ifEmpty { "—" }
+            font.color = if (index == hotbar.selectedSlot) Color.GOLD else Color.LIGHT_GRAY
+            font.draw(batch, "${index + 1}: $suffix", x, y)
+            x += slotW + gap
+        }
+        if (inventoryOpen) {
+            font.color = Color(0.75f, 0.75f, 0.8f, 1f)
+            font.draw(batch, "Tab+1/2 — назначить оружие в слот", 12f, Gdx.graphics.height / 2f - 8f)
+        }
+        font.color = c
+    }
+
+    private fun weaponLabel(item: InventoryItemSnapshot): String = when (item.type) {
+        "PISTOL" -> "Pistol"
+        "SHOTGUN" -> "Shotgun"
+        else -> item.displayName.take(6)
     }
 
     private fun drawInteractionHint(hint: String) {
-        val previous = font.color.cpy()
+        val c = font.color.cpy()
         font.color = Color.GOLD
-        font.draw(batch, hint, Gdx.graphics.width / 2f - 140f, 80f)
-        font.color = previous
+        font.draw(batch, hint, Gdx.graphics.width / 2f - 120f, 120f)
+        font.color = c
     }
 
     private fun drawLavaWarning() {
         font.color = Color.SCARLET
-        font.draw(batch, "!! LAVA - taking damage !!", Gdx.graphics.width / 2f - 90f, Gdx.graphics.height / 2f - 40f)
+        font.draw(batch, "LAVA!", Gdx.graphics.width / 2f - 24f, Gdx.graphics.height / 2f)
         font.color = Color.WHITE
     }
 
-    private fun drawPoseHud(pose: PlayerPose, fpsSmoothed: Float) {
-        val height = Gdx.graphics.height
-        font.draw(
-            batch,
-            "fps~${fpsSmoothed.toInt()} | pos=${"%.1f".format(pose.x)},${"%.1f".format(pose.y)} " +
-                "yaw=${"%.2f".format(pose.yaw)} pitch=${"%.2f".format(pose.pitch)}",
-            12f,
-            height - 36f,
-        )
-    }
-
     private fun drawCollisionHud(debug: CollisionDebug) {
-        font.draw(
-            batch,
-            "collision: blocked=${debug.blocked} sweep=${"%.0f".format(debug.sweepFraction * 100)}% " +
-                "hits=${debug.hitCells.size} | yellow=view/move green=fact orange=request",
-            12f,
-            Gdx.graphics.height - 60f,
-        )
+        font.draw(batch, "blocked=${debug.blocked}", 12f, Gdx.graphics.height - 132f)
     }
 }

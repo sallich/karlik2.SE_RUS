@@ -19,16 +19,20 @@ import ru.course.roguelike.client.render.CollisionDebugOverlay
 import ru.course.roguelike.client.render.FpsViewportRenderer
 import ru.course.roguelike.client.render.GameEndOverlay
 import ru.course.roguelike.client.render.GameTextures
+import ru.course.roguelike.client.render.InventoryUiOverlay
 import ru.course.roguelike.client.render.LocationMapOverlay
 import ru.course.roguelike.client.render.MiniMapOverlay
 import ru.course.roguelike.shared.dto.GameSnapshot
+import ru.course.roguelike.shared.dto.HotbarSnapshot
 import ru.course.roguelike.shared.dto.InputSyncRequest
+import ru.course.roguelike.shared.dto.InventorySnapshot
 import ru.course.roguelike.shared.dto.ItemSnapshot
 import ru.course.roguelike.shared.dto.KeySnapshot
 import ru.course.roguelike.shared.dto.MobSnapshot
 import ru.course.roguelike.shared.dto.ProjectileSnapshot
 import ru.course.roguelike.shared.engine.CollisionDebug
 import ru.course.roguelike.shared.engine.FpsMovementSystem
+import ru.course.roguelike.shared.engine.ElevatorPhase
 import ru.course.roguelike.shared.engine.TileMap
 import ru.course.roguelike.shared.model.GridPos
 import ru.course.roguelike.shared.model.PlayerPose
@@ -48,6 +52,7 @@ class RoguelikeGame : ApplicationAdapter() {
     private lateinit var collisionDebugOverlay: CollisionDebugOverlay
     private lateinit var locationMapOverlay: LocationMapOverlay
     private lateinit var miniMapOverlay: MiniMapOverlay
+    private lateinit var inventoryUiOverlay: InventoryUiOverlay
     private lateinit var gameEndOverlay: GameEndOverlay
     private lateinit var sync: RoguelikeSync
     private lateinit var audio: GameAudio
@@ -82,6 +87,15 @@ class RoguelikeGame : ApplicationAdapter() {
     private var playerExperienceToNextLevel = 100
     private var playerAmmo = 0
     private var playerMaxAmmo = 0
+    private var equippedWeaponName: String? = null
+    private var equippedWeaponType: String? = null
+    private var playerInventory: InventorySnapshot? = null
+    private var playerHotbar: HotbarSnapshot? = null
+    private var showInventoryGrid = false
+    private var clientVerticalVelocity = 0f
+    private var clientElevatorPhase = ElevatorPhase.IDLE
+    private var clientWasOnElevator = false
+    private var twoLevelLocation = true
     private var keysCollected = 0
     private var keysRequired = 0
 
@@ -114,6 +128,7 @@ class RoguelikeGame : ApplicationAdapter() {
         collisionDebugOverlay = CollisionDebugOverlay(shapeRenderer)
         locationMapOverlay = LocationMapOverlay(shapeRenderer)
         miniMapOverlay = MiniMapOverlay(shapeRenderer)
+        inventoryUiOverlay = InventoryUiOverlay(shapeRenderer)
         gameEndOverlay = GameEndOverlay(batch, font, shapeRenderer)
         gameTextures = GameTextures.load()
         audio = GameAudio()
@@ -129,7 +144,7 @@ class RoguelikeGame : ApplicationAdapter() {
                 poseAccessor = { predictedPose },
                 poseMutator = { predictedPose = it },
                 authoritativeMutator = { authoritativePose = it },
-                vitalsMutator = { hp, maxHp, level, experience, experienceToNextLevel, ammo, maxAmmo ->
+                vitalsMutator = { hp, maxHp, level, experience, experienceToNextLevel, ammo, maxAmmo, weaponName, weaponType ->
                     playerHp = hp
                     playerMaxHp = maxHp
                     playerLevel = level
@@ -137,6 +152,12 @@ class RoguelikeGame : ApplicationAdapter() {
                     playerExperienceToNextLevel = experienceToNextLevel
                     playerAmmo = ammo
                     playerMaxAmmo = maxAmmo
+                    equippedWeaponName = weaponName
+                    equippedWeaponType = weaponType
+                },
+                inventoryMutator = { inventory, hotbar ->
+                    playerInventory = inventory
+                    playerHotbar = hotbar
                 },
                 combatMutator = { mobs, projectiles ->
                     serverMobs = mobs
@@ -151,6 +172,11 @@ class RoguelikeGame : ApplicationAdapter() {
                     exitGate = gate
                 },
                 agentMutator = { agentPose = it },
+                verticalMutator = { clientVerticalVelocity = it },
+                elevatorPhaseMutator = { phase ->
+                    clientElevatorPhase = runCatching { ElevatorPhase.valueOf(phase) }
+                        .getOrDefault(ElevatorPhase.IDLE)
+                },
             ),
         )
         Gdx.graphics.setForegroundFPS(60)
@@ -192,11 +218,24 @@ class RoguelikeGame : ApplicationAdapter() {
             )
         }
 
+        drawInventoryUi()
         drawHud()
 
         if (isSessionEnded) {
             gameEndOverlay.render(sessionPhase)
         }
+    }
+
+    private fun drawInventoryUi() {
+        if (isSessionEnded) return
+        inventoryUiOverlay.render(
+            screenW = Gdx.graphics.width.toFloat(),
+            screenH = Gdx.graphics.height.toFloat(),
+            inventory = playerInventory,
+            hotbar = playerHotbar,
+            equippedWeaponType = equippedWeaponType,
+            expanded = showInventoryGrid,
+        )
     }
 
     private fun drawHud() {
@@ -216,6 +255,13 @@ class RoguelikeGame : ApplicationAdapter() {
             experienceToNextLevel = playerExperienceToNextLevel,
             ammo = playerAmmo,
             maxAmmo = playerMaxAmmo,
+            equippedWeaponName = equippedWeaponName,
+            equippedWeaponType = equippedWeaponType,
+            hotbar = playerHotbar,
+            inventory = playerInventory,
+            inventoryOpen = showInventoryGrid,
+            floorLevel = currentLevel,
+            floorCount = if (twoLevelLocation) 2 else 1,
             keysCollected = keysCollected,
             keysRequired = keysRequired,
             interactionHint = interactionHint(
@@ -248,7 +294,8 @@ class RoguelikeGame : ApplicationAdapter() {
         if (Gdx.input.isKeyJustPressed(Input.Keys.M)) {
             showMiniMap = !showMiniMap
         }
-        if (Gdx.input.isKeyJustPressed(Input.Keys.R)) {
+        showInventoryGrid = Gdx.input.isKeyPressed(Input.Keys.TAB)
+        if (Gdx.input.isKeyJustPressed(Input.Keys.F5)) {
             restartSession()
         }
     }
@@ -270,6 +317,14 @@ class RoguelikeGame : ApplicationAdapter() {
         playerExperienceToNextLevel = 100
         playerAmmo = 0
         playerMaxAmmo = 0
+        equippedWeaponName = null
+        equippedWeaponType = null
+        playerInventory = null
+        playerHotbar = null
+        showInventoryGrid = false
+        clientVerticalVelocity = 0f
+        clientElevatorPhase = ElevatorPhase.IDLE
+        clientWasOnElevator = false
         keysCollected = 0
         keysRequired = 0
         serverMobs = emptyList()
@@ -288,7 +343,7 @@ class RoguelikeGame : ApplicationAdapter() {
         val map = tileMap ?: return
         var pose = predictedPose ?: return
 
-        val sample = InputSampler.sample(delta)
+        val sample = InputSampler.sample(delta, showInventoryGrid)
         accumulatedYawDelta += sample.input.yawDelta
         pendingSyncInput = sync.mergeInput(pendingSyncInput, sample.input)
         pendingSyncDeltaMs = (pendingSyncDeltaMs + sample.input.deltaMs).coerceAtMost(250)
@@ -297,15 +352,37 @@ class RoguelikeGame : ApplicationAdapter() {
             audio.playHit()
         }
 
-        val movement = FpsMovementSystem.applyInputWithDebug(map, pose, sample.input)
+        val vertical = ClientVerticalMotion.tick(
+            map = map,
+            pose = pose,
+            verticalVelocity = clientVerticalVelocity,
+            elevatorPhase = clientElevatorPhase,
+            wasOnElevator = clientWasOnElevator,
+            twoLevel = twoLevelLocation,
+            jumpRequested = sample.input.jump,
+            deltaMs = sample.input.deltaMs,
+        )
+        val movement = FpsMovementSystem.applyInputWithDebug(
+            map,
+            vertical.pose.copy(yaw = pose.yaw, pitch = pose.pitch),
+            sample.input,
+        )
         lastCollisionDebug = movement.debug
+        clientVerticalVelocity = vertical.verticalVelocity
+        clientElevatorPhase = vertical.elevatorPhase
+        if (vertical.levelSwitched) {
+            currentLevel = 1 - currentLevel
+            visitedTracker.clear()
+        }
+        clientWasOnElevator = map.getTileAt(vertical.pose.x, vertical.pose.y) == ru.course.roguelike.shared.model.TileType.ELEVATOR ||
+            clientElevatorPhase != ElevatorPhase.IDLE
         val localPose = movement.pose
 
         maybeSendSync(localPose)
         pose = localPose
         predictedPose = pose
         visitedTracker.reveal(map, pose)
-        frameTexture = viewport.render(map, pose, serverMobs, serverProjectiles, keyPickups, items, agentPose)
+        frameTexture = viewport.render(map, pose, currentLevel, serverMobs, serverProjectiles, keyPickups, items, agentPose)
     }
 
     private fun maybeSendSync(localPose: PlayerPose) {
@@ -341,6 +418,9 @@ class RoguelikeGame : ApplicationAdapter() {
             currentLevel = snap.currentLevel
             visitedTracker.clear()
         }
+        clientVerticalVelocity = snap.player.verticalVelocity
+        clientElevatorPhase = runCatching { ElevatorPhase.valueOf(snap.elevatorPhase) }
+            .getOrDefault(ElevatorPhase.IDLE)
         tileMap = TileMap.fromFlat(snap.width, snap.height, snap.tiles)
         serverMobs = snap.mobs
         serverProjectiles = snap.projectiles
@@ -351,6 +431,9 @@ class RoguelikeGame : ApplicationAdapter() {
         items = snap.items
         exitGate = snap.exitGate
         audio.onCombatSnapshot(snap.player.hp, snap.projectiles)
+        if (snap.player.pose.isGrounded && clientElevatorPhase == ElevatorPhase.IDLE) {
+            clientVerticalVelocity = 0f
+        }
         sync.applySnapshot(snap)
     }
 

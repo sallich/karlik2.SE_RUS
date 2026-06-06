@@ -44,12 +44,14 @@ class RoguelikeSync(
                     syncAppliedSeq = syncAppliedSeq,
                     onStatusLine = onStatusLine,
                     onApplied = ::applySyncSnapshot,
-                    applyServerCorrection = { auth ->
+                    applyServerCorrection = { auth, verticalVelocity ->
                         applyServerCorrection(
                             auth,
+                            verticalVelocity,
                             bindings.poseAccessor,
                             bindings.authoritativeMutator,
                             bindings.poseMutator,
+                            bindings.verticalMutator,
                         )
                     },
                 ),
@@ -77,7 +79,7 @@ class RoguelikeSync(
                 onStatusLine(
                     "Co-op agent enabled. Session ${created.sessionId.take(8)}… — " +
                         "curl agent: POST /api/v1/agent/run with sessionId. " +
-                        "Esc — мышь, M — миникарта, F4 — карта, R — новый забег.",
+                        "1/2 — оружие | Tab+1/2 — в слот | F — перезарядка | Shift — прыжок | Tab — инвентарь | F5 — новый забег.",
                 )
             } catch (ex: Exception) {
                 if (gen == sessionGeneration.get()) {
@@ -106,7 +108,10 @@ class RoguelikeSync(
             snap.player.experienceToNextLevel,
             snap.player.ammo,
             snap.player.maxAmmo,
+            snap.player.equippedWeaponName,
+            snap.player.equippedWeaponType,
         )
+        bindings.inventoryMutator(snap.player.inventory, snap.player.hotbar)
         bindings.combatMutator(snap.mobs, snap.projectiles)
         bindings.progressMutator(
             snap.phase,
@@ -117,6 +122,8 @@ class RoguelikeSync(
             snap.exitGate,
         )
         bindings.agentMutator(snap.agent?.pose)
+        bindings.verticalMutator(snap.player.verticalVelocity)
+        bindings.elevatorPhaseMutator(snap.elevatorPhase)
         currentLevel = snap.currentLevel
     }
 
@@ -179,6 +186,10 @@ class RoguelikeSync(
             deltaMs = prev.deltaMs + frame.deltaMs,
             attack = prev.attack || frame.attack,
             interact = prev.interact || frame.interact,
+            hotbarSelect = frame.hotbarSelect ?: prev.hotbarSelect,
+            hotbarAssign = frame.hotbarAssign ?: prev.hotbarAssign,
+            reload = prev.reload || frame.reload,
+            jump = prev.jump || frame.jump,
         )
 
     private fun applySyncSnapshot(snap: GameSnapshot) {
@@ -190,9 +201,14 @@ class RoguelikeSync(
             snap.player.experienceToNextLevel,
             snap.player.ammo,
             snap.player.maxAmmo,
+            snap.player.equippedWeaponName,
+            snap.player.equippedWeaponType,
         )
+        bindings.inventoryMutator(snap.player.inventory, snap.player.hotbar)
         bindings.combatMutator(snap.mobs, snap.projectiles)
         bindings.agentMutator(snap.agent?.pose)
+        bindings.verticalMutator(snap.player.verticalVelocity)
+        bindings.elevatorPhaseMutator(snap.elevatorPhase)
         bindings.progressMutator(
             snap.phase,
             snap.keysCollected,
@@ -208,7 +224,7 @@ class RoguelikeSync(
         if (level == currentLevel) return
         currentLevel = level
         onStatusLine(
-            if (level == 1) "Elevator: went up to the 2nd floor" else "Elevator: went down to the 1st floor",
+            if (level == 1) "Лифт: 2-й ярус (над колоннами)" else "Лифт: 1-й ярус",
         )
     }
 }

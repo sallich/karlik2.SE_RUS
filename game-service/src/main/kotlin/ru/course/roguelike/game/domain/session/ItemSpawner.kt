@@ -32,9 +32,11 @@ object ItemSpawner {
     /** Распределение видов предметов на локации (сумма весов не важна). */
     private val LOCATION_WEIGHTS = mapOf(
         ItemKind.HEALTH to 4,
-        ItemKind.AMMO to 4,
+        ItemKind.AMMO_PISTOL to 3,
+        ItemKind.AMMO_SHOTGUN to 2,
         ItemKind.EXPERIENCE to 2,
-        ItemKind.WEAPON to 1,
+        ItemKind.WEAPON_PISTOL to 3,
+        ItemKind.WEAPON_SHOTGUN to 1,
     )
 
     fun spawn(

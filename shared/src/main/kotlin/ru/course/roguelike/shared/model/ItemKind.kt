@@ -2,18 +2,13 @@ package ru.course.roguelike.shared.model
 
 import kotlinx.serialization.Serializable
 
-/** Вид подбираемого предмета на локации (issue #9). */
+/** Вид подбираемого предмета на локации. */
 @Serializable
 enum class ItemKind {
-    /** Восстанавливает HP героя. */
     HEALTH,
-
-    /** Даёт опыт (может поднять уровень). */
     EXPERIENCE,
-
-    /** Постоянно увеличивает урон атаки. */
-    WEAPON,
-
-    /** Пополняет боезапас. */
-    AMMO,
+    WEAPON_PISTOL,
+    WEAPON_SHOTGUN,
+    AMMO_PISTOL,
+    AMMO_SHOTGUN,
 }

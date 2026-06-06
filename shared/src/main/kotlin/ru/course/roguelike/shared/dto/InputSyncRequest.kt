@@ -13,19 +13,19 @@ data class InputSyncRequest(
     val turnRight: Boolean = false,
     val lookUp: Boolean = false,
     val lookDown: Boolean = false,
-    /** Поворот мышью (радианы), синхронизируется с сервером. */
     val yawDelta: Float = 0f,
     val pitchDelta: Float = 0f,
     val deltaMs: Int = 50,
-    /**
-     * Абсолютный взгляд клиента на конец интервала (для sync).
-     * Сервер интерполирует yaw/pitch и считает W по той же оси, что и камера.
-     */
     val clientYaw: Float? = null,
     val clientPitch: Float? = null,
     val attack: Boolean = false,
-    /** Взаимодействие: подобрать ключ, открыть ворота выхода. */
     val interact: Boolean = false,
-    /** "player" (default) или "agent" — кто выполняет sync. */
+    /** Экипировать оружие из слота hotbar (1 или 2). */
+    val hotbarSelect: Int? = null,
+    /** Tab+1/2: назначить следующее оружие из инвентаря в слот hotbar. */
+    val hotbarAssign: Int? = null,
+    /** Перезарядка из инвентаря под текущее оружие (F). */
+    val reload: Boolean = false,
+    val jump: Boolean = false,
     val actor: String = "player",
 )

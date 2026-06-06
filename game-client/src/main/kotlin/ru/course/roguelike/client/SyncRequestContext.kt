@@ -19,7 +19,7 @@ internal data class SyncRequestContext(
     val syncAppliedSeq: AtomicInteger,
     val onStatusLine: (String) -> Unit,
     val onApplied: (GameSnapshot) -> Unit,
-    val applyServerCorrection: (PlayerPose) -> Unit,
+    val applyServerCorrection: (PlayerPose, Float) -> Unit,
 )
 
 @Suppress("TooGenericExceptionCaught")
@@ -35,7 +35,7 @@ internal suspend fun runSyncRequest(context: SyncRequestContext) {
         val gen = context.gen
         Gdx.app.postRunnable {
             if (gen != context.sessionGeneration()) return@postRunnable
-            context.applyServerCorrection(auth)
+            context.applyServerCorrection(auth, snap.player.verticalVelocity)
             context.onApplied(snap)
         }
     } catch (ex: Exception) {
@@ -47,21 +47,35 @@ internal suspend fun runSyncRequest(context: SyncRequestContext) {
 
 internal fun applyServerCorrection(
     serverPose: PlayerPose,
+    serverVerticalVelocity: Float,
     poseAccessor: () -> PlayerPose?,
     authoritativeMutator: (PlayerPose?) -> Unit,
     poseMutator: (PlayerPose?) -> Unit,
+    verticalVelocityMutator: (Float) -> Unit,
 ) {
     val pred = poseAccessor() ?: return
     val auth = serverPose.copy(yaw = pred.yaw, pitch = pred.pitch)
     authoritativeMutator(auth)
     val err = hypot((auth.x - pred.x).toDouble(), (auth.y - pred.y).toDouble()).toFloat()
+    val heightErr = kotlin.math.abs(auth.height - pred.height)
+    val heightBlend = when {
+        heightErr > 0.25f -> auth.height
+        heightErr > 0.04f -> pred.height + (auth.height - pred.height) * 0.45f
+        else -> pred.height
+    }
     poseMutator(
         when {
             err > FpsConstants.SYNC_POSITION_HARD_SNAP ->
-                pred.copy(x = auth.x, y = auth.y)
+                pred.copy(x = auth.x, y = auth.y, height = heightBlend)
             err > FpsConstants.SYNC_POSITION_CORRECT_MIN ->
                 PoseBlend.towardPosition(pred, auth, FpsConstants.SYNC_POSITION_BLEND)
-            else -> pred
+                    .copy(height = heightBlend)
+            else -> pred.copy(height = heightBlend)
         },
     )
+    if (auth.isGrounded) {
+        verticalVelocityMutator(0f)
+    } else {
+        verticalVelocityMutator(serverVerticalVelocity)
+    }
 }

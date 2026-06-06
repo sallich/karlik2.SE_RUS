@@ -27,7 +27,11 @@ class GameTextures private constructor(
         BillboardRenderer.SpriteTexture.ITEM_HEALTH,
         BillboardRenderer.SpriteTexture.ITEM_EXPERIENCE,
         BillboardRenderer.SpriteTexture.ITEM_WEAPON,
+        BillboardRenderer.SpriteTexture.ITEM_WEAPON_PISTOL,
+        BillboardRenderer.SpriteTexture.ITEM_WEAPON_SHOTGUN,
         BillboardRenderer.SpriteTexture.ITEM_AMMO,
+        BillboardRenderer.SpriteTexture.ITEM_AMMO_PISTOL,
+        BillboardRenderer.SpriteTexture.ITEM_AMMO_SHOTGUN,
         -> null
         BillboardRenderer.SpriteTexture.COLOR_FALLBACK -> null
     }
@@ -42,7 +46,11 @@ class GameTextures private constructor(
         BillboardRenderer.SpriteTexture.ITEM_HEALTH,
         BillboardRenderer.SpriteTexture.ITEM_EXPERIENCE,
         BillboardRenderer.SpriteTexture.ITEM_WEAPON,
+        BillboardRenderer.SpriteTexture.ITEM_WEAPON_PISTOL,
+        BillboardRenderer.SpriteTexture.ITEM_WEAPON_SHOTGUN,
         BillboardRenderer.SpriteTexture.ITEM_AMMO,
+        BillboardRenderer.SpriteTexture.ITEM_AMMO_PISTOL,
+        BillboardRenderer.SpriteTexture.ITEM_AMMO_SHOTGUN,
         BillboardRenderer.SpriteTexture.COLOR_FALLBACK,
         -> false
     }

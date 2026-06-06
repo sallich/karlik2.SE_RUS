@@ -98,8 +98,10 @@ class MiniMapOverlay(
     private fun itemColor(kind: ItemKind): Color = when (kind) {
         ItemKind.HEALTH -> Color.SCARLET
         ItemKind.EXPERIENCE -> Color.LIME
-        ItemKind.WEAPON -> Color.LIGHT_GRAY
-        ItemKind.AMMO -> Color.ORANGE
+        ItemKind.WEAPON_PISTOL -> Color.SKY
+        ItemKind.WEAPON_SHOTGUN -> Color.FIREBRICK
+        ItemKind.AMMO_PISTOL -> Color.SKY
+        ItemKind.AMMO_SHOTGUN -> Color.ORANGE
     }
 
     private fun drawExitGate(gate: GridPos, layout: Layout) {
