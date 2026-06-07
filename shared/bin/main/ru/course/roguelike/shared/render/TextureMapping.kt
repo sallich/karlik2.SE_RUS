@@ -132,15 +132,14 @@ object TextureMapping {
     fun wallTextureV(
         screenRow: Int,
         wallStart: Float,
-        perpDistance: Float,
-        viewHeight: Int,
+        wallEnd: Float,
         tile: TileType?,
     ): Float {
         val rowBase = wallAtlasRowBase(tile)
         val rowSpan = wallAtlasRowSpan(tile)
-        val lineHeight = viewHeight / perpDistance.coerceAtLeast(0.05f)
+        val span = (wallEnd - wallStart).coerceAtLeast(1f)
         val rel = (screenRow + 0.5f) - wallStart
-        val tiledV = frac(rel / lineHeight * SceneRenderConfig.WALL_VERTICAL_REPEATS)
+        val tiledV = frac(rel / span * SceneRenderConfig.WALL_VERTICAL_REPEATS)
         return (rowBase + tiledV * rowSpan).coerceIn(0f, 0.9999f)
     }
 

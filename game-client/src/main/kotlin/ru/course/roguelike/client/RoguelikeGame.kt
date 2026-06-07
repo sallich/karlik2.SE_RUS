@@ -20,7 +20,6 @@ import ru.course.roguelike.client.render.GameEndOverlay
 import ru.course.roguelike.client.render.InventoryUiOverlay
 import ru.course.roguelike.client.render.LocationMapOverlay
 import ru.course.roguelike.client.render.MiniMapOverlay
-import ru.course.roguelike.client.render.ViewportRenderScene
 import ru.course.roguelike.shared.dto.HotbarSnapshot
 import ru.course.roguelike.shared.dto.InputSyncRequest
 import ru.course.roguelike.shared.dto.InventorySnapshot
@@ -30,7 +29,6 @@ import ru.course.roguelike.shared.dto.MobSnapshot
 import ru.course.roguelike.shared.dto.ProjectileSnapshot
 import ru.course.roguelike.shared.engine.CollisionDebug
 import ru.course.roguelike.shared.engine.ElevatorPhase
-import ru.course.roguelike.shared.engine.FpsMovementSystem
 import ru.course.roguelike.shared.engine.TileMap
 import ru.course.roguelike.shared.model.GridPos
 import ru.course.roguelike.shared.model.PlayerPose
@@ -60,7 +58,7 @@ class RoguelikeGame : ApplicationAdapter() {
     internal var authoritativePose: PlayerPose? = null
 
     internal var statusLine = "Connecting..."
-    private var frameTexture: Texture? = null
+    internal var frameTexture: Texture? = null
     internal var pendingSyncInput = InputSyncRequest()
     internal var pendingSyncDeltaMs = 0
     internal var accumulatedYawDelta = 0f
@@ -136,7 +134,7 @@ class RoguelikeGame : ApplicationAdapter() {
 
         if (!isSessionEnded) {
             syncAccum += delta
-            simulateFrame(delta)
+            ClientFrameSimulator.advance(this, delta)
         }
 
         drawWorldFrame()
@@ -188,82 +186,6 @@ class RoguelikeGame : ApplicationAdapter() {
             resetSessionState()
             sync.restart()
         }
-    }
-
-    private fun simulateFrame(delta: Float) {
-        val map = tileMap ?: return
-        var pose = predictedPose ?: return
-
-        val sample = InputSampler.sample(delta, showInventoryGrid)
-        accumulatedYawDelta += sample.input.yawDelta
-        pendingSyncInput = mergeInputSync(pendingSyncInput, sample.input)
-        pendingSyncDeltaMs = (pendingSyncDeltaMs + sample.input.deltaMs).coerceAtMost(250)
-
-        if (sample.input.attack) {
-            audio.playHit()
-        }
-
-        val vertical = ClientVerticalMotion.tick(
-            ClientVerticalMotion.TickInput(
-                map = map,
-                pose = pose,
-                verticalVelocity = clientVerticalVelocity,
-                elevatorPhase = clientElevatorPhase,
-                wasOnElevator = clientWasOnElevator,
-                twoLevel = twoLevelLocation,
-                jumpRequested = sample.input.jump,
-                deltaMs = sample.input.deltaMs,
-            ),
-        )
-        val movement = FpsMovementSystem.applyInputWithDebug(
-            map,
-            vertical.pose.copy(yaw = pose.yaw, pitch = pose.pitch),
-            sample.input,
-        )
-        lastCollisionDebug = movement.debug
-        clientVerticalVelocity = vertical.verticalVelocity
-        clientElevatorPhase = vertical.elevatorPhase
-        if (vertical.levelSwitched) {
-            currentLevel = 1 - currentLevel
-            visitedTracker.clear()
-        }
-        val onElevatorTile = map.getTileAt(vertical.pose.x, vertical.pose.y) ==
-            ru.course.roguelike.shared.model.TileType.ELEVATOR
-        clientWasOnElevator = onElevatorTile || clientElevatorPhase != ElevatorPhase.IDLE
-        val localPose = movement.pose
-
-        maybeSendSync(localPose)
-        pose = localPose
-        predictedPose = pose
-        visitedTracker.reveal(map, pose)
-        frameTexture = viewport.render(
-            ViewportRenderScene(
-                map = map,
-                pose = pose,
-                floorLevel = currentLevel,
-                mobs = serverMobs,
-                projectiles = serverProjectiles,
-                keyPickups = keyPickups,
-                items = items,
-                agentPose = agentPose,
-            ),
-        )
-    }
-
-    private fun maybeSendSync(localPose: PlayerPose) {
-        val urgentInteract = pendingSyncInput.interact
-        if ((!InputSampler.shouldSync(syncAccum) && !urgentInteract) || sync.sessionId == null) return
-        syncAccum = 0f
-        val syncPayload = pendingSyncInput.copy(
-            yawDelta = accumulatedYawDelta,
-            deltaMs = pendingSyncDeltaMs.coerceAtLeast(1),
-            clientYaw = localPose.yaw,
-            clientPitch = localPose.pitch,
-        )
-        accumulatedYawDelta = 0f
-        pendingSyncInput = InputSyncRequest()
-        pendingSyncDeltaMs = 0
-        sync.send(syncPayload)
     }
 
     private fun drawWorldFrame() {

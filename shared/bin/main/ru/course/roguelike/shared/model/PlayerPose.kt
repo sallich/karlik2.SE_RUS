@@ -9,9 +9,12 @@ data class PlayerPose(
     /** Горизонтальный угол (радианы), 0 = вдоль +X. */
     val yaw: Float,
     val pitch: Float = 0f,
+    /** Высота прыжка над полом (для визуала и синхронизации). */
+    val height: Float = 0f,
 ) {
     fun withPosition(nx: Float, ny: Float) = copy(x = nx, y = ny)
     fun withAngles(nyaw: Float, npitch: Float) = copy(yaw = nyaw, pitch = npitch)
+    val isGrounded: Boolean get() = height <= 0.01f
 
     companion object {
         fun fromGridCell(cell: GridPos) = PlayerPose(
@@ -54,4 +57,8 @@ object FpsConstants {
 
     /** Мышь вверх → взгляд вверх (отрицательный pitch). */
     const val MOUSE_PITCH_SIGN = -1f
+
+    const val JUMP_INITIAL_VELOCITY = 4.2f
+    const val GRAVITY = 14f
+    const val MAX_JUMP_HEIGHT = 0.65f
 }

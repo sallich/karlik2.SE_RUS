@@ -50,6 +50,12 @@ object TwoLevelLabyrinthGenerator {
             groundTiles[i] = TileType.ELEVATOR
             upperTiles[i] = TileType.ELEVATOR
         }
+        // На верхнем ярусе над колоннами — проходимый пол (те же координаты, другой Z).
+        for (i in upperTiles.indices) {
+            if (upperTiles[i] == TileType.COLUMN) {
+                upperTiles[i] = TileType.FLOOR
+            }
+        }
 
         return GeneratedDungeon(
             listOf(

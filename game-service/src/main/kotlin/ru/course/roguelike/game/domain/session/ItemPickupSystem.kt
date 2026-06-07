@@ -3,6 +3,7 @@ package ru.course.roguelike.game.domain.session
 import ru.course.roguelike.game.domain.event.GameEvent
 import ru.course.roguelike.game.domain.inventory.InventorySystem
 import ru.course.roguelike.game.domain.progression.ProgressionSystem
+import ru.course.roguelike.shared.model.InteractionConstants
 import ru.course.roguelike.shared.model.InventoryDefinitions
 import ru.course.roguelike.shared.model.ItemKind
 import ru.course.roguelike.shared.model.PlayerPose
@@ -13,8 +14,6 @@ import kotlin.math.hypot
  * оружие — вручную (E), опыт — мгновенно.
  */
 object ItemPickupSystem {
-    private const val PICKUP_RADIUS = 0.6f
-    private const val WEAPON_PICKUP_RADIUS = 0.65f
     const val EXPERIENCE_REWARD = 25
 
     fun apply(session: GameSession, pose: PlayerPose, interact: Boolean = false): List<GameEvent> {
@@ -48,9 +47,9 @@ object ItemPickupSystem {
 
     private fun canCollect(item: ItemPickup, pose: PlayerPose, interact: Boolean): Boolean =
         if (InventoryDefinitions.isManualPickup(item.kind)) {
-            interact && withinReach(item, pose, WEAPON_PICKUP_RADIUS)
+            interact && withinReach(item, pose, InteractionConstants.INTERACT_RADIUS)
         } else {
-            withinReach(item, pose, PICKUP_RADIUS)
+            withinReach(item, pose, InteractionConstants.AUTO_PICKUP_RADIUS)
         }
 
     private fun withinReach(item: ItemPickup, pose: PlayerPose, radius: Float): Boolean =

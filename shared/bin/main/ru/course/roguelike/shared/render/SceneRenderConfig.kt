@@ -15,6 +15,11 @@ object SceneRenderConfig {
 
     const val WALL_VERTICAL_REPEATS = 1
 
+    /** Доля высоты стены под горизонтальную «крышку» (верхняя грань). */
+    const val WALL_CAP_FRACTION = 0.14f
+
+    const val WALL_CAP_DARKEN = 0.72f
+
     /** Прокрутка неба при повороте (доля оборота на ширину экрана). */
     const val SKY_YAW_SCALE = 0.12f
 
@@ -43,6 +48,9 @@ object SceneRenderConfig {
 
     /** Положительный pitch (взгляд вверх) опускает линию горизонта — больше неба, меньше пола. */
     fun horizonY(viewHeight: Int, pitch: Float): Float =
-        (viewHeight / 2f + kotlin.math.sin(pitch) * viewHeight * PITCH_HORIZON_FACTOR)
+        (
+            viewHeight / 2f +
+                kotlin.math.sin(pitch) * viewHeight * PITCH_HORIZON_FACTOR
+            )
             .coerceIn(0f, viewHeight.toFloat())
 }

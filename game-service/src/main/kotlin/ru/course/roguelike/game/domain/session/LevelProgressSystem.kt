@@ -3,14 +3,13 @@ package ru.course.roguelike.game.domain.session
 import ru.course.roguelike.game.domain.event.GameEvent
 import ru.course.roguelike.shared.dto.InputSyncRequest
 import ru.course.roguelike.shared.model.GridPos
+import ru.course.roguelike.shared.model.InteractionConstants
 import ru.course.roguelike.shared.model.PlayerPose
 import ru.course.roguelike.shared.model.TileType
 import kotlin.math.floor
 import kotlin.math.hypot
 
 object LevelProgressSystem {
-    private const val KEY_PICKUP_RADIUS = 0.65f
-
     fun apply(session: GameSession, input: InputSyncRequest): List<GameEvent> =
         applyForPose(session, input, session.playerPose)
 
@@ -32,7 +31,9 @@ object LevelProgressSystem {
             .minByOrNull { hypot((it.x - px).toDouble(), (it.y - py).toDouble()) }
             ?: return
 
-        if (hypot((nearest.x - px).toDouble(), (nearest.y - py).toDouble()) > KEY_PICKUP_RADIUS) return
+        if (hypot((nearest.x - px).toDouble(), (nearest.y - py).toDouble()) > InteractionConstants.INTERACT_RADIUS) {
+            return
+        }
 
         nearest.collected = true
         events.add(
