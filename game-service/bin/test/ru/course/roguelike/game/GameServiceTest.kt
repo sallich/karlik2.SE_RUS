@@ -11,7 +11,11 @@ import io.ktor.server.testing.testApplication
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import ru.course.roguelike.game.domain.StubGameEngine
+import ru.course.roguelike.shared.dto.InputSyncRequest
+import ru.course.roguelike.shared.engine.FpsMovementSystem
+import ru.course.roguelike.shared.engine.TileMap
+import ru.course.roguelike.shared.model.PlayerPose
+import ru.course.roguelike.shared.model.TileType
 
 class GameServiceTest {
     @Test
@@ -23,22 +27,43 @@ class GameServiceTest {
     }
 
     @Test
-    fun `create and fetch session`() = testApplication {
+    fun `sync moves player`() = testApplication {
         application { module() }
         val create = client.post("/api/v1/sessions") {
             contentType(ContentType.Application.Json)
             setBody("""{"seed":42}""")
         }
         assertEquals(HttpStatusCode.OK, create.status)
-        assertTrue(create.bodyAsText().contains("sessionId"))
+        val body = create.bodyAsText()
+        val sessionId = """"sessionId":"([^"]+)"""".toRegex().find(body)?.groupValues?.get(1)
+            ?: error("no sessionId")
+
+        val sync = client.post("/api/v1/sessions/$sessionId/sync") {
+            contentType(ContentType.Application.Json)
+            setBody("""{"forward":true,"deltaMs":200}""")
+        }
+        assertEquals(HttpStatusCode.OK, sync.status)
+        assertTrue(sync.bodyAsText().contains("\"accepted\":true"))
+        assertTrue(sync.bodyAsText().contains("\"pose\""))
     }
 
     @Test
-    fun `stub engine stores sessions`() {
-        val engine = StubGameEngine()
-        val session = engine.createSession(7L)
-        assertEquals(7L, engine.getSession(session.sessionId)?.seed)
-        val action = engine.applyAction(session.sessionId, "move_north")
-        assertTrue(action?.accepted == true)
+    fun `fps movement does not enter wall`() {
+        val map = TileMap(
+            width = 3,
+            height = 3,
+            tiles = arrayOf(
+                TileType.FLOOR, TileType.FLOOR, TileType.FLOOR,
+                TileType.FLOOR, TileType.FLOOR, TileType.WALL,
+                TileType.FLOOR, TileType.FLOOR, TileType.FLOOR,
+            ),
+        )
+        val start = PlayerPose(1.5f, 1.5f, yaw = 0f)
+        val moved = FpsMovementSystem.applyInput(
+            map,
+            start,
+            InputSyncRequest(forward = true, deltaMs = 500),
+        )
+        assertTrue(moved.x < 2f)
     }
 }

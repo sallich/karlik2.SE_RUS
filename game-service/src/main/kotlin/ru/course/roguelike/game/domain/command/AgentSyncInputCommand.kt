@@ -1,12 +1,8 @@
 package ru.course.roguelike.game.domain.command
 
-import ru.course.roguelike.game.domain.combat.CombatSystem
 import ru.course.roguelike.game.domain.event.GameEvent
 import ru.course.roguelike.game.domain.session.GameSession
-import ru.course.roguelike.game.domain.session.ItemPickupSystem
-import ru.course.roguelike.game.domain.session.LevelProgressSystem
 import ru.course.roguelike.shared.dto.InputSyncRequest
-import ru.course.roguelike.shared.engine.FpsMovementSystem
 
 /** Движение и interact кооп-агента (отдельная поза, не playerPose). */
 class AgentSyncInputCommand(
@@ -21,15 +17,8 @@ class AgentSyncInputCommand(
     }
 
     override fun execute(session: GameSession): CommandExecutionResult {
-        val pose = session.agentPose!!
-        session.agentPose = FpsMovementSystem.applyInput(session.activeMap, pose, input)
-        session.touchClock()
-        val events = mutableListOf<GameEvent>(
-            GameEvent.CommandExecuted(name, accepted = true),
-        )
-        events.addAll(LevelProgressSystem.applyForPose(session, input, session.agentPose!!))
-        events.addAll(ItemPickupSystem.apply(session, session.agentPose!!, input.interact))
-        events.addAll(CombatSystem.tick(session, input.deltaMs, playerAttacking = false))
+        val events = mutableListOf<GameEvent>(GameEvent.CommandExecuted(name, accepted = true))
+        events.addAll(SyncInputPipeline.runAgent(session, input))
         return CommandExecutionResult(
             accepted = true,
             message = "agent sync ok",

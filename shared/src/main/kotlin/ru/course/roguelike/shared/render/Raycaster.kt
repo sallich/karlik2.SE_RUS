@@ -5,6 +5,8 @@ import ru.course.roguelike.shared.model.FpsConstants
 import ru.course.roguelike.shared.model.GridPos
 import ru.course.roguelike.shared.model.PlayerPose
 import ru.course.roguelike.shared.model.TileType
+import ru.course.roguelike.shared.model.WorldVertical
+import ru.course.roguelike.shared.model.wallHeight
 import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.floor
@@ -24,6 +26,11 @@ object Raycaster {
         val side: Int,
         val wallU: Float,
         val tile: TileType?,
+        val horizontalTop: Boolean = false,
+        val backDistance: Float? = null,
+        val backSide: Int? = null,
+        val backWallU: Float? = null,
+        val backTile: TileType? = null,
     )
 
     fun castColumns(
@@ -31,9 +38,20 @@ object Raycaster {
         pose: PlayerPose,
         screenWidth: Int,
         screenHeight: Int,
-        horizonY: Float,
+        pitchHorizonY: Float,
+        floorLevel: Int = 0,
+        viewerHeight: Float = CameraProjection.viewerHeight(pose.height),
         fovRadians: Float = FpsConstants.DEFAULT_FOV_RADIANS,
-    ): Array<Column> = castScene(map, pose, screenWidth, screenHeight, horizonY, fovRadians).columns
+    ): Array<Column> = castScene(
+        map,
+        pose,
+        screenWidth,
+        screenHeight,
+        pitchHorizonY,
+        floorLevel,
+        viewerHeight,
+        fovRadians,
+    ).columns
 
     data class SceneCast(
         val columns: Array<Column>,
@@ -46,10 +64,15 @@ object Raycaster {
         pose: PlayerPose,
         screenWidth: Int,
         screenHeight: Int,
-        horizonY: Float,
+        pitchHorizonY: Float,
+        floorLevel: Int = 0,
+        viewerHeight: Float = CameraProjection.viewerHeight(pose.height),
         fovRadians: Float = FpsConstants.DEFAULT_FOV_RADIANS,
     ): SceneCast {
         if (screenWidth <= 0) return SceneCast(emptyArray(), FloatArray(0), emptyArray())
+
+        val eyeWorldZ = WorldVertical.eyeWorldZ(floorLevel, pose.height)
+        val feetWorldZ = WorldVertical.floorWorldZ(floorLevel) + pose.height
 
         val distances = FloatArray(screenWidth)
         val colors = IntArray(screenWidth)
@@ -103,6 +126,7 @@ object Raycaster {
             var hitMapY = 0
             var hitStepX = 1
             var hitStepY = 1
+            var hitHorizontalTop = false
 
             while (!hit) {
                 if (sideDistX < sideDistY) {
@@ -118,15 +142,37 @@ object Raycaster {
                     hit = true
                     outOfBounds = true
                 } else {
-                    // Луч останавливают любые непрозрачные тайлы: и стены, и колонны.
                     val tile = map.get(GridPos(mapX, mapY))
                     if (tile != null && tile.blocksVision) {
-                        hit = true
-                        hitTile = tile
-                        hitMapX = mapX
-                        hitMapY = mapY
-                        hitStepX = stepX
-                        hitStepY = stepY
+                        if (tile == TileType.COLUMN) {
+                            val topZ = WorldVertical.tileTopWorldZ(floorLevel, tile)
+                            if (feetWorldZ <= topZ + 0.02f || eyeWorldZ <= topZ + 0.02f) {
+                                hit = true
+                                hitTile = tile
+                                hitMapX = mapX
+                                hitMapY = mapY
+                                hitStepX = stepX
+                                hitStepY = stepY
+                            }
+                        } else {
+                            val topZ = WorldVertical.tileTopWorldZ(floorLevel, tile)
+                            if (eyeWorldZ > topZ + 0.02f) {
+                                hit = true
+                                hitHorizontalTop = true
+                                hitTile = tile
+                                hitMapX = mapX
+                                hitMapY = mapY
+                                hitStepX = stepX
+                                hitStepY = stepY
+                            } else if (WorldVertical.blocksVisionAt(floorLevel, tile, eyeWorldZ)) {
+                                hit = true
+                                hitTile = tile
+                                hitMapX = mapX
+                                hitMapY = mapY
+                                hitStepX = stepX
+                                hitStepY = stepY
+                            }
+                        }
                     }
                 }
             }
@@ -145,24 +191,171 @@ object Raycaster {
             colors[col] = colorFor(hitTile, side, shade)
             if (!outOfBounds) {
                 val hitCoord = TextureMapping.wallHitCoord(side, perpWallDist, rayDirX, rayDirY, posX, posY)
-                meta[col] = WallColumnMeta(perpWallDist, side, hitCoord, hitTile)
+                var entry = WallColumnMeta(perpWallDist, side, hitCoord, hitTile, hitHorizontalTop)
+                if (!hitHorizontalTop && hitTile != null && hitTile.wallHeight() < WorldVertical.WALL_HEIGHT - 0.01f) {
+                    castBehindShortWall(
+                        map = map,
+                        floorLevel = floorLevel,
+                        eyeWorldZ = eyeWorldZ,
+                        feetWorldZ = feetWorldZ,
+                        rayDirX = rayDirX,
+                        rayDirY = rayDirY,
+                        posX = posX,
+                        posY = posY,
+                        stepX = stepX,
+                        stepY = stepY,
+                        mapX = mapX,
+                        mapY = mapY,
+                        sideDistX = sideDistX,
+                        sideDistY = sideDistY,
+                        deltaDistX = deltaDistX,
+                        deltaDistY = deltaDistY,
+                    )?.let { back ->
+                        entry = entry.copy(
+                            backDistance = back.distance,
+                            backSide = back.side,
+                            backWallU = back.wallU,
+                            backTile = back.tile,
+                        )
+                    }
+                }
+                meta[col] = entry
             }
         }
 
         unwrapWallTextureU(meta)
+        unwrapBackWallTextureU(meta)
 
         val columns = Array(screenWidth) { col ->
             val perpWallDist = distances[col]
+            val entry = meta[col]
+            if (entry?.horizontalTop == true) {
+                // Камера выше стены: рисуем боковую грань (от макушки до пола) + горизонтальную крышку в painter.
+                val lineHeight = screenHeight / perpWallDist
+                val wallH = entry.tile?.wallHeight() ?: WorldVertical.WALL_HEIGHT
+                val (drawStart, drawEnd) = projectWallSpan(
+                    pitchHorizonY = pitchHorizonY,
+                    lineHeight = lineHeight,
+                    wallHeight = wallH,
+                    screenHeight = screenHeight,
+                    perpDistance = perpWallDist,
+                    viewerHeightAboveFloor = viewerHeight,
+                )
+                return@Array Column(drawStart, drawEnd, colors[col])
+            }
             val lineHeight = screenHeight / perpWallDist
-            val halfH = lineHeight / 2f
-            val drawStart = (horizonY - halfH).coerceAtLeast(0f)
-            val drawEnd = (horizonY + halfH).coerceAtMost(screenHeight.toFloat())
+            val wallH = entry?.tile?.wallHeight() ?: WorldVertical.WALL_HEIGHT
+            val (drawStart, drawEnd) = projectWallSpan(
+                pitchHorizonY = pitchHorizonY,
+                lineHeight = lineHeight,
+                wallHeight = wallH,
+                screenHeight = screenHeight,
+                perpDistance = perpWallDist,
+                viewerHeightAboveFloor = viewerHeight,
+            )
             Column(drawStart, drawEnd, colors[col])
         }
         return SceneCast(columns, distances, Array(screenWidth) { meta[it] ?: WallColumnMeta(distances[it], 0, 0f, null) })
     }
 
+    internal fun projectWallSpan(
+        pitchHorizonY: Float,
+        lineHeight: Float,
+        wallHeight: Float,
+        screenHeight: Int,
+        perpDistance: Float,
+        viewerHeightAboveFloor: Float,
+    ): Pair<Float, Float> = CameraProjection.projectWallSpan(
+        pitchHorizonY,
+        lineHeight,
+        wallHeight,
+        screenHeight,
+        perpDistance,
+        viewerHeightAboveFloor,
+    )
+
    
+    private data class BehindHit(val distance: Float, val side: Int, val wallU: Float, val tile: TileType)
+
+    @Suppress("LongParameterList")
+    private fun castBehindShortWall(
+        map: TileMap,
+        floorLevel: Int,
+        eyeWorldZ: Float,
+        feetWorldZ: Float,
+        rayDirX: Float,
+        rayDirY: Float,
+        posX: Float,
+        posY: Float,
+        stepX: Int,
+        stepY: Int,
+        mapX: Int,
+        mapY: Int,
+        sideDistX: Float,
+        sideDistY: Float,
+        deltaDistX: Float,
+        deltaDistY: Float,
+    ): BehindHit? {
+        var mx = mapX
+        var my = mapY
+        var distX = sideDistX
+        var distY = sideDistY
+        var side = 0
+        while (true) {
+            if (distX < distY) {
+                distX += deltaDistX
+                mx += stepX
+                side = 0
+            } else {
+                distY += deltaDistY
+                my += stepY
+                side = 1
+            }
+            if (mx < 0 || my < 0 || mx >= map.width || my >= map.height) return null
+            val tile = map.get(GridPos(mx, my)) ?: continue
+            if (!tile.blocksVision) continue
+            if (tile.wallHeight() < WorldVertical.WALL_HEIGHT - 0.01f) continue
+            val topZ = WorldVertical.tileTopWorldZ(floorLevel, tile)
+            if (feetWorldZ > topZ + 0.02f && eyeWorldZ > topZ + 0.02f) continue
+            if (!WorldVertical.blocksVisionAt(floorLevel, tile, eyeWorldZ)) continue
+            val perpDist = if (side == 0) {
+                (mx - posX + (1 - stepX) / 2f) / rayDirX
+            } else {
+                (my - posY + (1 - stepY) / 2f) / rayDirY
+            }.let { abs(it).coerceIn(FpsConstants.COLLISION_MIN_RAY_DIST, 64f) }
+            val hitCoord = TextureMapping.wallHitCoord(side, perpDist, rayDirX, rayDirY, posX, posY)
+            return BehindHit(perpDist, side, hitCoord, tile)
+        }
+    }
+
+    private fun unwrapBackWallTextureU(meta: Array<WallColumnMeta?>) {
+        var offset = 0
+        var prevFrac = 0f
+        var prevSide = -1
+        var prevTile: TileType? = null
+        for (col in meta.indices) {
+            val entry = meta[col] ?: continue
+            val backU = entry.backWallU ?: continue
+            val backTile = entry.backTile ?: continue
+            val backSide = entry.backSide ?: continue
+            if (backSide != prevSide || backTile != prevTile) {
+                offset = 0
+                prevFrac = TextureMapping.wallFracU(backU)
+                meta[col] = entry.copy(backWallU = TextureMapping.continuousWallU(backU, offset))
+                prevSide = backSide
+                prevTile = backTile
+                continue
+            }
+            val fracU = TextureMapping.wallFracU(backU)
+            if (fracU - prevFrac > 0.5f) offset--
+            if (prevFrac - fracU > 0.5f) offset++
+            meta[col] = entry.copy(backWallU = TextureMapping.continuousWallU(backU, offset))
+            prevFrac = fracU
+            prevSide = backSide
+            prevTile = backTile
+        }
+    }
+
     private fun unwrapWallTextureU(meta: Array<WallColumnMeta?>) {
         var offset = 0
         var prevFrac = 0f
@@ -223,9 +416,10 @@ object Raycaster {
      * нижняя грань стены на дистанции d попадает в ту же строку, что и пол на d.
      * Возвращает [Float.POSITIVE_INFINITY] для строк на/над горизонтом.
      */
-    fun floorDistance(screenHeight: Int, horizon: Float, screenRow: Int): Float {
+    fun floorDistance(screenHeight: Int, horizon: Float, screenRow: Int, localHeight: Float = 0f): Float {
         val denom = screenRow - horizon
-        return if (denom <= 0f) Float.POSITIVE_INFINITY else (screenHeight / 2f) / denom
+        if (denom <= 0f) return Float.POSITIVE_INFINITY
+        return screenHeight * (0.5f + localHeight.coerceAtLeast(0f)) / denom
     }
 
     private fun rgb(r: Int, g: Int, b: Int): Int = (r shl 16) or (g shl 8) or b

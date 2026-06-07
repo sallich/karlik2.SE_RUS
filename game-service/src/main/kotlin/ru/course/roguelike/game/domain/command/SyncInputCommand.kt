@@ -1,14 +1,8 @@
 package ru.course.roguelike.game.domain.command
 
-import ru.course.roguelike.game.domain.combat.CombatSystem
 import ru.course.roguelike.game.domain.event.GameEvent
-import ru.course.roguelike.game.domain.session.ElevatorSystem
 import ru.course.roguelike.game.domain.session.GameSession
-import ru.course.roguelike.game.domain.session.ItemPickupSystem
-import ru.course.roguelike.game.domain.session.LavaDamageSystem
-import ru.course.roguelike.game.domain.session.LevelProgressSystem
 import ru.course.roguelike.shared.dto.InputSyncRequest
-import ru.course.roguelike.shared.engine.FpsMovementSystem
 
 class SyncInputCommand(
     private val input: InputSyncRequest,
@@ -23,17 +17,8 @@ class SyncInputCommand(
         }
 
     override fun execute(session: GameSession): CommandExecutionResult {
-        session.playerPose = FpsMovementSystem.applyInput(session.activeMap, session.playerPose, input)
-        session.touchClock()
-        val events = mutableListOf<GameEvent>(
-            GameEvent.CommandExecuted(name, accepted = true),
-            GameEvent.PlayerMoved(session.tick),
-        )
-        LavaDamageSystem.apply(session, input.deltaMs)?.let { events.add(it) }
-        ElevatorSystem.apply(session)?.let { events.add(it) }
-        events.addAll(LevelProgressSystem.apply(session, input))
-        events.addAll(ItemPickupSystem.apply(session, session.playerPose, input.interact))
-        events.addAll(CombatSystem.tick(session, input.deltaMs, input.attack))
+        val events = mutableListOf<GameEvent>(GameEvent.CommandExecuted(name, accepted = true))
+        events.addAll(SyncInputPipeline.runPlayer(session, input))
         return CommandExecutionResult(
             accepted = true,
             message = "sync ok",

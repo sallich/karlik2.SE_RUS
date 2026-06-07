@@ -1,36 +1,20 @@
 package ru.course.roguelike.game.domain.session
 
 import ru.course.roguelike.game.domain.event.GameEvent
+import ru.course.roguelike.game.domain.inventory.InventorySystem
 import ru.course.roguelike.game.domain.progression.ProgressionSystem
-import ru.course.roguelike.shared.model.CombatConstants
+import ru.course.roguelike.shared.model.InteractionConstants
+import ru.course.roguelike.shared.model.InventoryDefinitions
 import ru.course.roguelike.shared.model.ItemKind
 import ru.course.roguelike.shared.model.PlayerPose
 import kotlin.math.hypot
 
 /**
- * Подбор предметов на локации (issue #9): герой автоматически собирает предмет,
- * проходя рядом с ним, и сразу получает его эффект.
- *
- * Исключение — оружие ([ItemKind.WEAPON]): его нужно подобрать вручную, нажав E
- * (interact), стоя рядом, как с ключами.
+ * Подбор предметов на локации: патроны и аптечки — автоматически в инвентарь,
+ * оружие — вручную (E), опыт — мгновенно.
  */
 object ItemPickupSystem {
-    private const val PICKUP_RADIUS = 0.6f
-
-    /** Радиус ручного подбора оружия по нажатию E (как у ключей). */
-    private const val WEAPON_PICKUP_RADIUS = 0.65f
-
-    /** На сколько предмет здоровья восстанавливает HP. */
-    const val HEALTH_RESTORE = 30
-
-    /** Сколько опыта даёт предмет опыта. */
     const val EXPERIENCE_REWARD = 25
-
-    /** Постоянная прибавка к урону от предмета-оружия. */
-    const val WEAPON_DAMAGE_BONUS = 5
-
-    /** Сколько патронов даёт предмет с боезапасом. */
-    const val AMMO_REFILL = 20
 
     fun apply(session: GameSession, pose: PlayerPose, interact: Boolean = false): List<GameEvent> {
         if (session.playerHp <= 0) return emptyList()
@@ -39,59 +23,35 @@ object ItemPickupSystem {
         session.itemPickups
             .filter { !it.collected && canCollect(it, pose, interact) }
             .forEach { item ->
-                item.collected = true
-                events.add(GameEvent.ItemCollected(item.id, item.kind))
-                events.addAll(applyEffect(session, item.kind))
+                val kindEvents = when (item.kind) {
+                    ItemKind.EXPERIENCE -> {
+                        item.collected = true
+                        listOf(GameEvent.ItemCollected(item.id, item.kind)) +
+                            ProgressionSystem.awardItemXp(session, EXPERIENCE_REWARD)
+                    }
+                    else -> tryCollectToInventory(session, item)
+                }
+                events.addAll(kindEvents)
             }
         return events
     }
 
-    /**
-     * Оружие подбирается только вручную (interact=E) в радиусе [WEAPON_PICKUP_RADIUS];
-     * остальные предметы — автоматически, стоит подойти ближе [PICKUP_RADIUS].
-     */
+    private fun tryCollectToInventory(session: GameSession, item: ItemPickup): List<GameEvent> {
+        val events = InventorySystem.collectFromMap(session, item.kind, item.id).toMutableList()
+        if (events.none { it is GameEvent.InventoryFull }) {
+            item.collected = true
+            events.add(0, GameEvent.ItemCollected(item.id, item.kind))
+        }
+        return events
+    }
+
     private fun canCollect(item: ItemPickup, pose: PlayerPose, interact: Boolean): Boolean =
-        if (item.kind == ItemKind.WEAPON) {
-            interact && withinReach(item, pose, WEAPON_PICKUP_RADIUS)
+        if (InventoryDefinitions.isManualPickup(item.kind)) {
+            interact && withinReach(item, pose, InteractionConstants.INTERACT_RADIUS)
         } else {
-            withinReach(item, pose, PICKUP_RADIUS)
+            withinReach(item, pose, InteractionConstants.AUTO_PICKUP_RADIUS)
         }
 
     private fun withinReach(item: ItemPickup, pose: PlayerPose, radius: Float): Boolean =
         hypot((item.x - pose.x).toDouble(), (item.y - pose.y).toDouble()) <= radius
-
-    private fun applyEffect(session: GameSession, kind: ItemKind): List<GameEvent> = when (kind) {
-        ItemKind.HEALTH -> healPlayer(session)
-        ItemKind.EXPERIENCE -> ProgressionSystem.awardItemXp(session, EXPERIENCE_REWARD)
-        ItemKind.WEAPON -> upgradeWeapon(session)
-        ItemKind.AMMO -> refillAmmo(session)
-    }
-
-    private fun healPlayer(session: GameSession): List<GameEvent> {
-        val before = session.playerHp
-        session.playerHp = (before + HEALTH_RESTORE).coerceAtMost(session.playerMaxHp)
-        val healed = session.playerHp - before
-        return if (healed > 0) {
-            listOf(GameEvent.PlayerHealed(healed, session.playerHp))
-        } else {
-            emptyList()
-        }
-    }
-
-    private fun upgradeWeapon(session: GameSession): List<GameEvent> {
-        session.playerWeaponBonus += WEAPON_DAMAGE_BONUS
-        session.playerAttackDamage += WEAPON_DAMAGE_BONUS
-        return listOf(GameEvent.WeaponUpgraded(WEAPON_DAMAGE_BONUS, session.playerAttackDamage))
-    }
-
-    private fun refillAmmo(session: GameSession): List<GameEvent> {
-        val before = session.playerAmmo
-        session.playerAmmo = (before + AMMO_REFILL).coerceAtMost(CombatConstants.PLAYER_MAX_AMMO)
-        val gained = session.playerAmmo - before
-        return if (gained > 0) {
-            listOf(GameEvent.AmmoChanged(gained, session.playerAmmo))
-        } else {
-            emptyList()
-        }
-    }
 }
