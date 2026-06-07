@@ -20,6 +20,13 @@ object SceneRenderConfig {
 
     const val WALL_CAP_DARKEN = 0.72f
 
+    /** Толщина горизонтальной полосы «крышки» стены при взгляде сверху (доля lineHeight). */
+    const val WALL_TOP_BAND_FRACTION = 0.12f
+
+    const val WALL_TOP_BAND_MIN_ROWS = 2
+
+    const val WALL_TOP_BAND_MAX_ROWS = 12
+
     /** Прокрутка неба при повороте (доля оборота на ширину экрана). */
     const val SKY_YAW_SCALE = 0.12f
 

@@ -39,8 +39,12 @@ internal class TexturedWallPainter(
             meta.distance,
             viewerHeight - surfaceZ,
         )
-        val top = kotlin.math.floor(floorLine - meta.distance * 0.06f).toInt().coerceIn(0, viewHeight - 1)
-        val bottom = kotlin.math.ceil(floorLine).toInt().coerceIn(top + 1, viewHeight)
+        val lineHeight = viewHeight / meta.distance.coerceAtLeast(0.05f)
+        val capBand = (lineHeight * SceneRenderConfig.WALL_TOP_BAND_FRACTION)
+            .toInt()
+            .coerceIn(SceneRenderConfig.WALL_TOP_BAND_MIN_ROWS, SceneRenderConfig.WALL_TOP_BAND_MAX_ROWS)
+        val top = kotlin.math.floor(floorLine - capBand).toInt().coerceIn(0, viewHeight - 1)
+        val bottom = kotlin.math.ceil(floorLine + 1f).toInt().coerceIn(top + 1, viewHeight)
         val u = TextureMapping.wallTextureUClamped(meta.wallU)
         for (row in top until bottom) {
             val rgb = horizontalTopRgb(tile, u, meta.distance) ?: return
@@ -69,7 +73,7 @@ internal class TexturedWallPainter(
             val col = scene.columns[x]
             val meta = scene.wallMeta[x]
             paintBackWallLayer(meta, col, pitchHorizon, viewerHeight, x)
-            if (!meta.horizontalTop && col.wallEnd - col.wallStart >= 0.5f) {
+            if (col.wallEnd - col.wallStart >= 0.5f) {
                 paintWallColumn(
                     x = x,
                     wallStart = col.wallStart,
@@ -167,13 +171,13 @@ internal class TexturedWallPainter(
             val col = scene.columns[x]
             val meta = scene.wallMeta[x]
             val tile = meta.tile
-            if (shouldSkipWallCap(meta, tile)) continue
+            if (shouldSkipWallCap(tile)) continue
             paintWallCapColumn(x, col, meta, tile!!)
         }
     }
 
-    private fun shouldSkipWallCap(meta: Raycaster.WallColumnMeta, tile: TileType?): Boolean {
-        if (meta.horizontalTop || tile == null) return true
+    private fun shouldSkipWallCap(tile: TileType?): Boolean {
+        if (tile == null) return true
         return tile != TileType.WALL && tile != TileType.COLUMN
     }
 

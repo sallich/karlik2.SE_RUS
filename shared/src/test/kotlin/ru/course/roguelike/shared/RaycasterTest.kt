@@ -168,6 +168,45 @@ class RaycasterTest {
     }
 
     @Test
+    fun `project wall span keeps visible band when wall base is clipped below screen`() {
+        val dist = 4f
+        val lineHeight = 24f / dist
+        val (start, end) = Raycaster.projectWallSpan(
+            pitchHorizonY = 12f,
+            lineHeight = lineHeight,
+            wallHeight = WorldVertical.WALL_HEIGHT,
+            screenHeight = 24,
+            perpDistance = dist,
+            viewerHeightAboveFloor = WorldVertical.FLOOR_STEP,
+        )
+        assertTrue(end > start + 1f, "top of wall stays on screen even when base is below the viewport")
+    }
+
+    @Test
+    fun `elevated viewer above wall height still projects vertical wall span`() {
+        val size = 9
+        val tiles = Array(size * size) { TileType.FLOOR }
+        for (x in 0 until size) {
+            tiles[4 * size + x] = TileType.WALL
+        }
+        val map = TileMap(size, size, tiles)
+        val elevatorHeight = WorldVertical.WALL_HEIGHT + 0.2f
+        val scene = Raycaster.castScene(
+            map,
+            PlayerPose(4.5f, 1.5f, yaw = (Math.PI / 2).toFloat(), height = elevatorHeight),
+            32,
+            24,
+            pitchHorizonY = 12f,
+            viewerHeight = elevatorHeight,
+        )
+        val spans = scene.wallMeta.indices
+            .filter { scene.wallMeta[it].tile == TileType.WALL && scene.wallMeta[it].horizontalTop }
+            .map { scene.columns[it].wallEnd - scene.columns[it].wallStart }
+        assertTrue(spans.isNotEmpty(), "wall ahead should be hit as horizontal top when viewer is elevated")
+        assertTrue(spans.max() > 1f, "wall face remains visible when looking down from elevator")
+    }
+
+    @Test
     fun `ray direction points along yaw at screen center`() {
         val ray = Raycaster.rayDirection(PlayerPose(0f, 0f, yaw = 0f), screenWidth = 64, col = 32)
         assertTrue(ray[0] > 0f)

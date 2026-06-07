@@ -36,15 +36,17 @@ object CameraProjection {
         perpDistance: Float,
         viewerHeightAboveFloor: Float,
     ): Pair<Float, Float> {
-        val floorLine = worldFloorScreenY(
+        val wallBottomY = worldFloorScreenY(
             pitchHorizonY,
             screenHeight,
             perpDistance,
             viewerHeightAboveFloor,
         )
-        val end = floorLine.coerceIn(0f, screenHeight.toFloat())
-        val start = (floorLine - lineHeight * wallHeight).coerceAtLeast(0f)
-        return start to end
+        val wallTopY = wallBottomY - lineHeight * wallHeight
+        val maxY = screenHeight.toFloat()
+        val drawStart = minOf(wallTopY, wallBottomY).coerceIn(0f, maxY)
+        val drawEnd = maxOf(wallTopY, wallBottomY).coerceIn(0f, maxY)
+        return drawStart to drawEnd
     }
 
     /** Спрайт с ногами/центром на [spriteWorldZ]; [viewerHeight] — высота камеры над полом яруса. */

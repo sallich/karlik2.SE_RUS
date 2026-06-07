@@ -230,13 +230,18 @@ object Raycaster {
             val perpWallDist = distances[col]
             val entry = meta[col]
             if (entry?.horizontalTop == true) {
-                val floorLine = CameraProjection.worldFloorScreenY(
-                    pitchHorizonY,
-                    screenHeight,
-                    perpWallDist,
-                    viewerHeight - (entry.tile?.wallHeight() ?: 0f),
+                // Камера выше стены: рисуем боковую грань (от макушки до пола) + горизонтальную крышку в painter.
+                val lineHeight = screenHeight / perpWallDist
+                val wallH = entry.tile?.wallHeight() ?: WorldVertical.WALL_HEIGHT
+                val (drawStart, drawEnd) = projectWallSpan(
+                    pitchHorizonY = pitchHorizonY,
+                    lineHeight = lineHeight,
+                    wallHeight = wallH,
+                    screenHeight = screenHeight,
+                    perpDistance = perpWallDist,
+                    viewerHeightAboveFloor = viewerHeight,
                 )
-                return@Array Column(floorLine, floorLine, colors[col])
+                return@Array Column(drawStart, drawEnd, colors[col])
             }
             val lineHeight = screenHeight / perpWallDist
             val wallH = entry?.tile?.wallHeight() ?: WorldVertical.WALL_HEIGHT
