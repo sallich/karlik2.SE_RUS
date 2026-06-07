@@ -70,7 +70,7 @@ class MobSpawnerTest {
         val plans = level.rooms
             .filter { it != startRoom }
             .associateWith { room ->
-                MobSpawner.mobPlanForRoom(MobSpawner.roomLayoutMetrics(room, level.map, safeCells))
+                RoomMobPlanner.mobPlanForRoom(RoomMobPlanner.roomLayoutMetrics(room, level.map, safeCells))
             }
         val smallestEntry = plans.minBy { it.key.area }
         val largestEntry = plans.maxBy { it.key.area }
@@ -95,11 +95,11 @@ class MobSpawnerTest {
         val obstructedMap = tileMap(obstructedTiles, 10, 10)
         val safeCells = walkableCells(openMap)
 
-        val openPlan = MobSpawner.mobPlanForRoom(
-            MobSpawner.roomLayoutMetrics(room, openMap, safeCells),
+        val openPlan = RoomMobPlanner.mobPlanForRoom(
+            RoomMobPlanner.roomLayoutMetrics(room, openMap, safeCells),
         )
-        val obstructedPlan = MobSpawner.mobPlanForRoom(
-            MobSpawner.roomLayoutMetrics(room, obstructedMap, safeCells),
+        val obstructedPlan = RoomMobPlanner.mobPlanForRoom(
+            RoomMobPlanner.roomLayoutMetrics(room, obstructedMap, safeCells),
         )
 
         val openRangedShare = openPlan.rangedCount.toFloat() / openPlan.total

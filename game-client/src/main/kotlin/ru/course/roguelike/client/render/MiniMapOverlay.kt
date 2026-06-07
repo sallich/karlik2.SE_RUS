@@ -8,12 +8,8 @@ import ru.course.roguelike.shared.dto.KeySnapshot
 import ru.course.roguelike.shared.dto.MobSnapshot
 import ru.course.roguelike.shared.engine.TileMap
 import ru.course.roguelike.shared.model.GridPos
-import ru.course.roguelike.shared.model.ItemKind
-import ru.course.roguelike.shared.model.MobKind
 import ru.course.roguelike.shared.model.PlayerPose
-import ru.course.roguelike.shared.model.TileType
 import kotlin.math.cos
-import kotlin.math.floor
 import kotlin.math.sin
 
 /**
@@ -22,8 +18,8 @@ import kotlin.math.sin
  * В отличие от карты всей локации ([LocationMapOverlay], клавиша F4) показывает
  * только уже посещённые игроком клетки («туман войны»): по мере исследования
  * вокруг героя открываются комнаты. На открытых клетках отмечаются ещё не
- * собранные ключи и предметы, живые мобы, а также ворота выхода — чтобы игрок
- * помнил, где остался лут и угрозы, и понимал, куда он уже ходил.
+ * собранные ключи и предметы, мобы, а также ворота выхода — чтобы игрок
+ * помнил, где остался лут, и понимал, куда он уже ходил.
  */
 class MiniMapOverlay(
     private val shapeRenderer: ShapeRenderer,
@@ -45,7 +41,7 @@ class MiniMapOverlay(
         shapeRenderer.projectionMatrix = Matrix4().setToOrtho2D(0f, 0f, screenWidth, screenHeight)
 
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
-        shapeRenderer.color = BACKGROUND
+        shapeRenderer.color = MiniMapPalette.background
         shapeRenderer.rect(layout.left, layout.bottom, layout.widthPx, layout.heightPx)
         drawVisitedTiles(map, visited, layout)
         exitGate?.takeIf { visited.contains(it) }?.let { drawExitGate(it, layout) }
@@ -63,7 +59,7 @@ class MiniMapOverlay(
 
     private fun drawVisitedTiles(map: TileMap, visited: Set<GridPos>, layout: Layout) {
         for (pos in visited) {
-            val color = cellColor(map.get(pos)) ?: continue
+            val color = MiniMapPalette.cellColor(map.get(pos)) ?: continue
             shapeRenderer.color = color
             shapeRenderer.rect(
                 layout.left + pos.x * layout.cellPx,
@@ -76,7 +72,7 @@ class MiniMapOverlay(
 
     private fun drawKeys(keys: List<KeySnapshot>, visited: Set<GridPos>, layout: Layout) {
         for (key in keys) {
-            if (!visited.contains(cellOf(key.x, key.y))) continue
+            if (!visited.contains(MiniMapPalette.cellOf(key.x, key.y))) continue
             shapeRenderer.color = Color.GOLD
             val px = layout.left + key.x * layout.cellPx
             val py = layout.bottom + key.y * layout.cellPx
@@ -91,8 +87,8 @@ class MiniMapOverlay(
 
     private fun drawItems(items: List<ItemSnapshot>, visited: Set<GridPos>, layout: Layout) {
         for (item in items) {
-            if (!visited.contains(cellOf(item.x, item.y))) continue
-            shapeRenderer.color = itemColor(item.kind)
+            if (!visited.contains(MiniMapPalette.cellOf(item.x, item.y))) continue
+            shapeRenderer.color = MiniMapPalette.itemColor(item.kind)
             val px = layout.left + item.x * layout.cellPx
             val py = layout.bottom + item.y * layout.cellPx
             shapeRenderer.circle(px, py, (layout.cellPx * 0.3f).coerceAtLeast(2f), 10)
@@ -100,29 +96,16 @@ class MiniMapOverlay(
     }
 
     private fun drawMobs(mobs: List<MobSnapshot>, visited: Set<GridPos>, layout: Layout) {
-        for (mob in mobs) {
-            if (mob.hp <= 0) continue
-            if (!visited.contains(cellOf(mob.x, mob.y))) continue
-            shapeRenderer.color = mobColor(mob.kind)
-            val px = layout.left + mob.x * layout.cellPx
-            val py = layout.bottom + mob.y * layout.cellPx
-            shapeRenderer.circle(px, py, (layout.cellPx * 0.35f).coerceAtLeast(2f), 10)
-        }
-    }
-
-    private fun mobColor(kind: MobKind): Color = when (kind) {
-        MobKind.MELEE -> Color.GOLD
-        MobKind.RANGED -> Color.SKY
-        MobKind.LLM_GUARD -> Color.MAGENTA
-    }
-
-    private fun itemColor(kind: ItemKind): Color = when (kind) {
-        ItemKind.HEALTH -> Color.SCARLET
-        ItemKind.EXPERIENCE -> Color.LIME
-        ItemKind.WEAPON_PISTOL -> Color.SKY
-        ItemKind.WEAPON_SHOTGUN -> Color.FIREBRICK
-        ItemKind.AMMO_PISTOL -> Color.SKY
-        ItemKind.AMMO_SHOTGUN -> Color.ORANGE
+        mobs
+            .asSequence()
+            .filter { it.hp > 0 }
+            .filter { visited.contains(MiniMapPalette.cellOf(it.x, it.y)) }
+            .forEach { mob ->
+                shapeRenderer.color = MiniMapPalette.mobColor(mob.kind)
+                val px = layout.left + mob.x * layout.cellPx
+                val py = layout.bottom + mob.y * layout.cellPx
+                shapeRenderer.circle(px, py, (layout.cellPx * 0.35f).coerceAtLeast(2f), 10)
+            }
     }
 
     private fun drawExitGate(gate: GridPos, layout: Layout) {
@@ -141,19 +124,6 @@ class MiniMapOverlay(
         val aimLen = marker * 2.2f
         shapeRenderer.rectLine(px, py, px + cos(pose.yaw) * aimLen, py + sin(pose.yaw) * aimLen, 1.5f)
     }
-
-    private fun cellColor(tile: TileType?): Color? = when (tile) {
-        TileType.FLOOR -> FLOOR
-        TileType.WALL -> Color.DARK_GRAY
-        TileType.COLUMN -> Color.GRAY
-        TileType.LAVA -> Color.RED
-        TileType.ELEVATOR -> Color.CYAN
-        TileType.EXIT_GATE -> Color(0.2f, 0.85f, 0.35f, 1f)
-        else -> null
-    }
-
-    private fun cellOf(worldX: Float, worldY: Float): GridPos =
-        GridPos(floor(worldX).toInt(), floor(worldY).toInt())
 
     private fun layout(screenWidth: Float, screenHeight: Float, map: TileMap): Layout {
         val pad = 12f
@@ -177,9 +147,4 @@ class MiniMapOverlay(
         val heightPx: Float,
         val cellPx: Float,
     )
-
-    private companion object {
-        val BACKGROUND = Color(0f, 0f, 0f, 0.6f)
-        val FLOOR = Color(0.16f, 0.18f, 0.22f, 0.9f)
-    }
 }
