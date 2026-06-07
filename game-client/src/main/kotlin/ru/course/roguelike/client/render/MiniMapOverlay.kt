@@ -5,9 +5,11 @@ import com.badlogic.gdx.graphics.glutils.ShapeRenderer
 import com.badlogic.gdx.math.Matrix4
 import ru.course.roguelike.shared.dto.ItemSnapshot
 import ru.course.roguelike.shared.dto.KeySnapshot
+import ru.course.roguelike.shared.dto.MobSnapshot
 import ru.course.roguelike.shared.engine.TileMap
 import ru.course.roguelike.shared.model.GridPos
 import ru.course.roguelike.shared.model.ItemKind
+import ru.course.roguelike.shared.model.MobKind
 import ru.course.roguelike.shared.model.PlayerPose
 import ru.course.roguelike.shared.model.TileType
 import kotlin.math.cos
@@ -20,8 +22,8 @@ import kotlin.math.sin
  * В отличие от карты всей локации ([LocationMapOverlay], клавиша F4) показывает
  * только уже посещённые игроком клетки («туман войны»): по мере исследования
  * вокруг героя открываются комнаты. На открытых клетках отмечаются ещё не
- * собранные ключи и предметы, а также ворота выхода — чтобы игрок помнил, где
- * остался лут, и понимал, куда он уже ходил.
+ * собранные ключи и предметы, живые мобы, а также ворота выхода — чтобы игрок
+ * помнил, где остался лут и угрозы, и понимал, куда он уже ходил.
  */
 class MiniMapOverlay(
     private val shapeRenderer: ShapeRenderer,
@@ -35,6 +37,7 @@ class MiniMapOverlay(
         pose: PlayerPose?,
         keyPickups: List<KeySnapshot> = emptyList(),
         items: List<ItemSnapshot> = emptyList(),
+        mobs: List<MobSnapshot> = emptyList(),
         exitGate: GridPos? = null,
     ) {
         if (visited.isEmpty()) return
@@ -48,6 +51,7 @@ class MiniMapOverlay(
         exitGate?.takeIf { visited.contains(it) }?.let { drawExitGate(it, layout) }
         drawKeys(keyPickups, visited, layout)
         drawItems(items, visited, layout)
+        drawMobs(mobs, visited, layout)
         pose?.let { drawPlayer(it, layout) }
         shapeRenderer.end()
 
@@ -93,6 +97,23 @@ class MiniMapOverlay(
             val py = layout.bottom + item.y * layout.cellPx
             shapeRenderer.circle(px, py, (layout.cellPx * 0.3f).coerceAtLeast(2f), 10)
         }
+    }
+
+    private fun drawMobs(mobs: List<MobSnapshot>, visited: Set<GridPos>, layout: Layout) {
+        for (mob in mobs) {
+            if (mob.hp <= 0) continue
+            if (!visited.contains(cellOf(mob.x, mob.y))) continue
+            shapeRenderer.color = mobColor(mob.kind)
+            val px = layout.left + mob.x * layout.cellPx
+            val py = layout.bottom + mob.y * layout.cellPx
+            shapeRenderer.circle(px, py, (layout.cellPx * 0.35f).coerceAtLeast(2f), 10)
+        }
+    }
+
+    private fun mobColor(kind: MobKind): Color = when (kind) {
+        MobKind.MELEE -> Color.GOLD
+        MobKind.RANGED -> Color.SKY
+        MobKind.LLM_GUARD -> Color.MAGENTA
     }
 
     private fun itemColor(kind: ItemKind): Color = when (kind) {

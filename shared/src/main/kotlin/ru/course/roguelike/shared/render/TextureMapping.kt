@@ -10,6 +10,7 @@ object AssetPaths {
     const val SKY = "textures/sky.bmp"
     const val LAVA = "textures/lava.png"
     const val DOOR = "textures/door.png"
+    const val KEY = "textures/key.png"
     const val BLAST = "textures/blast.png"
     const val MELEE_MOB = "models/melee.png"
     const val RANGED_MOB = "models/ranged.png"

@@ -14,6 +14,7 @@ class GameTextures private constructor(
     val lava: RgbImageSampler,
     val door: RgbImageSampler,
     val blast: RgbImageSampler,
+    val keySprite: RgbImageSampler,
     val meleeMob: RgbImageSampler,
     val rangedMob: RgbImageSampler,
     val playerSprite: RgbImageSampler,
@@ -23,7 +24,7 @@ class GameTextures private constructor(
         BillboardRenderer.SpriteTexture.MELEE -> meleeMob
         BillboardRenderer.SpriteTexture.RANGED -> rangedMob
         BillboardRenderer.SpriteTexture.BLAST -> blast
-        BillboardRenderer.SpriteTexture.KEY,
+        BillboardRenderer.SpriteTexture.KEY -> keySprite
         BillboardRenderer.SpriteTexture.ITEM_HEALTH,
         BillboardRenderer.SpriteTexture.ITEM_EXPERIENCE,
         BillboardRenderer.SpriteTexture.ITEM_WEAPON,
@@ -41,8 +42,8 @@ class GameTextures private constructor(
         BillboardRenderer.SpriteTexture.RANGED,
         BillboardRenderer.SpriteTexture.PLAYER,
         BillboardRenderer.SpriteTexture.BLAST,
-        -> true
         BillboardRenderer.SpriteTexture.KEY,
+        -> true
         BillboardRenderer.SpriteTexture.ITEM_HEALTH,
         BillboardRenderer.SpriteTexture.ITEM_EXPERIENCE,
         BillboardRenderer.SpriteTexture.ITEM_WEAPON,
@@ -63,6 +64,7 @@ class GameTextures private constructor(
             lava = loadSampler(AssetPaths.LAVA, opaque = true),
             door = loadSampler(AssetPaths.DOOR, opaque = true),
             blast = loadSampler(AssetPaths.BLAST, opaque = false),
+            keySprite = loadSampler(AssetPaths.KEY, opaque = false),
             meleeMob = loadSampler(AssetPaths.MELEE_MOB, opaque = false),
             rangedMob = loadSampler(AssetPaths.RANGED_MOB, opaque = false),
             playerSprite = loadSampler(AssetPaths.PLAYER, opaque = false),

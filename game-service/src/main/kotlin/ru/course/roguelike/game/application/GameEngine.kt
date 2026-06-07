@@ -48,23 +48,30 @@ class GameEngine(
     fun createSession(seed: Long?, twoLevel: Boolean = false, coopAgent: Boolean = false): GameSnapshot {
         val resolvedSeed = seed ?: Random.nextLong()
         val sessionId = UUID.randomUUID().toString()
-        val session = if (twoLevel) {
+        val build = if (twoLevel) {
             buildTwoLevelSession(sessionId, resolvedSeed, coopAgent)
         } else {
             buildSession(sessionId, resolvedSeed, coopAgent)
         }
-        InventorySystem.initialize(session)
-        sessions[sessionId] = session
-        MobSpawner.spawnStarterPack(session)
-        eventBus.publish(listOf(GameEvent.SessionCreated(sessionId, resolvedSeed)))
-        return session.toSnapshot()
+        InventorySystem.initialize(build.session)
+        sessions[sessionId] = build.session
+        MobSpawner.spawnForLevel(build.session, build.level, resolvedSeed, build.occupiedCells)
+        eventBus.publish(listOf(GameEvent.SessionCreated(build.session.sessionId, resolvedSeed)))
+        return build.session.toSnapshot()
     }
 
-    private fun buildSession(sessionId: String, seed: Long, coopAgent: Boolean): GameSession {
+    private data class SessionBuild(
+        val session: GameSession,
+        val level: GeneratedLevel,
+        val occupiedCells: Set<GridPos>,
+    )
+
+    private fun buildSession(sessionId: String, seed: Long, coopAgent: Boolean): SessionBuild {
         val level = levelGenerator.generate(seed)
         val progress = setupProgress(level, seed)
         val playerSpawn = level.playerSpawn
-        return GameSession(
+        val occupied = occupiedCells(progress, playerSpawn)
+        val session = GameSession(
             sessionId = sessionId,
             seed = seed,
             phase = SessionPhase.EXPLORATION,
@@ -81,14 +88,20 @@ class GameEngine(
             bossRoom = progress.bossRoom,
             exitGate = progress.exitGate,
         )
+        return SessionBuild(
+            session = session,
+            level = level.copy(map = progress.map),
+            occupiedCells = occupied,
+        )
     }
 
-    private fun buildTwoLevelSession(sessionId: String, seed: Long, coopAgent: Boolean): GameSession {
+    private fun buildTwoLevelSession(sessionId: String, seed: Long, coopAgent: Boolean): SessionBuild {
         val dungeon = TwoLevelLabyrinthGenerator.generate(seed)
         val ground = dungeon.levels[0]
         val progress = setupProgress(ground, seed)
         val playerSpawn = ground.playerSpawn
-        return GameSession(
+        val occupied = occupiedCells(progress, playerSpawn)
+        val session = GameSession(
             sessionId = sessionId,
             seed = seed,
             phase = SessionPhase.EXPLORATION,
@@ -106,6 +119,17 @@ class GameEngine(
             bossRoom = progress.bossRoom,
             exitGate = progress.exitGate,
         )
+        return SessionBuild(
+            session = session,
+            level = ground.copy(map = progress.map),
+            occupiedCells = occupied,
+        )
+    }
+
+    private fun occupiedCells(progress: ProgressSetup, playerSpawn: GridPos): Set<GridPos> {
+        val fromPickups = progress.keys.map { GridPos(it.x.toInt(), it.y.toInt()) } +
+            progress.items.map { GridPos(it.x.toInt(), it.y.toInt()) }
+        return (fromPickups + playerSpawn).toSet()
     }
 
     private data class ProgressSetup(
