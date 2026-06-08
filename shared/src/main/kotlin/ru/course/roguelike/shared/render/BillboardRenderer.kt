@@ -2,6 +2,9 @@ package ru.course.roguelike.shared.render
 
 import ru.course.roguelike.shared.model.FpsConstants
 import ru.course.roguelike.shared.model.PlayerPose
+import ru.course.roguelike.shared.model.TileType
+import ru.course.roguelike.shared.model.WorldVertical
+import ru.course.roguelike.shared.model.wallHeight
 import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.sin
@@ -47,6 +50,7 @@ object BillboardRenderer {
         val texture: SpriteTexture,
         val colorRgb: Int,
         val distance: Float,
+        val worldZ: Float = 0f,
     )
 
     fun projectSprites(
@@ -56,6 +60,7 @@ object BillboardRenderer {
         pitchHorizonY: Float,
         sprites: List<Sprite>,
         wallDistances: FloatArray? = null,
+        wallMeta: Array<Raycaster.WallColumnMeta>? = null,
         viewerHeightAboveFloor: Float = 0f,
     ): List<DrawCommand> {
         if (sprites.isEmpty() || screenWidth <= 0) return emptyList()
@@ -81,6 +86,7 @@ object BillboardRenderer {
                     planeX,
                     planeY,
                     wallDistances,
+                    wallMeta,
                 )
             }
             .sortedByDescending { it.distance }
@@ -99,6 +105,7 @@ object BillboardRenderer {
         planeX: Float,
         planeY: Float,
         wallDistances: FloatArray?,
+        wallMeta: Array<Raycaster.WallColumnMeta>?,
     ): DrawCommand? {
         val spriteX = sprite.worldX - pose.x
         val spriteY = sprite.worldY - pose.y
@@ -115,13 +122,28 @@ object BillboardRenderer {
             spriteHeight,
             screenHeight,
             transformY,
-            viewerHeightAboveFloor,
             sprite.worldZ,
+            viewerHeightAboveFloor,
         )
         val drawStartX = (spriteScreenX - spriteWidth / 2).coerceIn(0, screenWidth - 1)
         val drawEndX = (spriteScreenX + spriteWidth / 2).coerceIn(drawStartX + 1, screenWidth)
 
-        if (wallDistances != null && isFullyOccludedByWall(drawStartX, drawEndX, transformY, wallDistances)) {
+        if (
+            wallDistances != null &&
+            isFullyOccludedByWall(
+                drawStartX,
+                drawStartY,
+                drawEndX,
+                drawEndY,
+                transformY,
+                wallDistances,
+                wallMeta,
+                pitchHorizonY,
+                screenHeight,
+                viewerHeightAboveFloor,
+                sprite.worldZ,
+            )
+        ) {
             return null
         }
 
@@ -134,6 +156,7 @@ object BillboardRenderer {
             texture = sprite.texture,
             colorRgb = fallbackColor(sprite.texture, sprite.colorRgb),
             distance = transformY,
+            worldZ = sprite.worldZ,
         )
     }
 
@@ -166,24 +189,83 @@ object BillboardRenderer {
         else -> 1f
     }
 
-  /** true, если спрайт целиком за стеной (ни один столбец не ближе стены). */
+    /** true, если спрайт целиком за стеной (ни один столбец/строка не видна). */
     private fun isFullyOccludedByWall(
         drawStartX: Int,
+        drawStartY: Int,
         drawEndX: Int,
+        drawEndY: Int,
         spriteDistance: Float,
         wallDistances: FloatArray,
+        wallMeta: Array<Raycaster.WallColumnMeta>?,
+        pitchHorizonY: Float,
+        screenHeight: Int,
+        viewerHeightAboveFloor: Float,
+        spriteWorldZ: Float,
     ): Boolean {
         if (wallDistances.isEmpty()) return false
         val left = drawStartX.coerceIn(0, wallDistances.size - 1)
         val right = (drawEndX - 1).coerceIn(left, wallDistances.size - 1)
+        val top = drawStartY.coerceIn(0, screenHeight - 1)
+        val bottom = drawEndY.coerceIn(top + 1, screenHeight)
         for (col in left..right) {
-            if (spriteDistance <= wallDistances[col] + SPRITE_DEPTH_EPSILON) return false
+            val meta = wallMeta?.getOrNull(col)
+            for (row in top until bottom) {
+                val effective = effectiveWallDistanceForSpriteRow(
+                    row,
+                    spriteDistance,
+                    wallDistances[col],
+                    meta,
+                    pitchHorizonY,
+                    screenHeight,
+                    viewerHeightAboveFloor,
+                    spriteWorldZ,
+                )
+                if (spriteDistance <= effective + SPRITE_DEPTH_EPSILON) return false
+            }
         }
         return true
     }
 
     fun isColumnOccluded(spriteDistance: Float, wallDistance: Float): Boolean =
         spriteDistance > wallDistance + SPRITE_DEPTH_EPSILON
+
+    /**
+     * Дистанция стены для проверки видимости спрайта в экранной строке [screenRow].
+     * Короткие колонны закрывают только нижнюю часть — выше макушки видно то, что за ними.
+     * Летающие мобы выше колонны не блокируются передним столбом.
+     */
+    fun effectiveWallDistanceForSpriteRow(
+        screenRow: Int,
+        spriteDistance: Float,
+        wallDistance: Float,
+        wallMeta: Raycaster.WallColumnMeta?,
+        pitchHorizonY: Float,
+        screenHeight: Int,
+        viewerHeightAboveFloor: Float,
+        spriteWorldZ: Float,
+    ): Float {
+        val meta = wallMeta ?: return wallDistance
+        val tile = meta.tile
+        if (tile != TileType.COLUMN) return wallDistance
+
+        val columnTopZ = WorldVertical.COLUMN_HEIGHT
+        if (spriteWorldZ > columnTopZ + 0.02f) {
+            return meta.backDistance ?: spriteDistance + SPRITE_DEPTH_EPSILON * 2f
+        }
+
+        val backDist = meta.backDistance ?: return wallDistance
+        val lineHeight = screenHeight / wallDistance.coerceAtLeast(0.05f)
+        val (columnTopScreenY, _) = CameraProjection.projectWallSpan(
+            pitchHorizonY = pitchHorizonY,
+            lineHeight = lineHeight,
+            wallHeight = tile.wallHeight(),
+            screenHeight = screenHeight,
+            perpDistance = wallDistance,
+            viewerHeightAboveFloor = viewerHeightAboveFloor,
+        )
+        return if (screenRow < columnTopScreenY) backDist else wallDistance
+    }
 
     private const val SPRITE_DEPTH_EPSILON = 0.05f
 

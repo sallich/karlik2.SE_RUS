@@ -14,6 +14,7 @@ import ru.course.roguelike.game.domain.session.AgentCompanionSpawner
 import ru.course.roguelike.game.domain.session.ExitGatePlacer
 import ru.course.roguelike.game.domain.session.GameSession
 import ru.course.roguelike.game.domain.session.ItemPickup
+import ru.course.roguelike.game.domain.session.RoomEngagementState
 import ru.course.roguelike.game.domain.session.ItemSpawner
 import ru.course.roguelike.game.domain.session.KeyPickup
 import ru.course.roguelike.game.domain.session.KeySpawner
@@ -86,6 +87,10 @@ class GameEngine(
             itemPickups = progress.items,
             nextItemId = progress.items.size,
             bossRoom = progress.bossRoom,
+            rooms = level.rooms,
+            roomEngagements = level.rooms.mapIndexed { index, _ ->
+                RoomEngagementState(roomIndex = index)
+            }.toMutableList(),
             exitGate = progress.exitGate,
         )
         return SessionBuild(
@@ -117,6 +122,10 @@ class GameEngine(
             itemPickups = progress.items,
             nextItemId = progress.items.size,
             bossRoom = progress.bossRoom,
+            rooms = ground.rooms,
+            roomEngagements = ground.rooms.mapIndexed { index, _ ->
+                RoomEngagementState(roomIndex = index)
+            }.toMutableList(),
             exitGate = progress.exitGate,
         )
         return SessionBuild(

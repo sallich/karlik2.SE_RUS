@@ -84,6 +84,7 @@ class AgentRunnerMobClient(
             "shoot" -> MobIntent.ShootPlayer
             "attack" -> MobIntent.AttackPlayer
             "idle" -> MobIntent.Idle
+            "strafe" -> MobIntent.StrafePlayer
             else -> null
         }
     }

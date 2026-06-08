@@ -49,6 +49,7 @@ class FpsViewportRenderer(
             scene.items,
             scene.agentPose,
             cast.wallDistances,
+            cast.wallMeta,
         )
 
         frameBuffer.flushTo(pixmap)

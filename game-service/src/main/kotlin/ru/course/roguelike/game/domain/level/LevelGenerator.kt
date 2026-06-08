@@ -24,6 +24,9 @@ data class Room(
 
     fun contains(pos: GridPos): Boolean =
         pos.x in x until (x + width) && pos.y in y until (y + height)
+
+    fun containsWorld(worldX: Float, worldY: Float): Boolean =
+        contains(GridPos(kotlin.math.floor(worldX).toInt(), kotlin.math.floor(worldY).toInt()))
 }
 
 data class GeneratedLevel(

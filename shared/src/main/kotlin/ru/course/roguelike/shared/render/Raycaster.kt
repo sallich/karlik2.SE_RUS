@@ -143,35 +143,16 @@ object Raycaster {
                     outOfBounds = true
                 } else {
                     val tile = map.get(GridPos(mapX, mapY))
-                    if (tile != null && tile.blocksVision) {
-                        if (tile == TileType.COLUMN) {
-                            val topZ = WorldVertical.tileTopWorldZ(floorLevel, tile)
-                            if (feetWorldZ <= topZ + 0.02f || eyeWorldZ <= topZ + 0.02f) {
-                                hit = true
-                                hitTile = tile
-                                hitMapX = mapX
-                                hitMapY = mapY
-                                hitStepX = stepX
-                                hitStepY = stepY
-                            }
-                        } else {
-                            val topZ = WorldVertical.tileTopWorldZ(floorLevel, tile)
-                            if (eyeWorldZ > topZ + 0.02f) {
-                                hit = true
-                                hitHorizontalTop = true
-                                hitTile = tile
-                                hitMapX = mapX
-                                hitMapY = mapY
-                                hitStepX = stepX
-                                hitStepY = stepY
-                            } else if (WorldVertical.blocksVisionAt(floorLevel, tile, eyeWorldZ)) {
-                                hit = true
-                                hitTile = tile
-                                hitMapX = mapX
-                                hitMapY = mapY
-                                hitStepX = stepX
-                                hitStepY = stepY
-                            }
+                    if (tile != null && tile.blocksVision && tile.wallHeight() > 0f) {
+                        val topZ = WorldVertical.tileTopWorldZ(floorLevel, tile)
+                        hit = true
+                        hitTile = tile
+                        hitMapX = mapX
+                        hitMapY = mapY
+                        hitStepX = stepX
+                        hitStepY = stepY
+                        if (eyeWorldZ > topZ + 0.02f) {
+                            hitHorizontalTop = true
                         }
                     }
                 }

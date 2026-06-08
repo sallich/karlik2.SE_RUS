@@ -15,12 +15,15 @@ import ru.course.roguelike.client.audio.GameAudio
 import ru.course.roguelike.client.input.InputSampler
 import ru.course.roguelike.client.net.GameApiClient
 import ru.course.roguelike.client.render.CollisionDebugOverlay
+import ru.course.roguelike.client.render.CrosshairOverlay
 import ru.course.roguelike.client.render.FpsViewportRenderer
 import ru.course.roguelike.client.render.GameEndOverlay
 import ru.course.roguelike.client.render.InventoryUiOverlay
 import ru.course.roguelike.client.render.LocationMapOverlay
 import ru.course.roguelike.client.render.MiniMapOverlay
+import ru.course.roguelike.client.render.RoomClearTimerOverlay
 import ru.course.roguelike.shared.dto.HotbarSnapshot
+import ru.course.roguelike.shared.dto.RoomClearTimerSnapshot
 import ru.course.roguelike.shared.dto.InputSyncRequest
 import ru.course.roguelike.shared.dto.InventorySnapshot
 import ru.course.roguelike.shared.dto.ItemSnapshot
@@ -44,10 +47,12 @@ class RoguelikeGame : ApplicationAdapter() {
     internal lateinit var viewport: FpsViewportRenderer
     internal lateinit var shapeRenderer: ShapeRenderer
     internal lateinit var collisionDebugOverlay: CollisionDebugOverlay
+    internal lateinit var crosshairOverlay: CrosshairOverlay
     internal lateinit var locationMapOverlay: LocationMapOverlay
     internal lateinit var miniMapOverlay: MiniMapOverlay
     internal lateinit var inventoryUiOverlay: InventoryUiOverlay
     internal lateinit var gameEndOverlay: GameEndOverlay
+    internal lateinit var roomClearTimerOverlay: RoomClearTimerOverlay
     internal lateinit var sync: RoguelikeSync
     internal lateinit var audio: GameAudio
 
@@ -109,6 +114,12 @@ class RoguelikeGame : ApplicationAdapter() {
     @Volatile
     internal var exitGate: GridPos? = null
 
+    @Volatile
+    internal var roomClearTimer: RoomClearTimerSnapshot? = null
+
+    @Volatile
+    internal var roomClearTimerReceivedAtMs: Long = 0L
+
     internal var syncAccum = 0f
 
     internal val isSessionEnded: Boolean
@@ -138,6 +149,12 @@ class RoguelikeGame : ApplicationAdapter() {
         }
 
         drawWorldFrame()
+        if (!isSessionEnded && !showInventoryGrid) {
+            crosshairOverlay.render(
+                Gdx.graphics.width.toFloat(),
+                Gdx.graphics.height.toFloat(),
+            )
+        }
         if (!isSessionEnded) {
             drawDebugOverlays(
                 DebugOverlayContext(
@@ -163,6 +180,14 @@ class RoguelikeGame : ApplicationAdapter() {
 
         drawInventoryPanel()
         drawGameHud()
+        if (!isSessionEnded) {
+            roomClearTimerOverlay.render(
+                screenW = Gdx.graphics.width.toFloat(),
+                screenH = Gdx.graphics.height.toFloat(),
+                timer = roomClearTimer,
+                timerReceivedAtMs = roomClearTimerReceivedAtMs,
+            )
+        }
 
         if (isSessionEnded) {
             gameEndOverlay.render(sessionPhase)

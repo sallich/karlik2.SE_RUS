@@ -49,21 +49,23 @@ object CameraProjection {
         return drawStart to drawEnd
     }
 
-    /** Спрайт с ногами/центром на [spriteWorldZ]; [viewerHeight] — высота камеры над полом яруса. */
+    /**
+     * Спрайт в мире: ноги на [spriteWorldZ], камера на [cameraHeightAboveFloor] над полом.
+     * Смещение камеры синхронизирует наземные спрайты с плоскостью пола при прыжке.
+     */
     fun projectSpriteSpan(
         pitchHorizonY: Float,
         spriteHeight: Int,
         screenHeight: Int,
         perpDistance: Float,
-        viewerHeight: Float,
         spriteWorldZ: Float = 0f,
+        cameraHeightAboveFloor: Float = 0f,
     ): Pair<Int, Int> {
-        val floorY = worldFloorScreenY(
-            pitchHorizonY,
-            screenHeight,
-            perpDistance,
-            viewerHeight - spriteWorldZ,
-        ).coerceIn(0f, screenHeight.toFloat())
+        val dist = perpDistance.coerceAtLeast(0.05f)
+        val floorY = (
+            pitchHorizonY +
+                screenHeight * (0.5f + cameraHeightAboveFloor - spriteWorldZ) / dist
+            ).coerceIn(0f, screenHeight.toFloat())
         val drawEndY = floorY.toInt().coerceIn(1, screenHeight)
         val drawStartY = (floorY - spriteHeight).toInt().coerceIn(0, drawEndY - 1)
         return drawStartY to drawEndY

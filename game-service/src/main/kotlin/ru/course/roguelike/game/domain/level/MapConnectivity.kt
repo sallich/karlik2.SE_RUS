@@ -85,4 +85,56 @@ object MapConnectivity {
         val reachable = reachableFrom(map, start)
         return reachable.filterTo(mutableSetOf()) { map.get(it) == TileType.FLOOR }
     }
+
+    /**
+     * Комнаты, достижимые из [room] по коридорам без прохода через интерьеры других комнат.
+     * Используется для подкреплений при истечении таймера зачистки.
+     */
+    fun adjacentRooms(map: TileMap, room: Room, allRooms: List<Room>): List<Room> {
+        val others = allRooms.filter { it != room }
+        if (others.isEmpty()) return emptyList()
+
+        fun roomAt(pos: GridPos): Room? = allRooms.firstOrNull { it.contains(pos) }
+
+        val found = linkedSetOf<Room>()
+        val seeds = mutableSetOf<GridPos>()
+        for (y in room.y until room.y + room.height) {
+            for (x in room.x until room.x + room.width) {
+                val pos = GridPos(x, y)
+                if (!map.isWalkable(pos)) continue
+                for (offset in NEIGHBOR_OFFSETS) {
+                    val neighbor = GridPos(pos.x + offset.x, pos.y + offset.y)
+                    if (!map.isWalkable(neighbor) || room.contains(neighbor)) continue
+                    seeds.add(neighbor)
+                }
+            }
+        }
+
+        for (seed in seeds) {
+            val visited = mutableSetOf<GridPos>()
+            val queue = ArrayDeque<GridPos>()
+            visited.add(seed)
+            queue.addLast(seed)
+            while (queue.isNotEmpty()) {
+                val cur = queue.removeFirst()
+                val owner = roomAt(cur)
+                if (owner != null && owner != room) {
+                    found.add(owner)
+                    continue
+                }
+                for (offset in NEIGHBOR_OFFSETS) {
+                    val next = GridPos(cur.x + offset.x, cur.y + offset.y)
+                    if (next in visited || !map.isWalkable(next)) continue
+                    val nextOwner = roomAt(next)
+                    if (nextOwner != null && nextOwner != room) {
+                        found.add(nextOwner)
+                        continue
+                    }
+                    visited.add(next)
+                    queue.addLast(next)
+                }
+            }
+        }
+        return found.toList()
+    }
 }

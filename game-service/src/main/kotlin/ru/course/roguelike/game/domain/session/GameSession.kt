@@ -64,6 +64,8 @@ data class GameSession(
     val itemPickups: MutableList<ItemPickup> = mutableListOf(),
     var nextItemId: Int = 0,
     val bossRoom: Room? = null,
+    val rooms: List<Room> = emptyList(),
+    val roomEngagements: MutableList<RoomEngagementState> = mutableListOf(),
     val exitGate: GridPos? = null,
     var levelCompleted: Boolean = false,
     /** Кооп-агент (видимый спутник); null — сессия без агента. */
@@ -104,6 +106,7 @@ data class GameSession(
         keyPickups = keyPickups.filter { !it.collected }.map { it.toSnapshot() },
         items = itemPickups.filter { !it.collected }.map { it.toSnapshot() },
         bossRoom = bossRoom?.toSnapshot(),
+        roomClearTimer = RoomEngagementSystem.timerSnapshot(this),
         exitGate = exitGate,
     )
 

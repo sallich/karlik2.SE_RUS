@@ -22,9 +22,18 @@ object CombatConstants {
     const val RANGED_MOB_HP = 10
     const val RANGED_MOB_DAMAGE = 1
     const val RANGED_ATTACK_RANGE = 9f
-    const val RANGED_MOVE_SPEED = 1.4f
+    const val RANGED_MOVE_SPEED = 2.0f
     const val RANGED_ATTACK_COOLDOWN_MS = 1400
     const val RANGED_MIN_DISTANCE = 3.5f
+
+    /** Высота летающих мобов над полом (заметно выше колонн). */
+    const val FLYING_MOB_Z = 0.75f
+
+    /** Радиус 3D-хитбокса моба по вертикали (половина высоты тела). */
+    const val MOB_HIT_HALF_HEIGHT = 0.2f
+
+    /** Минимальная дистанция между центрами мобов при движении. */
+    const val MOB_SEPARATION_DISTANCE = 0.9f
 
     const val PROJECTILE_SPEED = 5.5f
 }

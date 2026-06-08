@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import ru.course.roguelike.game.domain.inventory.StarterLoadout
+import ru.course.roguelike.game.domain.level.Room
 import ru.course.roguelike.game.domain.session.GameSession
 import ru.course.roguelike.shared.engine.TileMap
 import ru.course.roguelike.shared.model.InventoryConstants
@@ -66,7 +67,7 @@ class CombatAmmoTest {
         // and every drop must carry a unique id.
         val session = openArenaSession()
         repeat(40) { i ->
-            val mob = MobSpawner.createMob(session, MobKind.MELEE, 2.5f, 2.5f)
+            val mob = MobSpawner.createMob(session, MobKind.MELEE, 2.5f, 2.5f, Room(1, 1, 3, 3))
             mob.hp = 0
             session.mobs.add(mob)
             session.tick = i.toLong()

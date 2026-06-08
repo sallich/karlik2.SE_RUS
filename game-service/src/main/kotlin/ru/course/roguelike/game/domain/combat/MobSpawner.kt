@@ -5,7 +5,9 @@ import ru.course.roguelike.game.domain.level.GeneratedLevel
 import ru.course.roguelike.game.domain.level.MapConnectivity
 import ru.course.roguelike.game.domain.level.Room
 import ru.course.roguelike.game.domain.session.GameSession
+import ru.course.roguelike.shared.engine.EntityCollision
 import ru.course.roguelike.shared.engine.TileMap
+import ru.course.roguelike.shared.model.CombatConstants
 import ru.course.roguelike.shared.model.GridPos
 import ru.course.roguelike.shared.model.MobKind
 import ru.course.roguelike.shared.model.TileType
@@ -43,13 +45,13 @@ object MobSpawner {
         spawnLlmGuard(session)
     }
 
-    fun createMob(session: GameSession, kind: MobKind, x: Float, y: Float): MobEntity {
+    fun createMob(session: GameSession, kind: MobKind, x: Float, y: Float, aggroRoom: Room): MobEntity {
         val behavior = mobBehaviorFor(kind)
         val id = session.allocateEntityId()
         return when (kind) {
-            MobKind.MELEE -> MobEntity.MeleeMob(id, x, y, behavior)
-            MobKind.RANGED -> MobEntity.RangedMob(id, x, y, behavior)
-            MobKind.LLM_GUARD -> MobEntity.LlmGuardMob(id, x, y, behavior)
+            MobKind.MELEE -> MobEntity.MeleeMob(id, x, y, behavior, aggroRoom)
+            MobKind.RANGED -> MobEntity.RangedMob(id, x, y, behavior, aggroRoom)
+            MobKind.LLM_GUARD -> MobEntity.LlmGuardMob(id, x, y, behavior, aggroRoom)
         }
     }
 
@@ -66,38 +68,51 @@ object MobSpawner {
         if (available.size < 2) return
 
         val plan = RoomMobPlanner.capPlan(RoomMobPlanner.mobPlanForRoom(metrics), available.size)
-        val cells = MobSpawnCells.pick(available, plan.total, random)
-        if (cells.size < 2) return
 
-        placeKind(session, MobKind.MELEE, cells, plan.meleeCount, usedCells)
-        placeKind(session, MobKind.RANGED, cells, plan.rangedCount, usedCells)
+        placeKindSpaced(session, map, room, MobKind.MELEE, available, plan.meleeCount, usedCells, random)
+        val remaining = available.filter { it !in usedCells }
+        placeKindSpaced(session, map, room, MobKind.RANGED, remaining, plan.rangedCount, usedCells, random)
     }
 
-    private fun placeKind(
+    private fun placeKindSpaced(
         session: GameSession,
+        map: TileMap,
+        aggroRoom: Room,
         kind: MobKind,
-        cells: List<GridPos>,
+        candidates: List<GridPos>,
         count: Int,
         usedCells: MutableSet<GridPos>,
+        random: Random,
     ) {
-        cells.filter { it !in usedCells }.take(count).forEach { cell ->
-            placeMob(session, kind, cell, usedCells)
+        if (count <= 0 || candidates.isEmpty()) return
+        MobSpawnCells.pick(candidates, count, random, avoid = usedCells.toList()).forEach { cell ->
+            placeMob(session, map, kind, cell, aggroRoom, usedCells)
         }
     }
 
     private fun placeMob(
         session: GameSession,
+        map: TileMap,
         kind: MobKind,
         cell: GridPos,
+        aggroRoom: Room,
         usedCells: MutableSet<GridPos>,
     ) {
-        session.mobs.add(createMob(session, kind, cell.x + 0.5f, cell.y + 0.5f))
+        val tile = map.get(cell)
+        if (tile == null || !tile.walkable) return
+        val x = cell.x + 0.5f
+        val y = cell.y + 0.5f
+        val mob = createMob(session, kind, x, y, aggroRoom)
+        val circle = EntityCollision.Circle(x, y, CombatConstants.MOB_RADIUS)
+        if (EntityCollision.overlapsMovement(map, circle, mob.z)) return
+        session.mobs.add(mob)
         usedCells.add(cell)
     }
 
     private fun spawnLlmGuard(session: GameSession) {
         if (skipLlmMob()) return
         val gate = session.exitGate ?: return
+        val aggroRoom = session.bossRoom ?: Room(gate.x, gate.y, 1, 1)
         val map = session.activeMap
         val candidates = listOf(
             GridPos(gate.x - 1, gate.y),
@@ -106,9 +121,7 @@ object MobSpawner {
             GridPos(gate.x, gate.y + 1),
         )
         val spot = candidates.firstOrNull { map.get(it) == TileType.FLOOR } ?: gate
-        session.mobs.add(
-            createMob(session, MobKind.LLM_GUARD, spot.x + 0.5f, spot.y + 0.5f),
-        )
+        placeMob(session, map, MobKind.LLM_GUARD, spot, aggroRoom, mutableSetOf())
     }
 
     private fun skipLlmMob(): Boolean =

@@ -125,6 +125,7 @@ class RoguelikeSync(
         bindings.agentMutator(snap.agent?.pose)
         bindings.verticalMutator(snap.player.verticalVelocity)
         bindings.elevatorPhaseMutator(snap.elevatorPhase)
+        bindings.roomTimerMutator(snap.roomClearTimer, snap.serverTimeMs)
         currentLevel = snap.currentLevel
     }
 
@@ -158,6 +159,7 @@ class RoguelikeSync(
             snap.items,
             snap.exitGate,
         )
+        bindings.roomTimerMutator(snap.roomClearTimer, snap.serverTimeMs)
         notifyLevelChange(snap.currentLevel)
     }
 
@@ -197,6 +199,7 @@ class RoguelikeSync(
             snap.items,
             snap.exitGate,
         )
+        bindings.roomTimerMutator(snap.roomClearTimer, snap.serverTimeMs)
         notifyLevelChange(snap.currentLevel)
     }
 
