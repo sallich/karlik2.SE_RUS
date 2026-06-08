@@ -8,6 +8,7 @@ import ru.course.roguelike.shared.model.MobKind
 /**
  * Базовая сущность моба. Конкретные типы задают скорость, дистанцию и урон.
  */
+@Suppress("LongParameterList")
 sealed class MobEntity(
     val id: Long,
     var x: Float,

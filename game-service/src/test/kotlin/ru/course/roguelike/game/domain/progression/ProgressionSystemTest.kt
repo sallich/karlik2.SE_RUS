@@ -65,9 +65,8 @@ class ProgressionSystemTest {
     @Test
     fun `location completion is skipped while mobs remain`() {
         val session = emptySession()
-        session.mobs.add(
-            MobSpawner.createMob(session, MobKind.MELEE, 2.5f, 1.5f, ru.course.roguelike.game.domain.level.Room(0, 0, 5, 5)),
-        )
+        val room = ru.course.roguelike.game.domain.level.Room(0, 0, 5, 5)
+        session.mobs.add(MobSpawner.createMob(session, MobKind.MELEE, 2.5f, 1.5f, room))
 
         val events = ProgressionSystem.checkLocationCompletion(session)
 

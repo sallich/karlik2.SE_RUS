@@ -79,10 +79,11 @@ object RoomEngagementSystem {
         session.rooms.firstOrNull { it.containsWorld(session.playerPose.x, session.playerPose.y) }
 
     fun timerSnapshot(session: GameSession): RoomClearTimerSnapshot? {
-        val playerRoom = findPlayerRoom(session) ?: return null
-        val index = session.rooms.indexOf(playerRoom)
-        if (index < 0) return null
-        val state = session.roomEngagements.getOrNull(index) ?: return null
+        val state = findPlayerRoom(session)
+            ?.let { session.rooms.indexOf(it) }
+            ?.takeIf { it >= 0 }
+            ?.let { session.roomEngagements.getOrNull(it) }
+            ?: return null
         if (state.cleared || state.timerStartedAtMs == null) return null
 
         val elapsed = session.serverTimeMs - state.timerStartedAtMs!!

@@ -14,10 +14,10 @@ import ru.course.roguelike.game.domain.session.AgentCompanionSpawner
 import ru.course.roguelike.game.domain.session.ExitGatePlacer
 import ru.course.roguelike.game.domain.session.GameSession
 import ru.course.roguelike.game.domain.session.ItemPickup
-import ru.course.roguelike.game.domain.session.RoomEngagementState
 import ru.course.roguelike.game.domain.session.ItemSpawner
 import ru.course.roguelike.game.domain.session.KeyPickup
 import ru.course.roguelike.game.domain.session.KeySpawner
+import ru.course.roguelike.game.domain.session.RoomEngagementState
 import ru.course.roguelike.game.infrastructure.level.LevelGeneratorFactory
 import ru.course.roguelike.game.infrastructure.level.TwoLevelLabyrinthGenerator
 import ru.course.roguelike.shared.dto.GameSnapshot

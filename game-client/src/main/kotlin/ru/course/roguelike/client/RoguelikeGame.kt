@@ -23,13 +23,13 @@ import ru.course.roguelike.client.render.LocationMapOverlay
 import ru.course.roguelike.client.render.MiniMapOverlay
 import ru.course.roguelike.client.render.RoomClearTimerOverlay
 import ru.course.roguelike.shared.dto.HotbarSnapshot
-import ru.course.roguelike.shared.dto.RoomClearTimerSnapshot
 import ru.course.roguelike.shared.dto.InputSyncRequest
 import ru.course.roguelike.shared.dto.InventorySnapshot
 import ru.course.roguelike.shared.dto.ItemSnapshot
 import ru.course.roguelike.shared.dto.KeySnapshot
 import ru.course.roguelike.shared.dto.MobSnapshot
 import ru.course.roguelike.shared.dto.ProjectileSnapshot
+import ru.course.roguelike.shared.dto.RoomClearTimerSnapshot
 import ru.course.roguelike.shared.engine.CollisionDebug
 import ru.course.roguelike.shared.engine.ElevatorPhase
 import ru.course.roguelike.shared.engine.TileMap

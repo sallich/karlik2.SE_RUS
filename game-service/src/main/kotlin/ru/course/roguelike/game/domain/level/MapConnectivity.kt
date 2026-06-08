@@ -12,13 +12,6 @@ import ru.course.roguelike.shared.model.TileType
  * (FLOOR и LAVA), стены и колонны — препятствия.
  */
 object MapConnectivity {
-    private val NEIGHBOR_OFFSETS = listOf(
-        GridPos(1, 0),
-        GridPos(-1, 0),
-        GridPos(0, 1),
-        GridPos(0, -1),
-    )
-
     /** BFS по 4-связным проходимым тайлам от [start]. Возвращает все достижимые позиции. */
     fun reachableFrom(map: TileMap, start: GridPos): Set<GridPos> {
         val visited = HashSet<GridPos>()
@@ -29,7 +22,7 @@ object MapConnectivity {
         queue.addLast(start)
         while (queue.isNotEmpty()) {
             val cur = queue.removeFirst()
-            for (offset in NEIGHBOR_OFFSETS) {
+            for (offset in MapConnectivityNeighborOffsets) {
                 val next = GridPos(cur.x + offset.x, cur.y + offset.y)
                 if (next !in visited && map.isWalkable(next)) {
                     visited.add(next)
@@ -91,50 +84,90 @@ object MapConnectivity {
      * Используется для подкреплений при истечении таймера зачистки.
      */
     fun adjacentRooms(map: TileMap, room: Room, allRooms: List<Room>): List<Room> {
-        val others = allRooms.filter { it != room }
-        if (others.isEmpty()) return emptyList()
-
-        fun roomAt(pos: GridPos): Room? = allRooms.firstOrNull { it.contains(pos) }
+        if (allRooms.none { it != room }) return emptyList()
 
         val found = linkedSetOf<Room>()
-        val seeds = mutableSetOf<GridPos>()
-        for (y in room.y until room.y + room.height) {
-            for (x in room.x until room.x + room.width) {
-                val pos = GridPos(x, y)
-                if (!map.isWalkable(pos)) continue
-                for (offset in NEIGHBOR_OFFSETS) {
-                    val neighbor = GridPos(pos.x + offset.x, pos.y + offset.y)
-                    if (!map.isWalkable(neighbor) || room.contains(neighbor)) continue
-                    seeds.add(neighbor)
-                }
-            }
-        }
-
-        for (seed in seeds) {
-            val visited = mutableSetOf<GridPos>()
-            val queue = ArrayDeque<GridPos>()
-            visited.add(seed)
-            queue.addLast(seed)
-            while (queue.isNotEmpty()) {
-                val cur = queue.removeFirst()
-                val owner = roomAt(cur)
-                if (owner != null && owner != room) {
-                    found.add(owner)
-                    continue
-                }
-                for (offset in NEIGHBOR_OFFSETS) {
-                    val next = GridPos(cur.x + offset.x, cur.y + offset.y)
-                    if (next in visited || !map.isWalkable(next)) continue
-                    val nextOwner = roomAt(next)
-                    if (nextOwner != null && nextOwner != room) {
-                        found.add(nextOwner)
-                        continue
-                    }
-                    visited.add(next)
-                    queue.addLast(next)
-                }
-            }
+        val roomAt = { pos: GridPos -> allRooms.firstOrNull { it.contains(pos) } }
+        for (seed in corridorSeeds(map, room)) {
+            found.addAll(roomsBeyondSeed(map, room, seed, roomAt))
         }
         return found.toList()
     }
+
+    private fun corridorSeeds(map: TileMap, room: Room): Set<GridPos> {
+        val seeds = mutableSetOf<GridPos>()
+        for (y in room.y until room.y + room.height) {
+            for (x in room.x until room.x + room.width) {
+                collectCorridorSeedsForCell(map, room, GridPos(x, y), seeds)
+            }
+        }
+        return seeds
+    }
+
+    private fun roomsBeyondSeed(
+        map: TileMap,
+        room: Room,
+        seed: GridPos,
+        roomAt: (GridPos) -> Room?,
+    ): Set<Room> {
+        val found = linkedSetOf<Room>()
+        val visited = mutableSetOf<GridPos>()
+        val queue = ArrayDeque<GridPos>()
+        visited.add(seed)
+        queue.addLast(seed)
+        while (queue.isNotEmpty()) {
+            val cur = queue.removeFirst()
+            val owner = roomAt(cur)
+            if (owner != null && owner != room) {
+                found.add(owner)
+            } else {
+                expandCorridor(map, room, cur, visited, queue, found, roomAt)
+            }
+        }
+        return found
+    }
+
+    private fun expandCorridor(
+        map: TileMap,
+        room: Room,
+        cur: GridPos,
+        visited: MutableSet<GridPos>,
+        queue: ArrayDeque<GridPos>,
+        found: MutableSet<Room>,
+        roomAt: (GridPos) -> Room?,
+    ) {
+        for (offset in MapConnectivityNeighborOffsets) {
+            val next = GridPos(cur.x + offset.x, cur.y + offset.y)
+            if (next in visited || !map.isWalkable(next)) continue
+            val nextOwner = roomAt(next)
+            if (nextOwner != null && nextOwner != room) {
+                found.add(nextOwner)
+            } else {
+                visited.add(next)
+                queue.addLast(next)
+            }
+        }
+    }
 }
+
+private fun collectCorridorSeedsForCell(
+    map: TileMap,
+    room: Room,
+    pos: GridPos,
+    seeds: MutableSet<GridPos>,
+) {
+    if (!map.isWalkable(pos)) return
+    for (offset in MapConnectivityNeighborOffsets) {
+        val neighbor = GridPos(pos.x + offset.x, pos.y + offset.y)
+        if (map.isWalkable(neighbor) && !room.contains(neighbor)) {
+            seeds.add(neighbor)
+        }
+    }
+}
+
+private val MapConnectivityNeighborOffsets = listOf(
+    GridPos(1, 0),
+    GridPos(-1, 0),
+    GridPos(0, 1),
+    GridPos(0, -1),
+)

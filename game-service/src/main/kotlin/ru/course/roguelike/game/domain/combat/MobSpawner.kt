@@ -74,6 +74,7 @@ object MobSpawner {
         placeKindSpaced(session, map, room, MobKind.RANGED, remaining, plan.rangedCount, usedCells, random)
     }
 
+    @Suppress("LongParameterList")
     private fun placeKindSpaced(
         session: GameSession,
         map: TileMap,
