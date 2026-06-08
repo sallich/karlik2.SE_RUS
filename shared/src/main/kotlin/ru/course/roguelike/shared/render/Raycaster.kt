@@ -173,7 +173,7 @@ object Raycaster {
             if (!outOfBounds) {
                 val hitCoord = TextureMapping.wallHitCoord(side, perpWallDist, rayDirX, rayDirY, posX, posY)
                 var entry = WallColumnMeta(perpWallDist, side, hitCoord, hitTile, hitHorizontalTop)
-                if (!hitHorizontalTop && hitTile != null && hitTile.wallHeight() < WorldVertical.WALL_HEIGHT - 0.01f) {
+                if (hitTile != null && hitTile.wallHeight() < WorldVertical.WALL_HEIGHT - 0.01f) {
                     castBehindShortWall(
                         map = map,
                         floorLevel = floorLevel,

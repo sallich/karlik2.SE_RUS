@@ -187,6 +187,40 @@ class RaycasterTest {
     }
 
     @Test
+    fun `close column keeps side band when standing on column`() {
+        val pitchHorizon = 135f
+        val screenHeight = 270
+        val dist = 1f
+        val lineHeight = screenHeight / dist
+        val (start, end) = Raycaster.projectWallSpan(
+            pitchHorizonY = pitchHorizon,
+            lineHeight = lineHeight,
+            wallHeight = WorldVertical.COLUMN_HEIGHT,
+            screenHeight = screenHeight,
+            perpDistance = dist,
+            viewerHeightAboveFloor = WorldVertical.COLUMN_HEIGHT,
+        )
+        assertTrue(end > start + 4f, "collapsed span was ${end - start}")
+    }
+
+    @Test
+    fun `close wall keeps side band when jumping on elevator height`() {
+        val pitchHorizon = 135f
+        val screenHeight = 270
+        val dist = 2f
+        val lineHeight = screenHeight / dist
+        val (start, end) = Raycaster.projectWallSpan(
+            pitchHorizonY = pitchHorizon,
+            lineHeight = lineHeight,
+            wallHeight = WorldVertical.WALL_HEIGHT,
+            screenHeight = screenHeight,
+            perpDistance = dist,
+            viewerHeightAboveFloor = WorldVertical.WALL_HEIGHT + 0.5f,
+        )
+        assertTrue(end > start + 4f, "collapsed span was ${end - start}")
+    }
+
+    @Test
     fun `elevated viewer above wall height still projects vertical wall span`() {
         val size = 9
         val tiles = Array(size * size) { TileType.FLOOR }

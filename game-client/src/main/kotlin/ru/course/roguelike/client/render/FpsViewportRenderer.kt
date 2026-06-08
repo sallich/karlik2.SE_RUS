@@ -26,7 +26,6 @@ class FpsViewportRenderer(
         painter.paintSky(horizonInt, scene.pose.yaw)
         painter.fillFloorBase(horizonInt)
         painter.paintFloor(scene.map, scene.pose, pitchHorizon, horizonInt, scene.pose.height)
-        painter.paintColumnUnderfoot(scene.map, scene.pose, pitchHorizon, viewerHeight)
         val cast = Raycaster.castScene(
             scene.map,
             scene.pose,

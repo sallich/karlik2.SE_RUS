@@ -27,7 +27,22 @@ object CameraProjection {
         return pitchHorizonY + screenHeight * (0.5f + viewerHeightAboveFloor.coerceAtLeast(0f)) / dist
     }
 
-    /** Низ стены / колонны на линии пола (та же плоскость, что и floor cast). */
+    /** Экранная Y точки на мировой высоте [worldZ] при камере на [cameraHeightAboveFloor] над полом. */
+    fun worldZScreenY(
+        pitchHorizonY: Float,
+        screenHeight: Int,
+        perpDistance: Float,
+        cameraHeightAboveFloor: Float,
+        worldZ: Float,
+    ): Float {
+        val dist = perpDistance.coerceAtLeast(0.05f)
+        return pitchHorizonY + screenHeight * (0.5f + cameraHeightAboveFloor - worldZ) / dist
+    }
+
+    /**
+     * Вертикальная грань стены/колонны: низ на z=0, верх на z=[wallHeight].
+     * При прыжке/лифте низ может уйти за нижний край — оставляем видимую полосу боковины.
+     */
     fun projectWallSpan(
         pitchHorizonY: Float,
         lineHeight: Float,
@@ -36,16 +51,40 @@ object CameraProjection {
         perpDistance: Float,
         viewerHeightAboveFloor: Float,
     ): Pair<Float, Float> {
-        val wallBottomY = worldFloorScreenY(
+        val wallBottomY = worldZScreenY(
             pitchHorizonY,
             screenHeight,
             perpDistance,
             viewerHeightAboveFloor,
+            worldZ = 0f,
         )
-        val wallTopY = wallBottomY - lineHeight * wallHeight
+        val wallTopY = worldZScreenY(
+            pitchHorizonY,
+            screenHeight,
+            perpDistance,
+            viewerHeightAboveFloor,
+            worldZ = wallHeight,
+        )
+        val rawTop = minOf(wallTopY, wallBottomY)
+        val rawBottom = maxOf(wallTopY, wallBottomY)
         val maxY = screenHeight.toFloat()
-        val drawStart = minOf(wallTopY, wallBottomY).coerceIn(0f, maxY)
-        val drawEnd = maxOf(wallTopY, wallBottomY).coerceIn(0f, maxY)
+
+        if (rawBottom <= 0f || rawTop > maxY) {
+            return maxY to maxY
+        }
+
+        var drawStart = rawTop.coerceAtLeast(0f)
+        var drawEnd = rawBottom.coerceAtMost(maxY)
+
+        if (drawEnd - drawStart < 0.5f) {
+            val band = (lineHeight * wallHeight).coerceIn(2f, maxY * 0.4f)
+            drawStart = if (rawTop < maxY - 0.5f) {
+                rawTop.coerceAtLeast(0f)
+            } else {
+                (maxY - band).coerceAtLeast(0f)
+            }
+            drawEnd = maxY
+        }
         return drawStart to drawEnd
     }
 

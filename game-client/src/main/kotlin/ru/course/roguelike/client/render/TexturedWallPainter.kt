@@ -33,11 +33,12 @@ internal class TexturedWallPainter(
         tile: TileType,
     ) {
         val surfaceZ = tile.wallHeight()
-        val floorLine = CameraProjection.worldFloorScreenY(
+        val floorLine = CameraProjection.worldZScreenY(
             pitchHorizon,
             viewHeight,
             meta.distance,
-            viewerHeight - surfaceZ,
+            viewerHeight,
+            surfaceZ,
         )
         val lineHeight = viewHeight / meta.distance.coerceAtLeast(0.05f)
         val capBand = (lineHeight * SceneRenderConfig.WALL_TOP_BAND_FRACTION)
@@ -188,7 +189,12 @@ internal class TexturedWallPainter(
         tile: TileType,
     ) {
         val span = (col.wallEnd - col.wallStart).coerceAtLeast(1f)
-        val capRows = (span * SceneRenderConfig.WALL_CAP_FRACTION).toInt().coerceIn(1, 8)
+        val capFraction = if (tile == TileType.COLUMN) {
+            SceneRenderConfig.WALL_CAP_FRACTION * 1.6f
+        } else {
+            SceneRenderConfig.WALL_CAP_FRACTION
+        }
+        val capRows = (span * capFraction).toInt().coerceIn(1, if (tile == TileType.COLUMN) 10 else 8)
         val capBottom = kotlin.math.floor(col.wallStart).toInt().coerceIn(capRows, viewHeight)
         val capTop = capBottom - capRows
         val u = TextureMapping.wallTextureUClamped(meta.wallU)
