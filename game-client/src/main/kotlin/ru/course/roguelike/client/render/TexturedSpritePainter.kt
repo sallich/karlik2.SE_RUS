@@ -58,7 +58,8 @@ internal class TexturedSpritePainter(
         mobs.forEach {
             val texture = when (it.kind) {
                 MobKind.MELEE -> BillboardRenderer.SpriteTexture.MELEE
-                MobKind.RANGED, MobKind.LLM_GUARD -> BillboardRenderer.SpriteTexture.RANGED
+                MobKind.RANGED -> BillboardRenderer.SpriteTexture.RANGED
+                MobKind.LLM_GUARD -> BillboardRenderer.SpriteTexture.BOSS
             }
             add(it.x, it.y, texture, worldZ = it.z)
         }

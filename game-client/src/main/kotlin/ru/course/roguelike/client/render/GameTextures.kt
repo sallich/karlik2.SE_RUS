@@ -13,26 +13,34 @@ class GameTextures private constructor(
     val sky: RgbImageSampler,
     val lava: RgbImageSampler,
     val door: RgbImageSampler,
+    val fireWall: RgbImageSampler,
     val blast: RgbImageSampler,
     val keySprite: RgbImageSampler,
     val meleeMob: RgbImageSampler,
     val rangedMob: RgbImageSampler,
+    val bossMob: RgbImageSampler,
     val playerSprite: RgbImageSampler,
+    val pistol: RgbImageSampler,
+    val shotgun: RgbImageSampler,
+    val pistolAmmo: RgbImageSampler,
+    val shotgunAmmo: RgbImageSampler,
+    val firstAid: RgbImageSampler,
 ) {
     fun samplerFor(texture: BillboardRenderer.SpriteTexture): RgbImageSampler? = when (texture) {
         BillboardRenderer.SpriteTexture.PLAYER -> playerSprite
         BillboardRenderer.SpriteTexture.MELEE -> meleeMob
         BillboardRenderer.SpriteTexture.RANGED -> rangedMob
+        BillboardRenderer.SpriteTexture.BOSS -> bossMob
         BillboardRenderer.SpriteTexture.BLAST -> blast
         BillboardRenderer.SpriteTexture.KEY -> keySprite
-        BillboardRenderer.SpriteTexture.ITEM_HEALTH,
+        BillboardRenderer.SpriteTexture.ITEM_HEALTH -> firstAid
+        BillboardRenderer.SpriteTexture.ITEM_WEAPON_PISTOL -> pistol
+        BillboardRenderer.SpriteTexture.ITEM_WEAPON_SHOTGUN -> shotgun
+        BillboardRenderer.SpriteTexture.ITEM_AMMO_PISTOL -> pistolAmmo
+        BillboardRenderer.SpriteTexture.ITEM_AMMO_SHOTGUN -> shotgunAmmo
         BillboardRenderer.SpriteTexture.ITEM_EXPERIENCE,
         BillboardRenderer.SpriteTexture.ITEM_WEAPON,
-        BillboardRenderer.SpriteTexture.ITEM_WEAPON_PISTOL,
-        BillboardRenderer.SpriteTexture.ITEM_WEAPON_SHOTGUN,
         BillboardRenderer.SpriteTexture.ITEM_AMMO,
-        BillboardRenderer.SpriteTexture.ITEM_AMMO_PISTOL,
-        BillboardRenderer.SpriteTexture.ITEM_AMMO_SHOTGUN,
         -> null
         BillboardRenderer.SpriteTexture.COLOR_FALLBACK -> null
     }
@@ -40,18 +48,19 @@ class GameTextures private constructor(
     fun usesChromaKey(texture: BillboardRenderer.SpriteTexture): Boolean = when (texture) {
         BillboardRenderer.SpriteTexture.MELEE,
         BillboardRenderer.SpriteTexture.RANGED,
+        BillboardRenderer.SpriteTexture.BOSS,
         BillboardRenderer.SpriteTexture.PLAYER,
         BillboardRenderer.SpriteTexture.BLAST,
         BillboardRenderer.SpriteTexture.KEY,
-        -> true
         BillboardRenderer.SpriteTexture.ITEM_HEALTH,
-        BillboardRenderer.SpriteTexture.ITEM_EXPERIENCE,
-        BillboardRenderer.SpriteTexture.ITEM_WEAPON,
         BillboardRenderer.SpriteTexture.ITEM_WEAPON_PISTOL,
         BillboardRenderer.SpriteTexture.ITEM_WEAPON_SHOTGUN,
-        BillboardRenderer.SpriteTexture.ITEM_AMMO,
         BillboardRenderer.SpriteTexture.ITEM_AMMO_PISTOL,
         BillboardRenderer.SpriteTexture.ITEM_AMMO_SHOTGUN,
+        -> true
+        BillboardRenderer.SpriteTexture.ITEM_EXPERIENCE,
+        BillboardRenderer.SpriteTexture.ITEM_WEAPON,
+        BillboardRenderer.SpriteTexture.ITEM_AMMO,
         BillboardRenderer.SpriteTexture.COLOR_FALLBACK,
         -> false
     }
@@ -63,11 +72,18 @@ class GameTextures private constructor(
             sky = loadSampler(AssetPaths.SKY, opaque = true),
             lava = loadSampler(AssetPaths.LAVA, opaque = true),
             door = loadSampler(AssetPaths.DOOR, opaque = true),
+            fireWall = loadSampler(AssetPaths.FIRE_WALL, opaque = true),
             blast = loadSampler(AssetPaths.BLAST, opaque = false),
             keySprite = loadSampler(AssetPaths.KEY, opaque = false),
             meleeMob = loadSampler(AssetPaths.MELEE_MOB, opaque = false),
             rangedMob = loadSampler(AssetPaths.RANGED_MOB, opaque = false),
+            bossMob = loadSampler(AssetPaths.BOSS, opaque = false),
             playerSprite = loadSampler(AssetPaths.PLAYER, opaque = false),
+            pistol = loadSampler(AssetPaths.PISTOL, opaque = false),
+            shotgun = loadSampler(AssetPaths.SHOTGUN, opaque = false),
+            pistolAmmo = loadSampler(AssetPaths.PISTOL_AMMO, opaque = false),
+            shotgunAmmo = loadSampler(AssetPaths.SHOTGUN_AMMO, opaque = false),
+            firstAid = loadSampler(AssetPaths.FIRST_AID, opaque = false),
         )
 
         private fun loadSampler(path: String, opaque: Boolean): RgbImageSampler {
