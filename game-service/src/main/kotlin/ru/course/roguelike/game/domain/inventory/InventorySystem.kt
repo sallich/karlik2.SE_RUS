@@ -10,6 +10,7 @@ import ru.course.roguelike.shared.model.ItemKind
 import kotlin.math.cos
 import kotlin.math.sin
 
+@Suppress("TooManyFunctions")
 object InventorySystem {
     fun initialize(session: GameSession) {
         StarterLoadout.apply(session)

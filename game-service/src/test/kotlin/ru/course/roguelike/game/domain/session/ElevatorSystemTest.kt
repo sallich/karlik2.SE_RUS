@@ -1,7 +1,6 @@
 package ru.course.roguelike.game.domain.session
 
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 import ru.course.roguelike.shared.engine.ElevatorPhase
 import ru.course.roguelike.shared.engine.ElevatorPhysics

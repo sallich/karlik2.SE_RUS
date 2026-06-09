@@ -22,7 +22,7 @@ class ElevatorDispatchTest {
         return TileMap(3, 3, tiles)
     }
 
-    private fun rideToPeak(session: GameSession, input: InputSyncRequest, tick: () -> Unit) {
+    private fun rideToPeak(session: GameSession, tick: () -> Unit) {
         repeat(120) {
             tick()
             if (session.playerPose.height >= ElevatorPhysics.PEAK_HEIGHT - 0.05f) return
@@ -40,7 +40,7 @@ class ElevatorDispatchTest {
         )
         val input = InputSyncRequest(deltaMs = 16)
 
-        rideToPeak(session, input) {
+        rideToPeak(session) {
             ElevatorSystem.apply(session, input.deltaMs)
             PlayerVerticalMotion.applyJump(session, input)
             session.playerPose = FpsMovementSystem.applyInput(session.activeMap, session.playerPose, input)
@@ -60,7 +60,7 @@ class ElevatorDispatchTest {
         )
         val input = InputSyncRequest(deltaMs = 16)
 
-        rideToPeak(session, input) {
+        rideToPeak(session) {
             SyncInputPipeline.runPlayer(session, input)
         }
 

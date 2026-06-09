@@ -68,15 +68,17 @@ class MiniMapOverlay(
     ) {
         val hatchSeals = doorMarkers.map { MiniMapPalette.cellOf(it.x, it.y) }.toSet()
         for (pos in visited) {
-            val tile = map.get(pos) ?: continue
-            val color = MiniMapPalette.cellColor(tile, pos in hatchSeals) ?: continue
-            shapeRenderer.color = color
-            shapeRenderer.rect(
-                layout.left + pos.x * layout.cellPx,
-                layout.bottom + pos.y * layout.cellPx,
-                layout.cellPx,
-                layout.cellPx,
-            )
+            val tile = map.get(pos)
+            val color = tile?.let { MiniMapPalette.cellColor(it, pos in hatchSeals) }
+            if (color != null) {
+                shapeRenderer.color = color
+                shapeRenderer.rect(
+                    layout.left + pos.x * layout.cellPx,
+                    layout.bottom + pos.y * layout.cellPx,
+                    layout.cellPx,
+                    layout.cellPx,
+                )
+            }
         }
     }
 

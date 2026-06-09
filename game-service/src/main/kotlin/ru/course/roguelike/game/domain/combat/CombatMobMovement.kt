@@ -141,17 +141,9 @@ internal object CombatMobMovement {
         val maxCellY = floor(mob.y + radius).toInt()
         for (cy in minCellY..maxCellY) {
             for (cx in minCellX..maxCellX) {
-                val tile = map.get(GridPos(cx, cy)) ?: continue
-                if (passSeals && tile == TileType.ROOM_SEAL) continue
-                if (!WorldVertical.blocksMovementAt(0, tile, mob.z)) continue
-                if (!EntityCollision.circleOverlapsTile(mob.x, mob.y, radius, cx, cy, tile)) continue
-                val centerX = cx + 0.5f
-                val centerY = cy + 0.5f
-                val dx = mob.x - centerX
-                val dy = mob.y - centerY
-                val len = hypot(dx.toDouble(), dy.toDouble()).toFloat().coerceAtLeast(0.001f)
-                pushX += dx / len
-                pushY += dy / len
+                val delta = overlapPush(map, mob, cx, cy, radius, passSeals) ?: continue
+                pushX += delta.first
+                pushY += delta.second
             }
         }
         val pushLen = hypot(pushX.toDouble(), pushY.toDouble()).toFloat()
@@ -166,6 +158,27 @@ internal object CombatMobMovement {
         )
         mob.x = moved.x
         mob.y = moved.y
+    }
+
+    private fun overlapPush(
+        map: TileMap,
+        mob: MobEntity,
+        cx: Int,
+        cy: Int,
+        radius: Float,
+        passSeals: Boolean,
+    ): Pair<Float, Float>? {
+        val tile = map.get(GridPos(cx, cy)) ?: return null
+        val blockedBySeal = passSeals && tile == TileType.ROOM_SEAL
+        val blocksMovement = WorldVertical.blocksMovementAt(0, tile, mob.z)
+        val overlaps = EntityCollision.circleOverlapsTile(mob.x, mob.y, radius, cx, cy, tile)
+        if (blockedBySeal || !blocksMovement || !overlaps) return null
+        val centerX = cx + 0.5f
+        val centerY = cy + 0.5f
+        val dx = mob.x - centerX
+        val dy = mob.y - centerY
+        val len = hypot(dx.toDouble(), dy.toDouble()).toFloat().coerceAtLeast(0.001f)
+        return dx / len to dy / len
     }
 
     private val nudges = arrayOf(

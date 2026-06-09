@@ -69,7 +69,12 @@ class LocationMapOverlay(
     }
 
     private fun drawTiles(map: TileMap, layout: Layout, doorMarkers: List<DoorMarkerSnapshot>) {
-        val hatchSeals = doorMarkers.map { GridPos(kotlin.math.floor(it.x).toInt(), kotlin.math.floor(it.y).toInt()) }.toSet()
+        val hatchSeals = doorMarkers.map { marker ->
+            GridPos(
+                kotlin.math.floor(marker.x).toInt(),
+                kotlin.math.floor(marker.y).toInt(),
+            )
+        }.toSet()
         for (y in 0 until map.height) {
             for (x in 0 until map.width) {
                 val pos = GridPos(x, y)

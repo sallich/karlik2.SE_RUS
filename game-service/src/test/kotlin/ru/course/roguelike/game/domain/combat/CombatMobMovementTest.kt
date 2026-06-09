@@ -28,7 +28,16 @@ class CombatMobMovementTest {
         val room = Room(0, 0, 5, 3)
         val mob = meleeMob(room)
 
-        repeat(60) { CombatMobMovement.moveToward(map, mob, targetX = 4.5f, targetY = 1.5f, speed = 2f, deltaSec = 0.1f) }
+        repeat(60) {
+            CombatMobMovement.moveToward(
+                map,
+                mob,
+                targetX = 4.5f,
+                targetY = 1.5f,
+                speed = 2f,
+                deltaSec = 0.1f,
+            )
+        }
 
         assertTrue(mob.x < 2f, "mob without a reinforce target must stay behind the seal, was ${mob.x}")
     }
@@ -40,7 +49,16 @@ class CombatMobMovementTest {
         val mob = meleeMob(room)
         mob.reinforceTarget = room
 
-        repeat(60) { CombatMobMovement.moveToward(map, mob, targetX = 4.5f, targetY = 1.5f, speed = 2f, deltaSec = 0.1f) }
+        repeat(60) {
+            CombatMobMovement.moveToward(
+                map,
+                mob,
+                targetX = 4.5f,
+                targetY = 1.5f,
+                speed = 2f,
+                deltaSec = 0.1f,
+            )
+        }
 
         assertTrue(mob.x > 3f, "reinforcing mob should march past the seal, was ${mob.x}")
     }

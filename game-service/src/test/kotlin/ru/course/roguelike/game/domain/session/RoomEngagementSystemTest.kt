@@ -104,16 +104,6 @@ class RoomEngagementSystemTest {
         assertTrue(mob.x < startX, "mob should march from room B toward room A")
     }
 
-    private fun sessionWithRooms(map: TileMap, rooms: List<Room>, pose: PlayerPose): GameSession =
-        GameSession(
-            sessionId = "engagement",
-            seed = 1L,
-            map = map,
-            playerPose = pose,
-            rooms = rooms,
-            roomEngagements = rooms.mapIndexed { index, _ -> RoomEngagementState(roomIndex = index) }.toMutableList(),
-        )
-
     private fun sessionWithDoorways(map: TileMap, rooms: List<Room>, pose: PlayerPose): GameSession =
         GameSession(
             sessionId = "engagement-doors",

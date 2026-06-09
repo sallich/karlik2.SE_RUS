@@ -1,7 +1,6 @@
 package ru.course.roguelike.game.domain.session
 
 import ru.course.roguelike.game.domain.level.Room
-import ru.course.roguelike.shared.model.GridPos
 import ru.course.roguelike.shared.model.TileType
 
 /** Расстановка печатей комнат на карту при старте сессии (issue #24). */

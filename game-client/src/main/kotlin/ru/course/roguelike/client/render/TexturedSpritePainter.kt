@@ -167,5 +167,4 @@ internal class TexturedSpritePainter(
         }
         return TextureMapping.shadeRgb(command.colorRgb, command.distance)
     }
-
 }

@@ -2,7 +2,6 @@ package ru.course.roguelike.game.domain.session
 
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
-import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import ru.course.roguelike.game.domain.combat.MobSpawner
