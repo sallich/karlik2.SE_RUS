@@ -2,10 +2,13 @@ package ru.course.roguelike.game.domain.inventory
 
 import ru.course.roguelike.game.domain.event.GameEvent
 import ru.course.roguelike.game.domain.session.GameSession
+import ru.course.roguelike.game.domain.session.ItemPickup
 import ru.course.roguelike.shared.model.InventoryConstants
 import ru.course.roguelike.shared.model.InventoryDefinitions
 import ru.course.roguelike.shared.model.InventoryItemType
 import ru.course.roguelike.shared.model.ItemKind
+import kotlin.math.cos
+import kotlin.math.sin
 
 object InventorySystem {
     fun initialize(session: GameSession) {
@@ -71,6 +74,75 @@ object InventorySystem {
             events.addAll(InventoryWeapons.reloadEquippedWeapon(session))
         }
         return events
+    }
+
+    fun handleInventoryInput(
+        session: GameSession,
+        cycle: Boolean,
+        drop: Boolean,
+    ): List<GameEvent> {
+        val events = mutableListOf<GameEvent>()
+        if (cycle) cycleInventorySelection(session)
+        if (drop) dropSelectedItem(session)?.let { events.add(it) }
+        return events
+    }
+
+    fun mapItemKindForInventoryType(type: InventoryItemType): ItemKind? = when (type) {
+        InventoryItemType.PISTOL -> ItemKind.WEAPON_PISTOL
+        InventoryItemType.SHOTGUN -> ItemKind.WEAPON_SHOTGUN
+        InventoryItemType.PISTOL_AMMO -> ItemKind.AMMO_PISTOL
+        InventoryItemType.SHOTGUN_AMMO -> ItemKind.AMMO_SHOTGUN
+        InventoryItemType.HEALTH_KIT -> ItemKind.HEALTH
+    }
+
+    private fun cycleInventorySelection(session: GameSession) {
+        val items = session.inventory.items.sortedBy { it.id }
+        if (items.isEmpty()) {
+            session.selectedInventoryItemId = null
+            return
+        }
+        val currentIndex = items.indexOfFirst { it.id == session.selectedInventoryItemId }
+        val nextIndex = if (currentIndex < 0) 0 else (currentIndex + 1) % items.size
+        session.selectedInventoryItemId = items[nextIndex].id
+    }
+
+    private fun dropSelectedItem(session: GameSession): GameEvent? {
+        val itemId = session.selectedInventoryItemId ?: return null
+        val item = session.inventory.find(itemId) ?: run {
+            session.selectedInventoryItemId = null
+            return null
+        }
+        val kind = mapItemKindForInventoryType(item.type) ?: return null
+
+        if (session.equippedWeaponItemId == itemId) {
+            session.equippedWeaponItemId = null
+            session.playerAmmo = 0
+            session.playerAttackDamage = recalculateAttackDamage(session)
+        }
+        for (index in session.hotbarSlots.indices) {
+            if (session.hotbarSlots[index] == itemId) session.hotbarSlots[index] = null
+        }
+        session.weaponLoadedAmmo.remove(itemId)
+        session.inventory.remove(itemId)
+
+        val remaining = session.inventory.items.sortedBy { it.id }
+        session.selectedInventoryItemId = remaining.firstOrNull()?.id
+
+        val (dropX, dropY) = dropPositionInFront(session)
+        val pickup = ItemPickup(
+            id = session.allocateItemId(),
+            kind = kind,
+            x = dropX,
+            y = dropY,
+        )
+        session.itemPickups.add(pickup)
+        return GameEvent.ItemDropped(pickup.id, kind, pickup.x, pickup.y)
+    }
+
+    private fun dropPositionInFront(session: GameSession): Pair<Float, Float> {
+        val pose = session.playerPose
+        val distance = 0.85f
+        return pose.x + cos(pose.yaw) * distance to pose.y + sin(pose.yaw) * distance
     }
 
     fun recalculateAttackDamage(session: GameSession): Int {

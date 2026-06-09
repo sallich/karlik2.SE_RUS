@@ -17,6 +17,7 @@ import ru.course.roguelike.game.domain.session.ItemPickup
 import ru.course.roguelike.game.domain.session.ItemSpawner
 import ru.course.roguelike.game.domain.session.KeyPickup
 import ru.course.roguelike.game.domain.session.KeySpawner
+import ru.course.roguelike.game.domain.session.RoomDoorPlacer
 import ru.course.roguelike.game.domain.session.RoomDoorways
 import ru.course.roguelike.game.domain.session.RoomEngagementState
 import ru.course.roguelike.game.infrastructure.level.LevelGeneratorFactory
@@ -58,6 +59,8 @@ class GameEngine(
         InventorySystem.initialize(build.session)
         sessions[sessionId] = build.session
         MobSpawner.spawnForLevel(build.session, build.level, resolvedSeed, build.occupiedCells)
+        val startRoom = build.level.rooms.firstOrNull { it.contains(build.level.playerSpawn) }
+        RoomDoorPlacer.place(build.session, startRoom)
         eventBus.publish(listOf(GameEvent.SessionCreated(build.session.sessionId, resolvedSeed)))
         return build.session.toSnapshot()
     }

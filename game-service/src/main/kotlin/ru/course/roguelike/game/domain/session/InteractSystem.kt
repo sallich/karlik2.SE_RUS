@@ -20,6 +20,7 @@ object InteractSystem {
         }
         val events = mutableListOf<GameEvent>()
         for (pose in listOf(poseBeforeMove, poseAfterMove)) {
+            events.addAll(RoomDoorInteract.tryEnter(session, pose))
             events.addAll(LevelProgressSystem.applyForPose(session, input, pose))
             events.addAll(ItemPickupSystem.apply(session, pose, interact = true))
         }

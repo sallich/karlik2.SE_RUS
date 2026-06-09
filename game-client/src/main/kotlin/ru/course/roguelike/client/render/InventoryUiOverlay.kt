@@ -96,6 +96,14 @@ class InventoryUiOverlay(
             shapes.color = itemFillColor(item.type)
             shapes.rect(ix, iy, item.width * cell - 2f, item.height * cell - 2f)
         }
+        inventory.selectedItemId?.let { selectedId ->
+            inventory.items.find { it.id == selectedId }?.let { item ->
+                val ix = originX + pad + item.col * cell
+                val iy = originY + pad + (inventory.rows - item.row - item.height) * cell
+                shapes.color = Color.GOLD
+                shapes.rect(ix - 1f, iy - 1f, item.width * cell, item.height * cell)
+            }
+        }
     }
 
     private fun drawInventoryOutlines(screenH: Float, inventory: InventorySnapshot) {
@@ -107,6 +115,14 @@ class InventoryUiOverlay(
         val originY = (screenH - panelH) / 2f
         shapes.color = Color(0.5f, 0.55f, 0.65f, 1f)
         shapes.rect(originX, originY, panelW, panelH)
+        inventory.selectedItemId?.let { selectedId ->
+            inventory.items.find { it.id == selectedId }?.let { item ->
+                val ix = originX + pad + item.col * cell
+                val iy = originY + pad + (inventory.rows - item.row - item.height) * cell
+                shapes.color = Color.GOLD
+                shapes.rect(ix - 1f, iy - 1f, item.width * cell, item.height * cell)
+            }
+        }
     }
 
     private fun drawItemIcon(

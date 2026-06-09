@@ -36,7 +36,8 @@ internal object MiniMapPalette {
         TileType.LAVA -> Color.RED
         TileType.ELEVATOR -> Color.CYAN
         TileType.EXIT_GATE -> Color(0.2f, 0.85f, 0.35f, 1f)
-        TileType.DOOR_LOCKED -> Color(0.8f, 0.2f, 0.16f, 1f)
+        TileType.ROOM_DOOR -> Color(0.48f, 0.29f, 0.13f, 1f)
+        TileType.ROOM_SEAL -> Color(0.8f, 0.2f, 0.16f, 1f)
         else -> null
     }
 

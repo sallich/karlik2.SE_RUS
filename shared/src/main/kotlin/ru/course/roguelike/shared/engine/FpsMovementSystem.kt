@@ -250,17 +250,9 @@ object FpsMovementSystem {
         hits: MutableSet<GridPos>,
     ): Pair<Float, Float> {
         if (!overlapsWall(map, x, y, height, null)) return x to y
-        val nudge = 0.04f
-        val candidates = arrayOf(
-            nudge to 0f,
-            -nudge to 0f,
-            0f to nudge,
-            0f to -nudge,
-        )
-        for ((ox, oy) in candidates) {
-            val nx = x + ox
-            val ny = y + oy
-            if (!overlapsWall(map, nx, ny, height, hits)) return nx to ny
+        val resolved = PlayerPlacement.resolve(map, x, y, height)
+        if (!overlapsWall(map, resolved.first, resolved.second, height, hits)) {
+            return resolved
         }
         return x to y
     }

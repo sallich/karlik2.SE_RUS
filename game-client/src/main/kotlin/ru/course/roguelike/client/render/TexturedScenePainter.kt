@@ -102,8 +102,12 @@ internal class TexturedScenePainter(
         viewerHeight: Float,
     ) = wallPainter.paintHorizontalTops(scene, pitchHorizon, viewerHeight)
 
-    fun paintWalls(scene: Raycaster.SceneCast, pitchHorizon: Float, viewerHeight: Float) =
-        wallPainter.paintWalls(scene, pitchHorizon, viewerHeight)
+    fun paintWalls(
+        scene: Raycaster.SceneCast,
+        pitchHorizon: Float,
+        viewerHeight: Float,
+        doorMarkers: List<DoorMarkerSnapshot>,
+    ) = wallPainter.paintWalls(scene, pitchHorizon, viewerHeight, doorMarkers)
 
     fun paintWallCaps(scene: Raycaster.SceneCast) = wallPainter.paintWallCaps(scene)
 
@@ -116,7 +120,6 @@ internal class TexturedScenePainter(
         projectiles: List<ProjectileSnapshot>,
         keyPickups: List<KeySnapshot>,
         items: List<ItemSnapshot>,
-        doorMarkers: List<DoorMarkerSnapshot>,
         agentPose: PlayerPose? = null,
         wallDistances: FloatArray,
         wallMeta: Array<Raycaster.WallColumnMeta>,
@@ -128,7 +131,6 @@ internal class TexturedScenePainter(
         projectiles,
         keyPickups,
         items,
-        doorMarkers,
         agentPose,
         wallDistances,
         wallMeta,

@@ -12,4 +12,6 @@ data class RoomEngagementState(
     val doorways: List<GridPos> = emptyList(),
     /** Заперты ли сейчас двери комнаты (герой внутри, комната ещё не зачищена). */
     var doorsLocked: Boolean = false,
+    /** Герой вошёл в комнату через дверь (E). */
+    var entered: Boolean = false,
 )

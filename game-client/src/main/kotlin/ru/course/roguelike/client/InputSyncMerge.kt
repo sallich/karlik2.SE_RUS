@@ -22,6 +22,8 @@ internal fun mergeInputSync(prev: InputSyncRequest, frame: InputSyncRequest): In
         hotbarSelect = actions.hotbarSelect,
         hotbarAssign = actions.hotbarAssign,
         reload = actions.reload,
+        inventoryCycle = actions.inventoryCycle,
+        inventoryDrop = actions.inventoryDrop,
         jump = actions.jump,
     )
 }
@@ -46,6 +48,8 @@ private data class ActionMerge(
     val hotbarSelect: Int?,
     val hotbarAssign: Int?,
     val reload: Boolean,
+    val inventoryCycle: Boolean,
+    val inventoryDrop: Boolean,
     val jump: Boolean,
 )
 
@@ -71,5 +75,7 @@ private fun mergeActions(prev: InputSyncRequest, frame: InputSyncRequest): Actio
         hotbarSelect = frame.hotbarSelect ?: prev.hotbarSelect,
         hotbarAssign = frame.hotbarAssign ?: prev.hotbarAssign,
         reload = prev.reload || frame.reload,
+        inventoryCycle = prev.inventoryCycle || frame.inventoryCycle,
+        inventoryDrop = prev.inventoryDrop || frame.inventoryDrop,
         jump = prev.jump || frame.jump,
     )

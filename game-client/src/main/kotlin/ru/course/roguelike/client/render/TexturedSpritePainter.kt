@@ -1,6 +1,5 @@
 package ru.course.roguelike.client.render
 
-import ru.course.roguelike.shared.dto.DoorMarkerSnapshot
 import ru.course.roguelike.shared.dto.ItemSnapshot
 import ru.course.roguelike.shared.dto.KeySnapshot
 import ru.course.roguelike.shared.dto.MobSnapshot
@@ -11,8 +10,6 @@ import ru.course.roguelike.shared.render.BillboardRenderer
 import ru.course.roguelike.shared.render.Raycaster
 import ru.course.roguelike.shared.render.RgbImageSampler
 import ru.course.roguelike.shared.render.TextureMapping
-import kotlin.math.hypot
-
 internal class TexturedSpritePainter(
     private val buffer: PixelFrameBuffer,
     private val viewWidth: Int,
@@ -30,7 +27,6 @@ internal class TexturedSpritePainter(
         projectiles: List<ProjectileSnapshot>,
         keyPickups: List<KeySnapshot>,
         items: List<ItemSnapshot>,
-        doorMarkers: List<DoorMarkerSnapshot>,
         agentPose: PlayerPose? = null,
         wallDistances: FloatArray,
         wallMeta: Array<Raycaster.WallColumnMeta>,
@@ -59,8 +55,6 @@ internal class TexturedSpritePainter(
         items.forEach {
             add(it.x, it.y, BillboardRenderer.itemTexture(it.kind), 0.45f * BillboardRenderer.itemSizeScale(it.kind))
         }
-        // Двери незачищенных комнат (issue #24): коричневый блок (красный в бою) с иконкой приза.
-        doorMarkers.forEach { marker -> addDoor(marker, pose) }
         mobs.forEach {
             val texture = when (it.kind) {
                 MobKind.MELEE -> BillboardRenderer.SpriteTexture.MELEE
@@ -174,39 +168,4 @@ internal class TexturedSpritePainter(
         return TextureMapping.shadeRgb(command.colorRgb, command.distance)
     }
 
-    /** Дверь: цветная панель-блок + иконка приза чуть ближе к игроку (рисуется поверх панели). */
-    private fun addDoor(marker: DoorMarkerSnapshot, pose: PlayerPose) {
-        spriteScratch.add(
-            BillboardRenderer.Sprite(
-                worldX = marker.x,
-                worldY = marker.y,
-                texture = BillboardRenderer.SpriteTexture.COLOR_FALLBACK,
-                colorRgb = if (marker.sealed) DOOR_SEALED_RGB else DOOR_RGB,
-                sizeScale = DOOR_SIZE,
-                worldZ = DOOR_Z,
-            ),
-        )
-        val len = hypot((pose.x - marker.x).toDouble(), (pose.y - marker.y).toDouble())
-            .toFloat()
-            .coerceAtLeast(0.001f)
-        val prizeTexture = marker.kind?.let(BillboardRenderer::itemTexture) ?: BillboardRenderer.SpriteTexture.KEY
-        spriteScratch.add(
-            BillboardRenderer.Sprite(
-                worldX = marker.x + (pose.x - marker.x) / len * PRIZE_NUDGE,
-                worldY = marker.y + (pose.y - marker.y) / len * PRIZE_NUDGE,
-                texture = prizeTexture,
-                sizeScale = PRIZE_SIZE,
-                worldZ = DOOR_Z,
-            ),
-        )
-    }
-
-    private companion object {
-        const val DOOR_RGB = 0x7A4A22
-        const val DOOR_SEALED_RGB = 0xCC2A22
-        const val DOOR_SIZE = 0.9f
-        const val DOOR_Z = 0.5f
-        const val PRIZE_SIZE = 0.4f
-        const val PRIZE_NUDGE = 0.08f
-    }
 }

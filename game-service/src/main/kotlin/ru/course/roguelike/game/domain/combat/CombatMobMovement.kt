@@ -28,7 +28,7 @@ internal object CombatMobMovement {
             moveX,
             moveY,
             localHeight = mob.z,
-            passLockedDoors = true,
+            passRoomSeals = true,
         )
         mob.x = moved.x
         mob.y = moved.y
@@ -87,7 +87,7 @@ internal object CombatMobMovement {
             dx,
             dy,
             localHeight = mob.z,
-            passLockedDoors = true,
+            passRoomSeals = true,
         )
         mob.x = moved.x
         mob.y = moved.y
@@ -97,7 +97,7 @@ internal object CombatMobMovement {
         val radius = CombatConstants.MOB_RADIUS
         repeat(6) {
             val circle = EntityCollision.Circle(mob.x, mob.y, radius)
-            if (!EntityCollision.overlapsMovement(map, circle, mob.z, passLockedDoors = true)) return
+            if (!EntityCollision.overlapsMovement(map, circle, mob.z, passRoomSeals = true)) return
             for ((dx, dy) in nudges) {
                 val moved = EntityCollision.moveWithWallSlide(
                     map,
@@ -105,9 +105,9 @@ internal object CombatMobMovement {
                     dx,
                     dy,
                     localHeight = mob.z,
-                    passLockedDoors = true,
+                    passRoomSeals = true,
                 )
-                if (!EntityCollision.overlapsMovement(map, moved, mob.z, passLockedDoors = true)) {
+                if (!EntityCollision.overlapsMovement(map, moved, mob.z, passRoomSeals = true)) {
                     mob.x = moved.x
                     mob.y = moved.y
                     return

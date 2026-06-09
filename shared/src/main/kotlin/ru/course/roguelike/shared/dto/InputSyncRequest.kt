@@ -24,8 +24,12 @@ data class InputSyncRequest(
     val hotbarSelect: Int? = null,
     /** Tab+1/2: назначить следующее оружие из инвентаря в слот hotbar. */
     val hotbarAssign: Int? = null,
-    /** Перезарядка из инвентаря под текущее оружие (F). */
+    /** Перезарядка из инвентаря под текущее оружие (F, инвентарь закрыт). */
     val reload: Boolean = false,
+    /** Tab: Q — переключить выбранный предмет в сетке. */
+    val inventoryCycle: Boolean = false,
+    /** Tab: F — выбросить выбранный предмет. */
+    val inventoryDrop: Boolean = false,
     val jump: Boolean = false,
     val actor: String = "player",
 )

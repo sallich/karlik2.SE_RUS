@@ -6,6 +6,25 @@ import ru.course.roguelike.shared.dto.InventorySnapshot
 import ru.course.roguelike.shared.model.InventoryDefinitions
 
 object InventorySnapshots {
+    fun toInventorySnapshot(session: GameSession): InventorySnapshot = InventorySnapshot(
+        columns = session.inventory.columns,
+        rows = session.inventory.rows,
+        selectedItemId = session.selectedInventoryItemId,
+        items = session.inventory.items.map { item ->
+            ru.course.roguelike.shared.dto.InventoryItemSnapshot(
+                id = item.id,
+                type = item.type.name,
+                quantity = item.quantity,
+                col = item.col,
+                row = item.row,
+                width = item.width,
+                height = item.height,
+                damageBonus = item.totalDamageBonus(),
+                displayName = InventoryDefinitions.displayName(item.type),
+            )
+        },
+    )
+
     fun toInventorySnapshot(grid: InventoryGrid): InventorySnapshot = InventorySnapshot(
         columns = grid.columns,
         rows = grid.rows,

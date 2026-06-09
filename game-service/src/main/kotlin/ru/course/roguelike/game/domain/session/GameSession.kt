@@ -41,6 +41,8 @@ data class GameSession(
     val hotbarSlots: Array<Int?> = arrayOfNulls(InventoryConstants.HOTBAR_SLOTS),
     var selectedHotbarSlot: Int = 0,
     var equippedWeaponItemId: Int? = null,
+    /** Выбранная ячейка инвентаря (Tab+Q/F). */
+    var selectedInventoryItemId: Int? = null,
     /** Заряженные патроны для каждого оружия (по id предмета в инвентаре). */
     val weaponLoadedAmmo: MutableMap<Int, Int> = mutableMapOf(),
     var elevatorPhase: ElevatorPhase = ElevatorPhase.IDLE,
@@ -127,7 +129,7 @@ data class GameSession(
             attackDamage = playerAttackDamage,
             ammo = playerAmmo,
             maxAmmo = InventoryWeapons.magazineCapacity(this),
-            inventory = InventorySnapshots.toInventorySnapshot(inventory),
+            inventory = InventorySnapshots.toInventorySnapshot(this),
             hotbar = InventorySnapshots.toHotbarSnapshot(this),
             equippedWeaponName = InventoryWeapons.equippedWeaponName(this),
             equippedWeaponType = InventoryWeapons.equippedWeaponType(this)?.name,

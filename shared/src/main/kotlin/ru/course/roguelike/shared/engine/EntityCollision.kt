@@ -111,15 +111,14 @@ object EntityCollision {
 
     /**
      * Блокировка движения с учётом высоты (колонны проходимы только с прыжка).
-     * При [passLockedDoors] запертые двери ([TileType.DOOR_LOCKED]) считаются проходимыми —
-     * мобы проходят сквозь них, тогда как герой остаётся заперт (issue #24).
+     * При [passRoomSeals] красные печати ([TileType.ROOM_SEAL]) проходимы для мобов (issue #24).
      */
     fun overlapsMovement(
         map: TileMap,
         circle: Circle,
         localHeight: Float,
         floorLevel: Int = 0,
-        passLockedDoors: Boolean = false,
+        passRoomSeals: Boolean = false,
     ): Boolean {
         val minCellX = floor(circle.x - circle.radius).toInt()
         val maxCellX = floor(circle.x + circle.radius).toInt()
@@ -128,7 +127,7 @@ object EntityCollision {
         for (cy in minCellY..maxCellY) {
             for (cx in minCellX..maxCellX) {
                 val tile = map.get(GridPos(cx, cy)) ?: continue
-                if (passLockedDoors && tile == TileType.DOOR_LOCKED) continue
+                if (passRoomSeals && tile == TileType.ROOM_SEAL) continue
                 if (!WorldVertical.blocksMovementAt(floorLevel, tile, localHeight)) continue
                 if (circleOverlapsCell(circle.x, circle.y, circle.radius, cx, cy)) {
                     return true
@@ -145,22 +144,22 @@ object EntityCollision {
         dy: Float,
         localHeight: Float = 0f,
         floorLevel: Int = 0,
-        passLockedDoors: Boolean = false,
+        passRoomSeals: Boolean = false,
     ): Circle {
         if (dx == 0f && dy == 0f) return circle
         var nx = circle.x + dx
         var ny = circle.y + dy
-        if (!overlapsMovement(map, circle.copy(x = nx, y = ny), localHeight, floorLevel, passLockedDoors)) {
+        if (!overlapsMovement(map, circle.copy(x = nx, y = ny), localHeight, floorLevel, passRoomSeals)) {
             return circle.copy(x = nx, y = ny)
         }
         nx = circle.x + dx
         ny = circle.y
-        if (!overlapsMovement(map, circle.copy(x = nx, y = ny), localHeight, floorLevel, passLockedDoors)) {
+        if (!overlapsMovement(map, circle.copy(x = nx, y = ny), localHeight, floorLevel, passRoomSeals)) {
             return circle.copy(x = nx, y = ny)
         }
         nx = circle.x
         ny = circle.y + dy
-        if (!overlapsMovement(map, circle.copy(x = nx, y = ny), localHeight, floorLevel, passLockedDoors)) {
+        if (!overlapsMovement(map, circle.copy(x = nx, y = ny), localHeight, floorLevel, passRoomSeals)) {
             return circle.copy(x = nx, y = ny)
         }
         return circle

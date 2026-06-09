@@ -32,11 +32,14 @@ enum class TileType(
     EXIT_GATE(walkable = true, blocksVision = false, damaging = false),
 
     /**
-     * Запертая дверь комнаты (issue #24): появляется в дверных проёмах, пока герой
-     * заперт внутри в бою. Невидимый барьер коллизии — блокирует движение героя
-     * (но не мобов, см. [ru.course.roguelike.shared.engine.EntityCollision]) и не
-     * перекрывает обзор: сама дверь рисуется billboard-панелью на клиенте, а сквозь
-     * проём видно комнату. После зачистки снова становится полом.
+     * Дверь комнаты (issue #24): полноразмерная стена в проёме с иконкой приза.
+     * Вход — по E; после «сбора» двери на всех выходах комнаты появляются [ROOM_SEAL].
      */
-    DOOR_LOCKED(walkable = false, blocksVision = false, damaging = false),
+    ROOM_DOOR(walkable = false, blocksVision = true, damaging = false),
+
+    /**
+     * Красная печать в проёме запечатанной комнаты: блокирует героя, мобы проходят
+     * (см. [ru.course.roguelike.shared.engine.EntityCollision.passRoomSeals]).
+     */
+    ROOM_SEAL(walkable = false, blocksVision = true, damaging = false),
 }

@@ -27,6 +27,8 @@ object Raycaster {
         val wallU: Float,
         val tile: TileType?,
         val horizontalTop: Boolean = false,
+        val hitMapX: Int = -1,
+        val hitMapY: Int = -1,
         val backDistance: Float? = null,
         val backSide: Int? = null,
         val backWallU: Float? = null,
@@ -172,7 +174,15 @@ object Raycaster {
             colors[col] = colorFor(hitTile, side, shade)
             if (!outOfBounds) {
                 val hitCoord = TextureMapping.wallHitCoord(side, perpWallDist, rayDirX, rayDirY, posX, posY)
-                var entry = WallColumnMeta(perpWallDist, side, hitCoord, hitTile, hitHorizontalTop)
+                var entry = WallColumnMeta(
+                    perpWallDist,
+                    side,
+                    hitCoord,
+                    hitTile,
+                    hitHorizontalTop,
+                    hitMapX = hitMapX,
+                    hitMapY = hitMapY,
+                )
                 if (hitTile != null && hitTile.wallHeight() < WorldVertical.WALL_HEIGHT - 0.01f) {
                     castBehindShortWall(
                         map = map,

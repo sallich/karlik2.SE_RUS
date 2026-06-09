@@ -20,6 +20,7 @@ data class InventorySnapshot(
     val columns: Int,
     val rows: Int,
     val items: List<InventoryItemSnapshot> = emptyList(),
+    val selectedItemId: Int? = null,
 )
 
 @Serializable

@@ -35,7 +35,7 @@ class FpsViewportRenderer(
             floorLevel = scene.floorLevel,
             viewerHeight = viewerHeight,
         )
-        painter.paintWalls(cast, pitchHorizon, viewerHeight)
+        painter.paintWalls(cast, pitchHorizon, viewerHeight, scene.doorMarkers)
         painter.paintHorizontalTops(cast, pitchHorizon, viewerHeight)
         painter.paintWallCaps(cast)
         painter.paintSprites(
@@ -46,7 +46,6 @@ class FpsViewportRenderer(
             scene.projectiles,
             scene.keyPickups,
             scene.items,
-            scene.doorMarkers,
             scene.agentPose,
             cast.wallDistances,
             cast.wallMeta,

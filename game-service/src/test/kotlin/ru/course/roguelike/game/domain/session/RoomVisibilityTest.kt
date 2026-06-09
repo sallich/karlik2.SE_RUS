@@ -29,7 +29,7 @@ class RoomVisibilityTest {
         assertTrue(snapshot.keyPickups.isEmpty(), "key hidden until cleared")
         assertTrue(snapshot.keysRequired >= 1, "hidden key still counts toward the requirement")
         assertTrue(snapshot.doorMarkers.isNotEmpty(), "door marker advertises the prize")
-        assertNull(snapshot.doorMarkers.first().kind, "key takes priority over the weapon (null kind = key)")
+        assertTrue(snapshot.doorMarkers.first().prizeIsKey, "key takes priority over the weapon")
     }
 
     @Test
@@ -52,11 +52,13 @@ class RoomVisibilityTest {
         val session = session()
         val mob = MobSpawner.createMob(session, MobKind.MELEE, 2.5f, 3.5f, roomA)
         session.mobs.add(mob)
-        RoomEngagementSystem.tick(session) // player inside + living mob -> room sealed
-        assertTrue(session.roomEngagements[0].doorsLocked)
+        session.roomEngagements[0].entered = true
+        session.roomEngagements[0].doorsLocked = true
+        session.roomEngagements[0].timerStartedAtMs = session.serverTimeMs
+        session.roomEngagements[0].doorways.forEach { session.map.setTile(it, TileType.ROOM_SEAL) }
 
         mob.hp = 0
-        RoomEngagementSystem.tick(session) // no mobs left -> cleared, prize revealed in the middle
+        RoomEngagementSystem.tick(session)
 
         val center = roomA.center
         val key = session.keyPickups.single()
@@ -66,6 +68,8 @@ class RoomVisibilityTest {
 
     private fun session(): GameSession {
         val map = corridorMap()
+        val doorwaysByRoom = listOf(roomA, roomB).associateWith { RoomDoorways.of(map, it) }
+        doorwaysByRoom[roomA].orEmpty().forEach { map.setTile(it, TileType.ROOM_DOOR) }
         return GameSession(
             sessionId = "visibility",
             seed = 1L,
@@ -73,7 +77,10 @@ class RoomVisibilityTest {
             playerPose = PlayerPose(2.5f, 2.5f, yaw = 0f),
             rooms = listOf(roomA, roomB),
             roomEngagements = listOf(roomA, roomB).mapIndexed { index, room ->
-                RoomEngagementState(roomIndex = index, doorways = RoomDoorways.of(map, room))
+                RoomEngagementState(
+                    roomIndex = index,
+                    doorways = doorwaysByRoom[room].orEmpty(),
+                )
             }.toMutableList(),
             keyPickups = mutableListOf(KeyPickup(id = 0, x = 2.5f, y = 2.5f)),
             itemPickups = mutableListOf(
