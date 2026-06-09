@@ -91,7 +91,8 @@ class CombatDispatchTest {
             map = TileMap(5, 5, tiles),
             playerPose = PlayerPose(2.5f, 2.5f, yaw = 0f),
         ).also { session ->
-            session.mobs.add(MobSpawner.createMob(session, MobKind.MELEE, 3.5f, 2.5f))
+            val room = ru.course.roguelike.game.domain.level.Room(1, 1, 3, 3)
+            session.mobs.add(MobSpawner.createMob(session, MobKind.MELEE, 3.5f, 2.5f, room))
         }
     }
 }

@@ -36,6 +36,19 @@ class MapConnectivityTest {
     }
 
     @Test
+    fun `adjacent rooms are linked by corridors not walls`() {
+        val tiles = Array(5 * 3) { TileType.WALL }
+        tiles[1 * 5 + 1] = TileType.FLOOR
+        tiles[1 * 5 + 2] = TileType.FLOOR
+        tiles[1 * 5 + 3] = TileType.FLOOR
+        val map = TileMap(5, 3, tiles)
+        val rooms = listOf(Room(1, 1, 1, 1), Room(3, 1, 1, 1, isBoss = true))
+
+        val adjacent = MapConnectivity.adjacentRooms(map, rooms[0], rooms)
+        assertEquals(listOf(rooms[1]), adjacent)
+    }
+
+    @Test
     fun `carving a corridor makes the far room reachable`() {
         val tiles = Array(5 * 3) { TileType.WALL }
         tiles[1 * 5 + 1] = TileType.FLOOR

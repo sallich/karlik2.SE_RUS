@@ -32,6 +32,8 @@ data class GameSnapshot(
     /** Предметы, ещё лежащие на локации (issue #9). */
     val items: List<ItemSnapshot> = emptyList(),
     val bossRoom: BossRoomSnapshot? = null,
+    /** Таймер зачистки текущей комнаты (null — не в комнате с активным таймером). */
+    val roomClearTimer: RoomClearTimerSnapshot? = null,
     /** Ячейка ворот выхода в комнате босса (куда нужно принести ключи). */
     val exitGate: GridPos? = null,
 )

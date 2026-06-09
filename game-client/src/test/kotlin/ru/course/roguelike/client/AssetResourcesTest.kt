@@ -13,6 +13,7 @@ class AssetResourcesTest {
             AssetPaths.SKY,
             AssetPaths.LAVA,
             AssetPaths.DOOR,
+            AssetPaths.KEY,
             AssetPaths.BLAST,
             AssetPaths.MELEE_MOB,
             AssetPaths.RANGED_MOB,

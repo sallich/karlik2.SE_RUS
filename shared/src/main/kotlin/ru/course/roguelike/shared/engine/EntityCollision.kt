@@ -2,6 +2,7 @@ package ru.course.roguelike.shared.engine
 
 import ru.course.roguelike.shared.model.GridPos
 import ru.course.roguelike.shared.model.PlayerPose
+import ru.course.roguelike.shared.model.WorldVertical
 import kotlin.math.cos
 import kotlin.math.floor
 import kotlin.math.hypot
@@ -22,7 +23,7 @@ object EntityCollision {
 
     fun distance(a: Circle, b: Circle): Float = hypot((a.x - b.x).toDouble(), (a.y - b.y).toDouble()).toFloat()
 
-    fun overlapsWall(map: TileMap, circle: Circle): Boolean {
+    fun overlapsWall(map: TileMap, circle: Circle, floorLevel: Int = 0, worldZ: Float = 0f): Boolean {
         val minCellX = floor(circle.x - circle.radius).toInt()
         val maxCellX = floor(circle.x + circle.radius).toInt()
         val minCellY = floor(circle.y - circle.radius).toInt()
@@ -31,6 +32,7 @@ object EntityCollision {
             for (cx in minCellX..maxCellX) {
                 val tile = map.get(GridPos(cx, cy))
                 if (tile == null || tile.walkable) continue
+                if (worldZ > WorldVertical.tileTopWorldZ(floorLevel, tile) + 0.02f) continue
                 if (circleOverlapsCell(circle.x, circle.y, circle.radius, cx, cy)) {
                     return true
                 }
@@ -38,6 +40,25 @@ object EntityCollision {
         }
         return false
     }
+
+    fun spheresOverlap3D(
+        ax: Float,
+        ay: Float,
+        az: Float,
+        ar: Float,
+        bx: Float,
+        by: Float,
+        bz: Float,
+        br: Float,
+    ): Boolean {
+        val dx = ax - bx
+        val dy = ay - by
+        val dz = az - bz
+        val reach = ar + br
+        return dx * dx + dy * dy + dz * dz <= reach * reach
+    }
+
+    fun playerHitCenterZ(pose: PlayerPose): Float = pose.height + WorldVertical.EYE_HEIGHT
 
     /**
      * Луч из [origin] по направлению [yaw] до [maxDistance].
@@ -87,26 +108,51 @@ object EntityCollision {
     fun playerCircle(pose: PlayerPose): Circle =
         Circle(pose.x, pose.y, ru.course.roguelike.shared.model.FpsConstants.PLAYER_RADIUS)
 
+    /** Блокировка движения с учётом высоты (колонны проходимы только с прыжка). */
+    fun overlapsMovement(
+        map: TileMap,
+        circle: Circle,
+        localHeight: Float,
+        floorLevel: Int = 0,
+    ): Boolean {
+        val minCellX = floor(circle.x - circle.radius).toInt()
+        val maxCellX = floor(circle.x + circle.radius).toInt()
+        val minCellY = floor(circle.y - circle.radius).toInt()
+        val maxCellY = floor(circle.y + circle.radius).toInt()
+        for (cy in minCellY..maxCellY) {
+            for (cx in minCellX..maxCellX) {
+                val tile = map.get(GridPos(cx, cy)) ?: continue
+                if (!WorldVertical.blocksMovementAt(floorLevel, tile, localHeight)) continue
+                if (circleOverlapsCell(circle.x, circle.y, circle.radius, cx, cy)) {
+                    return true
+                }
+            }
+        }
+        return false
+    }
+
     fun moveWithWallSlide(
         map: TileMap,
         circle: Circle,
         dx: Float,
         dy: Float,
+        localHeight: Float = 0f,
+        floorLevel: Int = 0,
     ): Circle {
         if (dx == 0f && dy == 0f) return circle
         var nx = circle.x + dx
         var ny = circle.y + dy
-        if (!overlapsWall(map, circle.copy(x = nx, y = ny))) {
+        if (!overlapsMovement(map, circle.copy(x = nx, y = ny), localHeight, floorLevel)) {
             return circle.copy(x = nx, y = ny)
         }
         nx = circle.x + dx
         ny = circle.y
-        if (!overlapsWall(map, circle.copy(x = nx, y = ny))) {
+        if (!overlapsMovement(map, circle.copy(x = nx, y = ny), localHeight, floorLevel)) {
             return circle.copy(x = nx, y = ny)
         }
         nx = circle.x
         ny = circle.y + dy
-        if (!overlapsWall(map, circle.copy(x = nx, y = ny))) {
+        if (!overlapsMovement(map, circle.copy(x = nx, y = ny), localHeight, floorLevel)) {
             return circle.copy(x = nx, y = ny)
         }
         return circle

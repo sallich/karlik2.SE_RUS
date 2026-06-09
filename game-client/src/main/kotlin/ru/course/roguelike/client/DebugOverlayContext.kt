@@ -44,6 +44,7 @@ fun drawDebugOverlays(context: DebugOverlayContext) {
                 context.pose,
                 context.keyPickups,
                 context.items,
+                context.serverMobs,
                 context.exitGate,
             )
         }

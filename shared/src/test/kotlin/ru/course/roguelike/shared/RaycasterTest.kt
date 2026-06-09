@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import ru.course.roguelike.shared.engine.TileMap
+import ru.course.roguelike.shared.model.FpsConstants
 import ru.course.roguelike.shared.model.PlayerPose
 import ru.course.roguelike.shared.model.TileType
 import ru.course.roguelike.shared.model.WorldVertical
@@ -91,7 +92,7 @@ class RaycasterTest {
     }
 
     @Test
-    fun `jump beside column keeps face visible until feet clear the top`() {
+    fun `jump beside column keeps side textures visible at any height`() {
         val tiles = Array(15) { TileType.FLOOR }
         tiles[1 * 5 + 3] = TileType.COLUMN
         val map = TileMap(5, 3, tiles)
@@ -109,9 +110,9 @@ class RaycasterTest {
             24,
             pitchHorizonY = 12f,
         )
-        val cleared = Raycaster.castColumns(
+        val clearedScene = Raycaster.castScene(
             map,
-            PlayerPose(1.5f, 1.5f, yaw = 0f, height = WorldVertical.COLUMN_HEIGHT + 0.05f),
+            PlayerPose(1.5f, 1.5f, yaw = 0f, height = FpsConstants.MAX_JUMP_HEIGHT),
             32,
             24,
             pitchHorizonY = 12f,
@@ -119,10 +120,13 @@ class RaycasterTest {
         val mid = grounded.size / 2
         val groundedSpan = grounded[mid].wallEnd - grounded[mid].wallStart
         val jumpSpan = jumping[mid].wallEnd - jumping[mid].wallStart
-        val clearedSpan = cleared[mid].wallEnd - cleared[mid].wallStart
         assertTrue(groundedSpan > 1f)
         assertTrue(jumpSpan > 1f, "partial jump still intersects the column face")
-        assertTrue(clearedSpan < groundedSpan, "feet above column top clear the ray")
+        assertEquals(
+            TileType.COLUMN,
+            clearedScene.wallMeta[mid].tile,
+            "column stays in the ray even at max jump height",
+        )
     }
 
     @Test
@@ -180,6 +184,40 @@ class RaycasterTest {
             viewerHeightAboveFloor = WorldVertical.FLOOR_STEP,
         )
         assertTrue(end > start + 1f, "top of wall stays on screen even when base is below the viewport")
+    }
+
+    @Test
+    fun `close column keeps side band when standing on column`() {
+        val pitchHorizon = 135f
+        val screenHeight = 270
+        val dist = 1f
+        val lineHeight = screenHeight / dist
+        val (start, end) = Raycaster.projectWallSpan(
+            pitchHorizonY = pitchHorizon,
+            lineHeight = lineHeight,
+            wallHeight = WorldVertical.COLUMN_HEIGHT,
+            screenHeight = screenHeight,
+            perpDistance = dist,
+            viewerHeightAboveFloor = WorldVertical.COLUMN_HEIGHT,
+        )
+        assertTrue(end > start + 4f, "collapsed span was ${end - start}")
+    }
+
+    @Test
+    fun `close wall keeps side band when jumping on elevator height`() {
+        val pitchHorizon = 135f
+        val screenHeight = 270
+        val dist = 2f
+        val lineHeight = screenHeight / dist
+        val (start, end) = Raycaster.projectWallSpan(
+            pitchHorizonY = pitchHorizon,
+            lineHeight = lineHeight,
+            wallHeight = WorldVertical.WALL_HEIGHT,
+            screenHeight = screenHeight,
+            perpDistance = dist,
+            viewerHeightAboveFloor = WorldVertical.WALL_HEIGHT + 0.5f,
+        )
+        assertTrue(end > start + 4f, "collapsed span was ${end - start}")
     }
 
     @Test

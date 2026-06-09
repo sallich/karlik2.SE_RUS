@@ -1,12 +1,14 @@
 package ru.course.roguelike.game.domain.combat
 
 import ru.course.roguelike.game.domain.ai.MobBehavior
+import ru.course.roguelike.game.domain.level.Room
 import ru.course.roguelike.shared.model.CombatConstants
 import ru.course.roguelike.shared.model.MobKind
 
 /**
  * Базовая сущность моба. Конкретные типы задают скорость, дистанцию и урон.
  */
+@Suppress("LongParameterList")
 sealed class MobEntity(
     val id: Long,
     var x: Float,
@@ -15,7 +17,13 @@ sealed class MobEntity(
     val maxHp: Int,
     val kind: MobKind,
     val behavior: MobBehavior,
+    /** Комната, в которой моб агрессирует; вне неё — не преследует игрока. */
+    val aggroRoom: Room,
+    /** Целевая комната при подкреплении (моб идёт по лабиринту, если игрок ещё не там). */
+    var reinforceTarget: Room? = null,
     var attackCooldownMs: Int = 0,
+    /** Высота над полом яруса; летающие мобы парят выше колонн. */
+    var z: Float = 0f,
 ) {
     abstract val moveSpeed: Float
     abstract val attackRange: Float
@@ -23,6 +31,9 @@ sealed class MobEntity(
     abstract val attackCooldownTotalMs: Int
 
     val alive: Boolean get() = hp > 0
+    val isFlying: Boolean get() = z > 0.01f
+
+    fun hitCenterZ(): Float = z + CombatConstants.MOB_HIT_HALF_HEIGHT
 
     fun toSnapshot() = ru.course.roguelike.shared.dto.MobSnapshot(
         id = id,
@@ -31,6 +42,7 @@ sealed class MobEntity(
         y = y,
         hp = hp,
         maxHp = maxHp,
+        z = z,
     )
 
     class MeleeMob(
@@ -38,6 +50,7 @@ sealed class MobEntity(
         x: Float,
         y: Float,
         behavior: MobBehavior,
+        aggroRoom: Room,
     ) : MobEntity(
         id = id,
         x = x,
@@ -46,6 +59,7 @@ sealed class MobEntity(
         maxHp = CombatConstants.MELEE_MOB_HP,
         kind = MobKind.MELEE,
         behavior = behavior,
+        aggroRoom = aggroRoom,
     ) {
         override val moveSpeed: Float = CombatConstants.MELEE_MOVE_SPEED
         override val attackRange: Float = CombatConstants.MELEE_ATTACK_RANGE
@@ -58,6 +72,7 @@ sealed class MobEntity(
         x: Float,
         y: Float,
         behavior: MobBehavior,
+        aggroRoom: Room,
     ) : MobEntity(
         id = id,
         x = x,
@@ -66,6 +81,8 @@ sealed class MobEntity(
         maxHp = CombatConstants.RANGED_MOB_HP,
         kind = MobKind.RANGED,
         behavior = behavior,
+        aggroRoom = aggroRoom,
+        z = CombatConstants.FLYING_MOB_Z,
     ) {
         override val moveSpeed: Float = CombatConstants.RANGED_MOVE_SPEED
         override val attackRange: Float = CombatConstants.RANGED_ATTACK_RANGE
@@ -78,6 +95,7 @@ sealed class MobEntity(
         x: Float,
         y: Float,
         behavior: MobBehavior,
+        aggroRoom: Room,
     ) : MobEntity(
         id = id,
         x = x,
@@ -86,6 +104,8 @@ sealed class MobEntity(
         maxHp = CombatConstants.RANGED_MOB_HP,
         kind = MobKind.LLM_GUARD,
         behavior = behavior,
+        aggroRoom = aggroRoom,
+        z = CombatConstants.FLYING_MOB_Z,
     ) {
         override val moveSpeed: Float = CombatConstants.RANGED_MOVE_SPEED
         override val attackRange: Float = CombatConstants.RANGED_ATTACK_RANGE

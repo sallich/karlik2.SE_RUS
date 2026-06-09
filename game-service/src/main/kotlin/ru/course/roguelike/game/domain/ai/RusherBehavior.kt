@@ -29,7 +29,7 @@ class ShooterBehavior : MobBehavior {
         if (context.distanceToPlayer > mob.attackRange * 0.85f) {
             return MobIntent.ChasePlayer
         }
-        return MobIntent.Idle
+        return MobIntent.StrafePlayer
     }
 }
 
@@ -45,6 +45,7 @@ sealed interface MobIntent {
     data object Idle : MobIntent
     data object ChasePlayer : MobIntent
     data object KitePlayer : MobIntent
+    data object StrafePlayer : MobIntent
     data object AttackPlayer : MobIntent
     data object ShootPlayer : MobIntent
 }

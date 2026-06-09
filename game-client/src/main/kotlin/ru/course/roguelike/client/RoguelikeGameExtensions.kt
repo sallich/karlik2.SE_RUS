@@ -44,6 +44,10 @@ internal fun RoguelikeGame.buildSyncBindings(): SyncBindings = SyncBindings(
         clientElevatorPhase = runCatching { ElevatorPhase.valueOf(phase) }
             .getOrDefault(ElevatorPhase.IDLE)
     },
+    roomTimerMutator = { timer, serverTimeMs ->
+        roomClearTimer = timer
+        roomClearTimerReceivedAtMs = serverTimeMs
+    },
 )
 
 internal fun RoguelikeGame.resetSessionState() {
@@ -55,6 +59,8 @@ internal fun RoguelikeGame.resetSessionState() {
     keyPickups = emptyList()
     items = emptyList()
     exitGate = null
+    roomClearTimer = null
+    roomClearTimerReceivedAtMs = 0L
     sessionPhase = SessionPhase.EXPLORATION
     playerHp = 0
     playerMaxHp = 0
@@ -101,6 +107,8 @@ internal fun RoguelikeGame.applyServerSnapshot(snap: GameSnapshot) {
     keyPickups = snap.keyPickups
     items = snap.items
     exitGate = snap.exitGate
+    roomClearTimer = snap.roomClearTimer
+    roomClearTimerReceivedAtMs = snap.serverTimeMs
     audio.onCombatSnapshot(snap.player.hp, snap.projectiles)
     if (snap.player.pose.isGrounded && clientElevatorPhase == ElevatorPhase.IDLE) {
         clientVerticalVelocity = 0f

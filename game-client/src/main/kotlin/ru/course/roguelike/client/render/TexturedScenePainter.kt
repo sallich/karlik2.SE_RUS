@@ -117,6 +117,7 @@ internal class TexturedScenePainter(
         items: List<ItemSnapshot>,
         agentPose: PlayerPose? = null,
         wallDistances: FloatArray,
+        wallMeta: Array<Raycaster.WallColumnMeta>,
     ) = spritePainter.paintSprites(
         pose,
         pitchHorizon,
@@ -127,5 +128,6 @@ internal class TexturedScenePainter(
         items,
         agentPose,
         wallDistances,
+        wallMeta,
     )
 }

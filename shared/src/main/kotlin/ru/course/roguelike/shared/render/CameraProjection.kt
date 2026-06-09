@@ -27,7 +27,22 @@ object CameraProjection {
         return pitchHorizonY + screenHeight * (0.5f + viewerHeightAboveFloor.coerceAtLeast(0f)) / dist
     }
 
-    /** Низ стены / колонны на линии пола (та же плоскость, что и floor cast). */
+    /** Экранная Y точки на мировой высоте [worldZ] при камере на [cameraHeightAboveFloor] над полом. */
+    fun worldZScreenY(
+        pitchHorizonY: Float,
+        screenHeight: Int,
+        perpDistance: Float,
+        cameraHeightAboveFloor: Float,
+        worldZ: Float,
+    ): Float {
+        val dist = perpDistance.coerceAtLeast(0.05f)
+        return pitchHorizonY + screenHeight * (0.5f + cameraHeightAboveFloor - worldZ) / dist
+    }
+
+    /**
+     * Вертикальная грань стены/колонны: низ на z=0, верх на z=[wallHeight].
+     * При прыжке/лифте низ может уйти за нижний край — оставляем видимую полосу боковины.
+     */
     fun projectWallSpan(
         pitchHorizonY: Float,
         lineHeight: Float,
@@ -36,34 +51,60 @@ object CameraProjection {
         perpDistance: Float,
         viewerHeightAboveFloor: Float,
     ): Pair<Float, Float> {
-        val wallBottomY = worldFloorScreenY(
+        val wallBottomY = worldZScreenY(
             pitchHorizonY,
             screenHeight,
             perpDistance,
             viewerHeightAboveFloor,
+            worldZ = 0f,
         )
-        val wallTopY = wallBottomY - lineHeight * wallHeight
+        val wallTopY = worldZScreenY(
+            pitchHorizonY,
+            screenHeight,
+            perpDistance,
+            viewerHeightAboveFloor,
+            worldZ = wallHeight,
+        )
+        val rawTop = minOf(wallTopY, wallBottomY)
+        val rawBottom = maxOf(wallTopY, wallBottomY)
         val maxY = screenHeight.toFloat()
-        val drawStart = minOf(wallTopY, wallBottomY).coerceIn(0f, maxY)
-        val drawEnd = maxOf(wallTopY, wallBottomY).coerceIn(0f, maxY)
+
+        if (rawBottom <= 0f || rawTop > maxY) {
+            return maxY to maxY
+        }
+
+        var drawStart = rawTop.coerceAtLeast(0f)
+        var drawEnd = rawBottom.coerceAtMost(maxY)
+
+        if (drawEnd - drawStart < 0.5f) {
+            val band = (lineHeight * wallHeight).coerceIn(2f, maxY * 0.4f)
+            drawStart = if (rawTop < maxY - 0.5f) {
+                rawTop.coerceAtLeast(0f)
+            } else {
+                (maxY - band).coerceAtLeast(0f)
+            }
+            drawEnd = maxY
+        }
         return drawStart to drawEnd
     }
 
-    /** Спрайт с ногами/центром на [spriteWorldZ]; [viewerHeight] — высота камеры над полом яруса. */
+    /**
+     * Спрайт в мире: ноги на [spriteWorldZ], камера на [cameraHeightAboveFloor] над полом.
+     * Смещение камеры синхронизирует наземные спрайты с плоскостью пола при прыжке.
+     */
     fun projectSpriteSpan(
         pitchHorizonY: Float,
         spriteHeight: Int,
         screenHeight: Int,
         perpDistance: Float,
-        viewerHeight: Float,
         spriteWorldZ: Float = 0f,
+        cameraHeightAboveFloor: Float = 0f,
     ): Pair<Int, Int> {
-        val floorY = worldFloorScreenY(
-            pitchHorizonY,
-            screenHeight,
-            perpDistance,
-            viewerHeight - spriteWorldZ,
-        ).coerceIn(0f, screenHeight.toFloat())
+        val dist = perpDistance.coerceAtLeast(0.05f)
+        val floorY = (
+            pitchHorizonY +
+                screenHeight * (0.5f + cameraHeightAboveFloor - spriteWorldZ) / dist
+            ).coerceIn(0f, screenHeight.toFloat())
         val drawEndY = floorY.toInt().coerceIn(1, screenHeight)
         val drawStartY = (floorY - spriteHeight).toInt().coerceIn(0, drawEndY - 1)
         return drawStartY to drawEndY

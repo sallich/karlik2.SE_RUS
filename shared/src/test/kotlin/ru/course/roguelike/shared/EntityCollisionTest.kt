@@ -7,7 +7,9 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import ru.course.roguelike.shared.engine.EntityCollision
 import ru.course.roguelike.shared.engine.TileMap
+import ru.course.roguelike.shared.model.CombatConstants
 import ru.course.roguelike.shared.model.TileType
+import ru.course.roguelike.shared.model.WorldVertical
 
 class EntityCollisionTest {
     @Test
@@ -37,6 +39,22 @@ class EntityCollisionTest {
         val target = EntityCollision.Circle(0f, 3f, 0.35f)
         val hit = EntityCollision.raycastCircle(0f, 0f, yaw = 0f, maxDistance = 10f, target)
         assertNull(hit)
+    }
+
+    @Test
+    fun `column blocks ground movement but not flying height`() {
+        val tiles = Array(9) { TileType.FLOOR }
+        tiles[1 * 3 + 1] = TileType.COLUMN
+        val map = TileMap(3, 3, tiles)
+        val onColumn = EntityCollision.Circle(1.5f, 1.5f, CombatConstants.MOB_RADIUS)
+        assertTrue(EntityCollision.overlapsMovement(map, onColumn, localHeight = 0f))
+        assertFalse(
+            EntityCollision.overlapsMovement(
+                map,
+                onColumn,
+                localHeight = WorldVertical.COLUMN_HEIGHT + 0.05f,
+            ),
+        )
     }
 
     @Test

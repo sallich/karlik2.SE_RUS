@@ -1,8 +1,5 @@
 package ru.course.roguelike.game.domain.combat
 
-import ru.course.roguelike.game.domain.ai.MobDecisionContext
-import ru.course.roguelike.game.domain.ai.MobIntent
-import ru.course.roguelike.game.domain.ai.distanceTo
 import ru.course.roguelike.game.domain.event.GameEvent
 import ru.course.roguelike.game.domain.inventory.InventoryWeapons
 import ru.course.roguelike.game.domain.progression.ProgressionSystem
@@ -13,8 +10,6 @@ import ru.course.roguelike.shared.engine.TileMap
 import ru.course.roguelike.shared.model.CombatConstants
 import ru.course.roguelike.shared.model.InventoryDefinitions
 import ru.course.roguelike.shared.model.InventoryItemType
-import kotlin.math.hypot
-
 object CombatSystem {
     fun tick(session: GameSession, deltaMs: Int, playerAttacking: Boolean): List<GameEvent> {
         if (session.playerHp <= 0) return emptyList()
@@ -28,7 +23,9 @@ object CombatSystem {
             firePlayerProjectile(session)?.let { events.add(it) }
             events.addAll(InventoryWeapons.tryAutoReload(session))
         }
-        tickMobs(session, map, deltaSec, events)
+        CombatMobTick.tickMobs(session, map, deltaSec, events)
+        session.mobs.filter { it.alive }.forEach { CombatMobMovement.clampMobOutOfWalls(map, it) }
+        CombatMobMovement.separateMobs(session.mobs, map)
         tickProjectiles(session, map, deltaSec, events)
         removeDeadMobs(session, events)
         events.addAll(ProgressionSystem.checkLocationCompletion(session))
@@ -42,71 +39,35 @@ object CombatSystem {
         }
     }
 
-    private fun tickMobs(
-        session: GameSession,
-        map: TileMap,
-        deltaSec: Float,
-        events: MutableList<GameEvent>,
-    ) {
-        val playerX = session.playerPose.x
-        val playerY = session.playerPose.y
-
-        for (mob in session.mobs) {
-            if (!mob.alive) continue
-            val distance = mob.distanceTo(playerX, playerY)
-            val context = MobDecisionContext(
-                mob = mob,
-                playerX = playerX,
-                playerY = playerY,
-                distanceToPlayer = distance,
-                playerHp = session.playerHp,
-            )
-            when (mob.behavior.decide(context)) {
-                MobIntent.Idle -> Unit
-                MobIntent.ChasePlayer -> moveToward(map, mob, playerX, playerY, mob.moveSpeed, deltaSec)
-                MobIntent.KitePlayer -> moveToward(map, mob, playerX, playerY, -mob.moveSpeed, deltaSec)
-                MobIntent.AttackPlayer -> {
-                    if (distance <= mob.attackRange && mob.attackCooldownMs <= 0) {
-                        damagePlayer(session, mob.attackDamage, events)
-                        mob.attackCooldownMs = mob.attackCooldownTotalMs
-                    }
-                }
-                MobIntent.ShootPlayer -> {
-                    if (mob.attackCooldownMs <= 0) {
-                        session.projectiles.add(
-                            ProjectileEntity.fromMob(
-                                mob,
-                                playerX,
-                                playerY,
-                                session.allocateEntityId(),
-                            ),
-                        )
-                        mob.attackCooldownMs = mob.attackCooldownTotalMs
-                    }
-                }
-            }
-        }
-    }
-
     private fun tickProjectiles(
         session: GameSession,
         map: TileMap,
         deltaSec: Float,
         events: MutableList<GameEvent>,
     ) {
-        val playerCircle = EntityCollision.playerCircle(session.playerPose)
+        val playerZ = EntityCollision.playerHitCenterZ(session.playerPose)
         session.projectiles.removeAll { projectile ->
             projectile.x += projectile.velocityX * deltaSec
             projectile.y += projectile.velocityY * deltaSec
+            projectile.z += projectile.velocityZ * deltaSec
             val circle = EntityCollision.Circle(
                 projectile.x,
                 projectile.y,
                 CombatConstants.PROJECTILE_RADIUS,
             )
             when {
-                EntityCollision.overlapsWall(map, circle) -> true
-                projectile.fromPlayer -> handlePlayerProjectileHit(session, circle, events)
-                EntityCollision.circlesOverlap(circle, playerCircle) -> {
+                EntityCollision.overlapsWall(map, circle, worldZ = projectile.z) -> true
+                projectile.fromPlayer -> handlePlayerProjectileHit(session, projectile, events)
+                EntityCollision.spheresOverlap3D(
+                    projectile.x,
+                    projectile.y,
+                    projectile.z,
+                    CombatConstants.PROJECTILE_RADIUS,
+                    session.playerPose.x,
+                    session.playerPose.y,
+                    playerZ,
+                    CombatConstants.MOB_HIT_HALF_HEIGHT,
+                ) -> {
                     damagePlayer(session, projectile.damage, events)
                     true
                 }
@@ -117,14 +78,20 @@ object CombatSystem {
 
     private fun handlePlayerProjectileHit(
         session: GameSession,
-        circle: EntityCollision.Circle,
+        projectile: ProjectileEntity,
         events: MutableList<GameEvent>,
     ): Boolean {
         val hitMob = session.mobs.firstOrNull { mob ->
             mob.alive &&
-                EntityCollision.circlesOverlap(
-                    circle,
-                    EntityCollision.Circle(mob.x, mob.y, CombatConstants.MOB_RADIUS),
+                EntityCollision.spheresOverlap3D(
+                    projectile.x,
+                    projectile.y,
+                    projectile.z,
+                    CombatConstants.PROJECTILE_RADIUS,
+                    mob.x,
+                    mob.y,
+                    mob.hitCenterZ(),
+                    CombatConstants.MOB_HIT_HALF_HEIGHT,
                 )
         } ?: return false
 
@@ -194,27 +161,6 @@ object CombatSystem {
     private fun onMobKilled(session: GameSession, mob: MobEntity, events: MutableList<GameEvent>) {
         events.addAll(ProgressionSystem.awardMobKill(session, mob.kind))
         MobLootDropper.dropFrom(session, mob)?.let { events.add(it) }
-    }
-
-    private fun moveToward(
-        map: TileMap,
-        mob: MobEntity,
-        targetX: Float,
-        targetY: Float,
-        speed: Float,
-        deltaSec: Float,
-    ) {
-        val dx = targetX - mob.x
-        val dy = targetY - mob.y
-        val dist = hypot(dx.toDouble(), dy.toDouble()).toFloat()
-        if (dist < 0.01f) return
-        val step = speed * deltaSec
-        val moveX = dx / dist * step
-        val moveY = dy / dist * step
-        val circle = EntityCollision.Circle(mob.x, mob.y, CombatConstants.MOB_RADIUS)
-        val moved = EntityCollision.moveWithWallSlide(map, circle, moveX, moveY)
-        mob.x = moved.x
-        mob.y = moved.y
     }
 
     private const val MILLIS_PER_SECOND = 1000f

@@ -6,6 +6,7 @@ import ru.course.roguelike.shared.dto.ItemSnapshot
 import ru.course.roguelike.shared.dto.KeySnapshot
 import ru.course.roguelike.shared.dto.MobSnapshot
 import ru.course.roguelike.shared.dto.ProjectileSnapshot
+import ru.course.roguelike.shared.dto.RoomClearTimerSnapshot
 import ru.course.roguelike.shared.model.GridPos
 import ru.course.roguelike.shared.model.PlayerPose
 
@@ -31,4 +32,5 @@ data class SyncBindings(
     val agentMutator: (PlayerPose?) -> Unit = {},
     val verticalMutator: (verticalVelocity: Float) -> Unit = {},
     val elevatorPhaseMutator: (elevatorPhase: String) -> Unit = {},
+    val roomTimerMutator: (RoomClearTimerSnapshot?, Long) -> Unit = { _, _ -> },
 )

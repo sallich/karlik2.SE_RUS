@@ -11,6 +11,8 @@ data class MobSnapshot(
     val y: Float,
     val hp: Int,
     val maxHp: Int,
+    /** Высота над полом яруса (0 = на земле, >0 = летающий). */
+    val z: Float = 0f,
 )
 
 @Serializable
@@ -19,4 +21,6 @@ data class ProjectileSnapshot(
     val x: Float,
     val y: Float,
     val fromPlayer: Boolean = false,
+    /** Высота снаряда над полом яруса. */
+    val z: Float = 0f,
 )

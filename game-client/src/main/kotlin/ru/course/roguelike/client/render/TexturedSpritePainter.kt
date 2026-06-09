@@ -6,8 +6,8 @@ import ru.course.roguelike.shared.dto.MobSnapshot
 import ru.course.roguelike.shared.dto.ProjectileSnapshot
 import ru.course.roguelike.shared.model.MobKind
 import ru.course.roguelike.shared.model.PlayerPose
-import ru.course.roguelike.shared.model.WorldVertical
 import ru.course.roguelike.shared.render.BillboardRenderer
+import ru.course.roguelike.shared.render.Raycaster
 import ru.course.roguelike.shared.render.RgbImageSampler
 import ru.course.roguelike.shared.render.TextureMapping
 
@@ -30,6 +30,7 @@ internal class TexturedSpritePainter(
         items: List<ItemSnapshot>,
         agentPose: PlayerPose? = null,
         wallDistances: FloatArray,
+        wallMeta: Array<Raycaster.WallColumnMeta>,
     ) {
         spriteScratch.clear()
         fun add(
@@ -60,7 +61,7 @@ internal class TexturedSpritePainter(
                 MobKind.MELEE -> BillboardRenderer.SpriteTexture.MELEE
                 MobKind.RANGED, MobKind.LLM_GUARD -> BillboardRenderer.SpriteTexture.RANGED
             }
-            add(it.x, it.y, texture)
+            add(it.x, it.y, texture, worldZ = it.z)
         }
         projectiles.forEach {
             add(
@@ -68,7 +69,7 @@ internal class TexturedSpritePainter(
                 it.y,
                 BillboardRenderer.SpriteTexture.BLAST,
                 if (it.fromPlayer) 0.4f else 0.35f,
-                worldZ = WorldVertical.EYE_HEIGHT,
+                worldZ = it.z,
             )
         }
 
@@ -79,35 +80,78 @@ internal class TexturedSpritePainter(
             pitchHorizon,
             spriteScratch,
             wallDistances,
+            wallMeta,
             viewerHeightAboveFloor,
         )
         for (command in commands) {
-            paintSpriteCommand(command, wallDistances)
+            paintSpriteCommand(command, wallDistances, wallMeta, pitchHorizon, viewerHeightAboveFloor)
         }
     }
 
-    private fun paintSpriteCommand(command: BillboardRenderer.DrawCommand, wallDistances: FloatArray) {
+    private data class SpriteColumnContext(
+        val command: BillboardRenderer.DrawCommand,
+        val wallDistances: FloatArray,
+        val wallMeta: Array<Raycaster.WallColumnMeta>,
+        val pitchHorizon: Float,
+        val viewerHeightAboveFloor: Float,
+        val sampler: RgbImageSampler?,
+        val chromaKey: Boolean,
+        val x: Int,
+    )
+
+    private fun paintSpriteCommand(
+        command: BillboardRenderer.DrawCommand,
+        wallDistances: FloatArray,
+        wallMeta: Array<Raycaster.WallColumnMeta>,
+        pitchHorizon: Float,
+        viewerHeightAboveFloor: Float,
+    ) {
         val sampler = textures.samplerFor(command.texture)
         val chromaKey = textures.usesChromaKey(command.texture)
         for (x in command.left until command.right) {
-            paintSpriteColumn(command, wallDistances, sampler, chromaKey, x)
+            paintSpriteColumn(
+                SpriteColumnContext(
+                    command = command,
+                    wallDistances = wallDistances,
+                    wallMeta = wallMeta,
+                    pitchHorizon = pitchHorizon,
+                    viewerHeightAboveFloor = viewerHeightAboveFloor,
+                    sampler = sampler,
+                    chromaKey = chromaKey,
+                    x = x,
+                ),
+            )
         }
     }
 
-    private fun paintSpriteColumn(
-        command: BillboardRenderer.DrawCommand,
-        wallDistances: FloatArray,
-        sampler: RgbImageSampler?,
-        chromaKey: Boolean,
-        x: Int,
-    ) {
-        val col = x.coerceIn(0, wallDistances.size - 1)
-        if (BillboardRenderer.isColumnOccluded(command.distance, wallDistances[col])) return
-        val u = TextureMapping.spriteColumnU(x, command.left, command.right)
-        for (y in command.top until command.bottom) {
-            val rgb = spritePixelRgb(command, sampler, chromaKey, u, y) ?: continue
-            buffer.set(x, y, rgb)
+    private fun paintSpriteColumn(context: SpriteColumnContext) {
+        val col = context.x.coerceIn(0, context.wallDistances.size - 1)
+        val meta = context.wallMeta.getOrNull(col)
+        val u = TextureMapping.spriteColumnU(context.x, context.command.left, context.command.right)
+        for (y in context.command.top until context.command.bottom) {
+            visibleSpritePixel(context, col, meta, u, y)?.let { buffer.set(context.x, y, it) }
         }
+    }
+
+    private fun visibleSpritePixel(
+        context: SpriteColumnContext,
+        col: Int,
+        meta: Raycaster.WallColumnMeta?,
+        u: Float,
+        y: Int,
+    ): Int? {
+        val effectiveWall = BillboardRenderer.effectiveWallDistanceForSpriteRow(
+            screenRow = y,
+            spriteDistance = context.command.distance,
+            wallDistance = context.wallDistances[col],
+            wallMeta = meta,
+            pitchHorizonY = context.pitchHorizon,
+            screenHeight = viewHeight,
+            viewerHeightAboveFloor = context.viewerHeightAboveFloor,
+            spriteWorldZ = context.command.worldZ,
+        )
+        if (context.command.distance > effectiveWall + 0.05f) return null
+        return spritePixelRgb(context.command, context.sampler, context.chromaKey, u, y)
     }
 
     private fun spritePixelRgb(

@@ -8,6 +8,7 @@ import ru.course.roguelike.game.domain.session.GameSession
 import ru.course.roguelike.game.domain.session.InteractSystem
 import ru.course.roguelike.game.domain.session.LavaDamageSystem
 import ru.course.roguelike.game.domain.session.PlayerVerticalMotion
+import ru.course.roguelike.game.domain.session.RoomEngagementSystem
 import ru.course.roguelike.shared.dto.InputSyncRequest
 import ru.course.roguelike.shared.engine.FpsMovementSystem
 
@@ -26,6 +27,7 @@ internal object SyncInputPipeline {
         LavaDamageSystem.apply(session, input.deltaMs)?.let { events.add(it) }
         events.addAll(InteractSystem.apply(session, input, poseBeforeMove, session.playerPose))
         events.addAll(InventorySystem.handleHotbarInput(session, input.hotbarSelect, input.hotbarAssign, input.reload))
+        RoomEngagementSystem.tick(session)
         events.addAll(CombatSystem.tick(session, input.deltaMs, input.attack))
         return events
     }

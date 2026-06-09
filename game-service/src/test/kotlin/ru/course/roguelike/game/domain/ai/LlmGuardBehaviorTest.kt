@@ -6,10 +6,13 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import ru.course.roguelike.game.domain.combat.MobEntity
+import ru.course.roguelike.game.domain.level.Room
 import ru.course.roguelike.game.infrastructure.agent.AgentRunnerMobClient
 import ru.course.roguelike.shared.model.MobKind
 
 class LlmGuardBehaviorTest {
+    private val testRoom = Room(0, 0, 20, 20)
+
     @Test
     fun `falls back to shooter when agent-runner unavailable`() {
         val mobClient = mockk<AgentRunnerMobClient>()
@@ -20,6 +23,7 @@ class LlmGuardBehaviorTest {
             x = 5f,
             y = 5f,
             behavior = behavior,
+            aggroRoom = testRoom,
         )
         val context = MobDecisionContext(
             mob = mob,
@@ -42,6 +46,7 @@ class LlmGuardBehaviorTest {
             x = 5f,
             y = 5f,
             behavior = behavior,
+            aggroRoom = testRoom,
         )
         val context = MobDecisionContext(
             mob = mob,

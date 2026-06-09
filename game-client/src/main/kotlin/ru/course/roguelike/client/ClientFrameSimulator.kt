@@ -70,8 +70,8 @@ internal object ClientFrameSimulator {
     }
 
     private fun flushSyncIfNeeded(game: RoguelikeGame, localPose: PlayerPose) {
-        val urgentInteract = game.pendingSyncInput.interact
-        if ((!InputSampler.shouldSync(game.syncAccum) && !urgentInteract) || game.sync.sessionId == null) return
+        val urgent = game.pendingSyncInput.interact || game.pendingSyncInput.attack
+        if ((!InputSampler.shouldSync(game.syncAccum) && !urgent) || game.sync.sessionId == null) return
 
         game.syncAccum = 0f
         val syncPayload = game.pendingSyncInput.copy(
