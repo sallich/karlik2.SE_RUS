@@ -44,6 +44,7 @@ object RoomEngagementSystem {
             if (!hasLivingMobs(session, state.roomIndex)) {
                 state.cleared = true
                 clearReinforcementsTargeting(session, state.roomIndex)
+                if (state.doorsLocked) RoomPrizeReveal.revealAtCenter(session, state.roomIndex)
             }
         }
     }

@@ -44,7 +44,9 @@ object RoomVisibility {
         if (state.cleared || state.doorways.isEmpty()) return emptyList()
         val room = session.rooms.getOrNull(state.roomIndex) ?: return emptyList()
         val prize = prizeOf(session, room) ?: return emptyList()
-        return state.doorways.map { DoorMarkerSnapshot(x = it.x + 0.5f, y = it.y + 0.5f, kind = prize.kind) }
+        return state.doorways.map {
+            DoorMarkerSnapshot(x = it.x + 0.5f, y = it.y + 0.5f, kind = prize.kind, sealed = state.doorsLocked)
+        }
     }
 
     /** Приоритетный спрятанный приз комнаты для метки на двери. */

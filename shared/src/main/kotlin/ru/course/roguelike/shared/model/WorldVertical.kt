@@ -49,7 +49,6 @@ object WorldVertical {
 
 fun TileType.wallHeight(): Float = when (this) {
     TileType.WALL -> WorldVertical.WALL_HEIGHT
-    TileType.DOOR_LOCKED -> WorldVertical.WALL_HEIGHT
     TileType.COLUMN -> WorldVertical.COLUMN_HEIGHT
     else -> 0f
 }

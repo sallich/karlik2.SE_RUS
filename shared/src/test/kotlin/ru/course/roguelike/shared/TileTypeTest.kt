@@ -52,11 +52,13 @@ class TileTypeTest {
     }
 
     @Test
-    fun `locked door blocks movement and vision and rises to wall height`() {
+    fun `locked door blocks movement but is an invisible see-through barrier`() {
+        // Дверь — невидимый барьер коллизии: герой не проходит, но обзор не перекрыт
+        // (сама дверь рисуется billboard-панелью). issue #24.
         assertFalse(TileType.DOOR_LOCKED.walkable)
-        assertTrue(TileType.DOOR_LOCKED.blocksVision)
+        assertFalse(TileType.DOOR_LOCKED.blocksVision)
         assertFalse(TileType.DOOR_LOCKED.damaging)
-        assertEquals(WorldVertical.WALL_HEIGHT, TileType.DOOR_LOCKED.wallHeight())
+        assertEquals(0f, TileType.DOOR_LOCKED.wallHeight())
     }
 
     @Test

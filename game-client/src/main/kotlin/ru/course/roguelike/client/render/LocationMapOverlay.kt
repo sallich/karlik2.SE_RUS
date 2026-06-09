@@ -152,7 +152,7 @@ class LocationMapOverlay(
         TileType.LAVA -> Color.RED
         TileType.ELEVATOR -> Color.CYAN
         TileType.EXIT_GATE -> Color(0.2f, 0.85f, 0.35f, 1f)
-        TileType.DOOR_LOCKED -> Color(0.55f, 0.36f, 0.18f, 1f)
+        TileType.DOOR_LOCKED -> Color(0.8f, 0.2f, 0.16f, 1f)
         else -> null
     }
 

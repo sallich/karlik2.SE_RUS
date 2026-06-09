@@ -1,5 +1,6 @@
 package ru.course.roguelike.game.domain.session
 
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -44,6 +45,23 @@ class RoomVisibilityTest {
         assertTrue(snapshot.items.any { it.kind == ItemKind.WEAPON_PISTOL }, "weapon revealed after clear")
         assertTrue(snapshot.keyPickups.isNotEmpty(), "key revealed after clear")
         assertTrue(snapshot.doorMarkers.isEmpty(), "markers gone after clear")
+    }
+
+    @Test
+    fun `clearing a sealed room moves the indicated prize to its center`() {
+        val session = session()
+        val mob = MobSpawner.createMob(session, MobKind.MELEE, 2.5f, 3.5f, roomA)
+        session.mobs.add(mob)
+        RoomEngagementSystem.tick(session) // player inside + living mob -> room sealed
+        assertTrue(session.roomEngagements[0].doorsLocked)
+
+        mob.hp = 0
+        RoomEngagementSystem.tick(session) // no mobs left -> cleared, prize revealed in the middle
+
+        val center = roomA.center
+        val key = session.keyPickups.single()
+        assertEquals(center.x + 0.5f, key.x, 0.001f)
+        assertEquals(center.y + 0.5f, key.y, 0.001f)
     }
 
     private fun session(): GameSession {
