@@ -32,14 +32,14 @@ enum class TileType(
     EXIT_GATE(walkable = true, blocksVision = false, damaging = false),
 
     /**
-     * Дверь комнаты (issue #24): полноразмерная стена в проёме с иконкой приза.
-     * Вход — по E; после «сбора» двери на всех выходах комнаты появляются [ROOM_SEAL].
+     * Устаревший тип — на карте больше не ставится; оставлен для совместимости снимков.
+     * Актуальная печать — [ROOM_SEAL] в коридоре.
      */
     ROOM_DOOR(walkable = false, blocksVision = true, damaging = false),
 
     /**
-     * Красная печать в проёме запечатанной комнаты: блокирует героя, мобы проходят
-     * (см. [ru.course.roguelike.shared.engine.EntityCollision.passRoomSeals]).
+     * Красная печать в коридоре у входа в комнату: блокирует проход, вход по E.
+     * Проём внутри комнаты остаётся проходимым ([FLOOR]).
      */
     ROOM_SEAL(walkable = false, blocksVision = true, damaging = false),
 }

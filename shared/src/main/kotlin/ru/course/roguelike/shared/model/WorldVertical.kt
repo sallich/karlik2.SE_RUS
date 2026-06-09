@@ -15,12 +15,11 @@ object WorldVertical {
     const val WALL_HEIGHT = 1.0f
     const val COLUMN_HEIGHT = 0.45f
 
-    /**
-     * Высота красной печати ([TileType.ROOM_SEAL]): низкий барьер в проёме, а не
-     * сплошной куб во всю клетку. Движение героя печать блокирует на любой высоте
-     * (см. [blocksMovementAt]), поэтому перепрыгнуть её нельзя несмотря на низкий рендер.
-     */
-    const val SEAL_HEIGHT = 0.5f
+    /** Половина ширины колонны для коллизии (уже клетки, как в рендере). */
+    const val COLUMN_COLLISION_HALF_SIZE = 0.25f
+
+    /** Высота красной печати ([TileType.ROOM_SEAL]) — как у стены лабиринта. */
+    const val SEAL_HEIGHT = WALL_HEIGHT
 
     /** Насколько смещается линия пола на экране на каждую единицу высоты мира. */
     const val ELEVATION_SCREEN_FACTOR = 0.32f

@@ -52,10 +52,7 @@ internal fun RoguelikeGame.buildSyncBindings(): SyncBindings = SyncBindings(
 )
 
 internal fun RoguelikeGame.applyWorldFromSnapshot(snap: GameSnapshot) {
-    if (snap.currentLevel != currentLevel) {
-        currentLevel = snap.currentLevel
-        visitedTracker.clear()
-    }
+    currentLevel = snap.currentLevel
     tileMap = TileMap.fromFlat(snap.width, snap.height, snap.tiles)
     doorMarkers = snap.doorMarkers
 }
@@ -145,7 +142,7 @@ internal fun RoguelikeGame.drawGameHud() {
         inventory = playerInventory,
         inventoryOpen = showInventoryGrid,
         floorLevel = currentLevel,
-        floorCount = if (twoLevelLocation) 2 else 1,
+        floorCount = 1,
         keysCollected = keysCollected,
         keysRequired = keysRequired,
         interactionHint = interactionHint(

@@ -8,8 +8,10 @@ data class RoomEngagementState(
     var timerStartedAtMs: Long? = null,
     var cleared: Boolean = false,
     var reinforcementsTriggered: Boolean = false,
-    /** Ячейки дверных проёмов комнаты (issue #24), запираются до зачистки. */
+    /** Ячейки дверных проёмов внутри комнаты (issue #24). */
     val doorways: List<GridPos> = emptyList(),
+    /** Ячейки коридора, где ставятся печати при запирании. */
+    val sealCells: List<GridPos> = emptyList(),
     /** Заперты ли сейчас двери комнаты (герой внутри, комната ещё не зачищена). */
     var doorsLocked: Boolean = false,
     /** Герой вошёл в комнату через дверь (E). */

@@ -7,7 +7,7 @@ import ru.course.roguelike.shared.model.TileType
 
 /**
  * Видимость призов комнаты (issue #24): призы скрыты, пока комната не зачищена.
- * [doorMarkers] описывают ещё стоящие на карте [TileType.ROOM_DOOR] для отрисовки приза на стене.
+ * [doorMarkers] описывают коридорные [TileType.ROOM_SEAL] с призом на красной стене.
  */
 object RoomVisibility {
     fun roomIndexAt(session: GameSession, x: Float, y: Float): Int? {
@@ -38,8 +38,8 @@ object RoomVisibility {
         val prize = prizeOf(session, room)
         val mobRoom = prize == null && RoomEngagementSystem.hasLivingMobs(session, state.roomIndex)
         if (prize == null && !mobRoom) return emptyList()
-        return state.doorways
-            .filter { session.map.get(it) == TileType.ROOM_DOOR }
+        return state.sealCells
+            .filter { session.map.get(it) == TileType.ROOM_SEAL }
             .map {
                 DoorMarkerSnapshot(
                     x = it.x + 0.5f,

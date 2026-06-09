@@ -9,12 +9,15 @@ import kotlin.math.floor
 import kotlin.math.hypot
 import kotlin.math.sin
 
-/** Поиск двери комнаты для взаимодействия (E) — сервер и клиентские подсказки. */
+/** Поиск печати комнаты для взаимодействия (E) — сервер и клиентские подсказки. */
 object DoorInteraction {
+    private fun isRoomEntrance(tile: TileType?): Boolean =
+        tile == TileType.ROOM_SEAL || tile == TileType.ROOM_DOOR
+
     fun findInteractable(map: TileMap, pose: PlayerPose): GridPos? =
         findInView(map, pose) ?: findAdjacent(map, pose)
 
-    /** Луч взгляда — приоритетный способ нажать E на дверь. */
+    /** Луч взгляда — приоритетный способ нажать E на печать. */
     fun findInView(map: TileMap, pose: PlayerPose): GridPos? {
         val step = 0.12f
         var dist = 0.35f
@@ -22,13 +25,13 @@ object DoorInteraction {
             val x = pose.x + cos(pose.yaw) * dist
             val y = pose.y + sin(pose.yaw) * dist
             val cell = GridPos(floor(x).toInt(), floor(y).toInt())
-            if (map.get(cell) == TileType.ROOM_DOOR) return cell
+            if (isRoomEntrance(map.get(cell))) return cell
             dist += step
         }
         return null
     }
 
-    /** Соседняя клетка с дверью в радиусе досягаемости. */
+    /** Соседняя клетка с печатью в радиусе досягаемости. */
     fun findAdjacent(map: TileMap, pose: PlayerPose): GridPos? {
         val px = floor(pose.x).toInt()
         val py = floor(pose.y).toInt()
@@ -38,7 +41,7 @@ object DoorInteraction {
             for (dy in -1..1) {
                 if (dx == 0 && dy == 0) continue
                 val cell = GridPos(px + dx, py + dy)
-                if (map.get(cell) != TileType.ROOM_DOOR) continue
+                if (!isRoomEntrance(map.get(cell))) continue
                 val dist = hypot(
                     (cell.x + 0.5f - pose.x).toDouble(),
                     (cell.y + 0.5f - pose.y).toDouble(),
@@ -50,7 +53,7 @@ object DoorInteraction {
             }
         }
         val under = GridPos(px, py)
-        if (map.get(under) == TileType.ROOM_DOOR) return under
+        if (isRoomEntrance(map.get(under))) return under
         return best
     }
 }

@@ -41,10 +41,9 @@ class TileTypeTest {
     }
 
     @Test
-    fun `room seal is a low red barrier that still blocks`() {
+    fun `room seal is a full-height red barrier in the corridor`() {
         assertFalse(TileType.ROOM_SEAL.walkable)
         assertTrue(TileType.ROOM_SEAL.blocksVision)
-        assertEquals(WorldVertical.SEAL_HEIGHT, TileType.ROOM_SEAL.wallHeight())
-        assertTrue(TileType.ROOM_SEAL.wallHeight() < WorldVertical.WALL_HEIGHT, "seal must be shorter than a full wall")
+        assertEquals(WorldVertical.WALL_HEIGHT, TileType.ROOM_SEAL.wallHeight())
     }
 }

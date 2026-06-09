@@ -187,17 +187,14 @@ internal class TexturedWallPainter(
         doorMarkers: List<DoorMarkerSnapshot>,
     ): Int {
         val base = when (tile) {
-            TileType.ROOM_SEAL -> TextureMapping.shadeRgb(SEAL_RGB, distance, sideDarken * 0.95f)
-            TileType.ROOM_DOOR -> {
-                val doorRgb = textures.door.samplePixel(u, v).rgb
-                TextureMapping.shadeRgb(tintBrown(doorRgb), distance, sideDarken)
-            }
+            TileType.ROOM_SEAL, TileType.ROOM_DOOR ->
+                TextureMapping.shadeRgb(SEAL_RGB, distance, sideDarken * 0.95f)
             else -> {
                 val sample = textures.walls.samplePixel(u, v)
                 TextureMapping.shadeRgb(sample.rgb, distance, sideDarken)
             }
         }
-        if (tile != TileType.ROOM_DOOR) return base
+        if (tile != TileType.ROOM_SEAL && tile != TileType.ROOM_DOOR) return base
         val marker = doorMarkerAt(doorMarkers, meta.hitMapX, meta.hitMapY) ?: return base
         return blendPrize(base, marker, u, row, wallStart, wallEnd, distance)
     }

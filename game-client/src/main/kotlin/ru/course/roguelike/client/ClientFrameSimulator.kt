@@ -43,10 +43,6 @@ internal object ClientFrameSimulator {
         game.lastCollisionDebug = movement.debug
         game.clientVerticalVelocity = vertical.verticalVelocity
         game.clientElevatorPhase = vertical.elevatorPhase
-        if (vertical.levelSwitched) {
-            game.currentLevel = 1 - game.currentLevel
-            game.visitedTracker.clear()
-        }
         val onElevatorTile = map.getTileAt(vertical.pose.x, vertical.pose.y) == TileType.ELEVATOR
         game.clientWasOnElevator = onElevatorTile || game.clientElevatorPhase != ElevatorPhase.IDLE
         val localPose = movement.pose

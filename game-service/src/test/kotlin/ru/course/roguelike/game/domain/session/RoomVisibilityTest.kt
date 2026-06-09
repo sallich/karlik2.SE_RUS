@@ -55,7 +55,7 @@ class RoomVisibilityTest {
         session.roomEngagements[0].entered = true
         session.roomEngagements[0].doorsLocked = true
         session.roomEngagements[0].timerStartedAtMs = session.serverTimeMs
-        session.roomEngagements[0].doorways.forEach { session.map.setTile(it, TileType.ROOM_SEAL) }
+        session.roomEngagements[0].sealCells.forEach { session.map.setTile(it, TileType.ROOM_SEAL) }
 
         mob.hp = 0
         RoomEngagementSystem.tick(session)
@@ -69,19 +69,22 @@ class RoomVisibilityTest {
     private fun session(): GameSession {
         val map = corridorMap()
         val doorwaysByRoom = listOf(roomA, roomB).associateWith { RoomDoorways.of(map, it) }
-        doorwaysByRoom[roomA].orEmpty().forEach { map.setTile(it, TileType.ROOM_DOOR) }
+        val engagements = listOf(roomA, roomB).mapIndexed { index, room ->
+            val doorways = doorwaysByRoom[room].orEmpty()
+            RoomEngagementState(
+                roomIndex = index,
+                doorways = doorways,
+                sealCells = RoomDoorways.sealCells(map, room, doorways),
+            )
+        }.toMutableList()
+        engagements.flatMap { it.sealCells }.forEach { map.setTile(it, TileType.ROOM_SEAL) }
         return GameSession(
             sessionId = "visibility",
             seed = 1L,
             map = map,
             playerPose = PlayerPose(2.5f, 2.5f, yaw = 0f),
             rooms = listOf(roomA, roomB),
-            roomEngagements = listOf(roomA, roomB).mapIndexed { index, room ->
-                RoomEngagementState(
-                    roomIndex = index,
-                    doorways = doorwaysByRoom[room].orEmpty(),
-                )
-            }.toMutableList(),
+            roomEngagements = engagements,
             keyPickups = mutableListOf(KeyPickup(id = 0, x = 2.5f, y = 2.5f)),
             itemPickups = mutableListOf(
                 ItemPickup(id = 0, kind = ItemKind.WEAPON_PISTOL, x = 3.5f, y = 2.5f),

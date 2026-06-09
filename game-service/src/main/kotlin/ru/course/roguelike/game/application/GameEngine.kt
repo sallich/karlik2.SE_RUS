@@ -104,9 +104,9 @@ class GameEngine(
 
     private fun buildTwoLevelSession(sessionId: String, seed: Long, coopAgent: Boolean): SessionBuild {
         val dungeon = TwoLevelLabyrinthGenerator.generate(seed)
-        val ground = dungeon.levels[0]
-        val progress = setupProgress(ground, seed)
-        val playerSpawn = ground.playerSpawn
+        val level = dungeon.levels.single()
+        val progress = setupProgress(level, seed)
+        val playerSpawn = level.playerSpawn
         val occupied = occupiedCells(progress, playerSpawn)
         val session = GameSession(
             sessionId = sessionId,
@@ -119,25 +119,29 @@ class GameEngine(
             } else {
                 null
             },
-            secondLevel = dungeon.levels[1].map,
             keyPickups = progress.keys,
             itemPickups = progress.items,
             nextItemId = progress.items.size,
             bossRoom = progress.bossRoom,
-            rooms = ground.rooms,
-            roomEngagements = buildEngagements(progress.map, ground.rooms),
+            rooms = level.rooms,
+            roomEngagements = buildEngagements(progress.map, level.rooms),
             exitGate = progress.exitGate,
         )
         return SessionBuild(
             session = session,
-            level = ground.copy(map = progress.map),
+            level = level.copy(map = progress.map),
             occupiedCells = occupied,
         )
     }
 
     private fun buildEngagements(map: TileMap, rooms: List<Room>): MutableList<RoomEngagementState> =
         rooms.mapIndexed { index, room ->
-            RoomEngagementState(roomIndex = index, doorways = RoomDoorways.of(map, room))
+            val doorways = RoomDoorways.of(map, room)
+            RoomEngagementState(
+                roomIndex = index,
+                doorways = doorways,
+                sealCells = RoomDoorways.sealCells(map, room, doorways),
+            )
         }.toMutableList()
 
     private fun occupiedCells(progress: ProgressSetup, playerSpawn: GridPos): Set<GridPos> {

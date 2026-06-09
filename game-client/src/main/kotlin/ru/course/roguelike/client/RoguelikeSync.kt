@@ -162,7 +162,6 @@ class RoguelikeSync(
             snap.items,
             snap.exitGate,
         )
-        notifyLevelChange(snap.currentLevel)
     }
 
     fun restart(seed: Long? = null) {
@@ -203,14 +202,5 @@ class RoguelikeSync(
             snap.exitGate,
         )
         bindings.roomTimerMutator(snap.roomClearTimer, snap.serverTimeMs)
-        notifyLevelChange(snap.currentLevel)
-    }
-
-    private fun notifyLevelChange(level: Int) {
-        if (level == currentLevel) return
-        currentLevel = level
-        onStatusLine(
-            if (level == 1) "Лифт: 2-й ярус (над колоннами)" else "Лифт: 1-й ярус",
-        )
     }
 }

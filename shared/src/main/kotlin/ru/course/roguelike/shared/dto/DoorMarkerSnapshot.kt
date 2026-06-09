@@ -4,8 +4,8 @@ import kotlinx.serialization.Serializable
 import ru.course.roguelike.shared.model.ItemKind
 
 /**
- * Незабранная дверь комнаты на карте ([TileType.ROOM_DOOR], issue #24).
- * Клиент рисует коричневую стену двери с иконкой приза по этим полям.
+ * Коридорная печать комнаты ([TileType.ROOM_SEAL], issue #24).
+ * Клиент рисует красную стену с иконкой приза по этим полям.
  */
 @Serializable
 data class DoorMarkerSnapshot(

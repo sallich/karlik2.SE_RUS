@@ -4,7 +4,7 @@ import ru.course.roguelike.shared.model.WorldVertical
 
 /** Вертикальная анимация лифта (общая для сервера и клиента). */
 object ElevatorPhysics {
-    /** Высота подъёма над текущим ярусом — один шаг между этажами. */
+    /** Высота длинного прыжка над колоннами на том же ярусе. */
     const val PEAK_HEIGHT = WorldVertical.FLOOR_STEP
 
     const val LIFT_SPEED = 2.6f
@@ -13,7 +13,6 @@ object ElevatorPhysics {
         val phase: ElevatorPhase,
         val height: Float,
         val verticalVelocity: Float,
-        val levelSwitch: Boolean,
     )
 
     fun tick(phase: ElevatorPhase, height: Float, deltaMs: Int): TickResult {
@@ -26,21 +25,20 @@ object ElevatorPhysics {
                         phase = ElevatorPhase.DESCENDING,
                         height = PEAK_HEIGHT,
                         verticalVelocity = -LIFT_SPEED,
-                        levelSwitch = true,
                     )
                 } else {
-                    TickResult(phase, next, LIFT_SPEED, levelSwitch = false)
+                    TickResult(phase, next, LIFT_SPEED)
                 }
             }
             ElevatorPhase.DESCENDING -> {
                 val next = height - LIFT_SPEED * dt
                 if (next <= 0f) {
-                    TickResult(ElevatorPhase.IDLE, 0f, 0f, levelSwitch = false)
+                    TickResult(ElevatorPhase.IDLE, 0f, 0f)
                 } else {
-                    TickResult(phase, next, -LIFT_SPEED, levelSwitch = false)
+                    TickResult(phase, next, -LIFT_SPEED)
                 }
             }
-            ElevatorPhase.IDLE -> TickResult(phase, height.coerceAtLeast(0f), 0f, levelSwitch = false)
+            ElevatorPhase.IDLE -> TickResult(phase, height.coerceAtLeast(0f), 0f)
         }
     }
 }

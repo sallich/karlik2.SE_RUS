@@ -21,20 +21,23 @@ class RoomEngagementSystemTest {
         val roomB = Room(8, 1, 4, 4)
         val map = corridorMap(roomA, roomB)
         val doorway = RoomDoorways.of(map, roomA).single()
+        val sealCell = RoomDoorways.sealCells(map, roomA, listOf(doorway)).single()
         val session = sessionWithDoorways(
             map,
             listOf(roomA, roomB),
-            PlayerPose(doorway.x + 1.0f, doorway.y + 0.5f, yaw = 0f),
+            PlayerPose(sealCell.x + 0.5f, sealCell.y + 0.5f, yaw = Math.PI.toFloat()),
         )
         session.mobs.add(MobSpawner.createMob(session, MobKind.MELEE, 2.5f, 3.5f, roomA))
-        session.map.setTile(doorway, TileType.ROOM_DOOR)
+        session.map.setTile(sealCell, TileType.ROOM_SEAL)
 
         RoomDoorInteract.tryEnter(session, session.playerPose)
 
         assertTrue(session.roomEngagements[0].entered)
         assertTrue(session.roomEngagements[0].doorsLocked)
         assertNotNull(session.roomEngagements[0].timerStartedAtMs)
-        assertEquals(TileType.ROOM_SEAL, session.map.get(doorway))
+        assertEquals(TileType.FLOOR, session.map.get(doorway), "doorway inside room stays walkable")
+        assertEquals(TileType.ROOM_SEAL, session.map.get(sealCell))
+        assertTrue(sealCell != doorway, "seal must be in the corridor")
         assertNotNull(RoomEngagementSystem.timerSnapshot(session))
     }
 
@@ -67,10 +70,11 @@ class RoomEngagementSystemTest {
         val mob = MobSpawner.createMob(session, MobKind.MELEE, 2.5f, 3.5f, roomA)
         session.mobs.add(mob)
         val doorway = session.roomEngagements[0].doorways.single()
+        val sealCell = session.roomEngagements[0].sealCells.single()
         session.roomEngagements[0].entered = true
         session.roomEngagements[0].doorsLocked = true
         session.roomEngagements[0].timerStartedAtMs = session.serverTimeMs
-        session.map.setTile(doorway, TileType.ROOM_SEAL)
+        session.map.setTile(sealCell, TileType.ROOM_SEAL)
 
         mob.hp = 0
         RoomEngagementSystem.tick(session)
@@ -78,6 +82,7 @@ class RoomEngagementSystemTest {
         assertTrue(session.roomEngagements[0].cleared)
         assertFalse(session.roomEngagements[0].doorsLocked)
         assertEquals(TileType.FLOOR, session.map.get(doorway))
+        assertEquals(TileType.FLOOR, session.map.get(sealCell))
         assertNull(RoomEngagementSystem.timerSnapshot(session))
     }
 
@@ -117,7 +122,12 @@ class RoomEngagementSystemTest {
             playerPose = pose,
             rooms = rooms,
             roomEngagements = rooms.mapIndexed { index, room ->
-                RoomEngagementState(roomIndex = index, doorways = RoomDoorways.of(map, room))
+                val doorways = RoomDoorways.of(map, room)
+                RoomEngagementState(
+                    roomIndex = index,
+                    doorways = doorways,
+                    sealCells = RoomDoorways.sealCells(map, room, doorways),
+                )
             }.toMutableList(),
         )
 

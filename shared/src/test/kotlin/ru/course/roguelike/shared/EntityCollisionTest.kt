@@ -42,6 +42,15 @@ class EntityCollisionTest {
     }
 
     @Test
+    fun `mob can pass closer to column edge than full cell`() {
+        val tiles = Array(9) { TileType.FLOOR }
+        tiles[1 * 3 + 1] = TileType.COLUMN
+        val map = TileMap(3, 3, tiles)
+        val besideColumn = EntityCollision.Circle(0.85f, 1.5f, CombatConstants.MOB_RADIUS)
+        assertFalse(EntityCollision.overlapsMovement(map, besideColumn, localHeight = 0f))
+    }
+
+    @Test
     fun `column blocks ground movement but not flying height`() {
         val tiles = Array(9) { TileType.FLOOR }
         tiles[1 * 3 + 1] = TileType.COLUMN

@@ -29,7 +29,7 @@ class VisitedTracker(private val revealRadius: Int = REVEAL_RADIUS) {
         }
     }
 
-    /** Сбрасывает туман — при рестарте или переходе на другой уровень. */
+    /** Сбрасывает туман — при рестарте сессии. */
     fun clear() = visited.clear()
 
     companion object {

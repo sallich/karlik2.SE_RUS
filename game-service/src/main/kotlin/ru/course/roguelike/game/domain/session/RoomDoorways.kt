@@ -7,10 +7,9 @@ import ru.course.roguelike.shared.model.GridPos
 /**
  * Поиск дверных проёмов комнаты (issue #24).
  *
- * Проём — это проходимая ячейка на периметре комнаты, у которой есть проходимый
- * сосед за пределами комнаты (то есть выход в коридор). Именно эти ячейки запираются,
- * пока комната не зачищена. Логика зеркальна сбору коридорных «семян» в
- * [ru.course.roguelike.game.domain.level.MapConnectivity], но возвращает ячейку внутри комнаты.
+ * Проём — проходимая ячейка на периметре комнаты с выходом в коридор.
+ * Красная печать ([TileType.ROOM_SEAL]) ставится на соседнюю коридорную клетку
+ * ([corridorSealOf], [sealCells]); проём внутри комнаты остаётся полом.
  */
 object RoomDoorways {
     private val NEIGHBORS = listOf(
@@ -33,6 +32,19 @@ object RoomDoorways {
         }
         return doorways
     }
+
+    /** Ячейка коридора, куда ставится печать при запирании (снаружи комнаты). */
+    fun corridorSealOf(map: TileMap, room: Room, doorway: GridPos): GridPos? =
+        NEIGHBORS.map { GridPos(doorway.x + it.x, doorway.y + it.y) }
+            .firstOrNull { neighbor -> !room.contains(neighbor) && map.isWalkable(neighbor) }
+
+    fun sealCells(map: TileMap, room: Room, doorways: List<GridPos>): List<GridPos> =
+        doorways.mapNotNull { corridorSealOf(map, room, it) }
+
+    /** Проём внутри комнаты, связанный с коридорной печатью. */
+    fun doorwayForSeal(room: Room, sealCell: GridPos, doorways: List<GridPos>): GridPos? =
+        NEIGHBORS.map { GridPos(sealCell.x + it.x, sealCell.y + it.y) }
+            .firstOrNull { room.contains(it) && it in doorways }
 
     private fun isPerimeter(room: Room, pos: GridPos): Boolean =
         pos.x == room.x || pos.x == room.x + room.width - 1 ||
