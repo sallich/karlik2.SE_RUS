@@ -78,6 +78,25 @@ class InventorySystemTest {
     }
 
     @Test
+    fun `tab inventory cycle and drop selected item`() {
+        val session = session()
+        val items = session.inventory.items.sortedBy { it.id }
+        require(items.size >= 2)
+
+        InventorySystem.handleInventoryInput(session, cycle = true, drop = false)
+        assertEquals(items[0].id, session.selectedInventoryItemId)
+
+        InventorySystem.handleInventoryInput(session, cycle = true, drop = false)
+        assertEquals(items[1].id, session.selectedInventoryItemId)
+
+        val before = session.inventory.items.size
+        val event = InventorySystem.handleInventoryInput(session, cycle = false, drop = true).single()
+        assertTrue(event is GameEvent.ItemDropped)
+        assertEquals(before - 1, session.inventory.items.size)
+        assertTrue(session.itemPickups.isNotEmpty())
+    }
+
+    @Test
     fun `hotbar assign cycles weapons into slot`() {
         val session = session()
         val shotgun = session.inventory.add(InventoryItemType.SHOTGUN) as AddItemResult.Added

@@ -3,9 +3,21 @@ package ru.course.roguelike.game.domain.combat
 import ru.course.roguelike.shared.engine.EntityCollision
 import ru.course.roguelike.shared.engine.TileMap
 import ru.course.roguelike.shared.model.CombatConstants
+import ru.course.roguelike.shared.model.GridPos
+import ru.course.roguelike.shared.model.TileType
+import ru.course.roguelike.shared.model.WorldVertical
+import kotlin.math.floor
 import kotlin.math.hypot
 
 internal object CombatMobMovement {
+    /**
+     * Печати ([TileType.ROOM_SEAL]) проходимы только для подкрепления в пути
+     * (у моба задан [MobEntity.reinforceTarget]). «Родные» мобы запертой комнаты
+     * печать не проходят и не могут её покинуть — иначе комната не зачтётся как
+     * зачищенная и герой останется заперт (issue #24).
+     */
+    private fun MobEntity.passesSeals(): Boolean = reinforceTarget != null
+
     fun moveToward(
         map: TileMap,
         mob: MobEntity,
@@ -22,7 +34,14 @@ internal object CombatMobMovement {
         val moveX = dx / dist * step
         val moveY = dy / dist * step
         val circle = EntityCollision.Circle(mob.x, mob.y, CombatConstants.MOB_RADIUS)
-        val moved = EntityCollision.moveWithWallSlide(map, circle, moveX, moveY, localHeight = mob.z)
+        val moved = EntityCollision.moveWithWallSlide(
+            map,
+            circle,
+            moveX,
+            moveY,
+            localHeight = mob.z,
+            passRoomSeals = mob.passesSeals(),
+        )
         mob.x = moved.x
         mob.y = moved.y
     }
@@ -74,16 +93,24 @@ internal object CombatMobMovement {
 
     private fun nudgeMob(map: TileMap, mob: MobEntity, dx: Float, dy: Float) {
         val circle = EntityCollision.Circle(mob.x, mob.y, CombatConstants.MOB_RADIUS)
-        val moved = EntityCollision.moveWithWallSlide(map, circle, dx, dy, localHeight = mob.z)
+        val moved = EntityCollision.moveWithWallSlide(
+            map,
+            circle,
+            dx,
+            dy,
+            localHeight = mob.z,
+            passRoomSeals = mob.passesSeals(),
+        )
         mob.x = moved.x
         mob.y = moved.y
     }
 
     fun clampMobOutOfWalls(map: TileMap, mob: MobEntity) {
         val radius = CombatConstants.MOB_RADIUS
-        repeat(6) {
+        val passSeals = mob.passesSeals()
+        repeat(10) {
             val circle = EntityCollision.Circle(mob.x, mob.y, radius)
-            if (!EntityCollision.overlapsMovement(map, circle, mob.z)) return
+            if (!EntityCollision.overlapsMovement(map, circle, mob.z, passRoomSeals = passSeals)) return
             for ((dx, dy) in nudges) {
                 val moved = EntityCollision.moveWithWallSlide(
                     map,
@@ -91,14 +118,67 @@ internal object CombatMobMovement {
                     dx,
                     dy,
                     localHeight = mob.z,
+                    passRoomSeals = passSeals,
                 )
-                if (!EntityCollision.overlapsMovement(map, moved, mob.z)) {
+                if (!EntityCollision.overlapsMovement(map, moved, mob.z, passRoomSeals = passSeals)) {
                     mob.x = moved.x
                     mob.y = moved.y
                     return
                 }
             }
+            pushAwayFromOverlaps(map, mob, radius, passSeals)
         }
+    }
+
+    private fun pushAwayFromOverlaps(map: TileMap, mob: MobEntity, radius: Float, passSeals: Boolean) {
+        val circle = EntityCollision.Circle(mob.x, mob.y, radius)
+        if (!EntityCollision.overlapsMovement(map, circle, mob.z, passRoomSeals = passSeals)) return
+        var pushX = 0f
+        var pushY = 0f
+        val minCellX = floor(mob.x - radius).toInt()
+        val maxCellX = floor(mob.x + radius).toInt()
+        val minCellY = floor(mob.y - radius).toInt()
+        val maxCellY = floor(mob.y + radius).toInt()
+        for (cy in minCellY..maxCellY) {
+            for (cx in minCellX..maxCellX) {
+                val delta = overlapPush(map, mob, cx, cy, radius, passSeals) ?: continue
+                pushX += delta.first
+                pushY += delta.second
+            }
+        }
+        val pushLen = hypot(pushX.toDouble(), pushY.toDouble()).toFloat()
+        if (pushLen < 0.001f) return
+        val moved = EntityCollision.moveWithWallSlide(
+            map,
+            circle,
+            pushX / pushLen * 0.2f,
+            pushY / pushLen * 0.2f,
+            localHeight = mob.z,
+            passRoomSeals = passSeals,
+        )
+        mob.x = moved.x
+        mob.y = moved.y
+    }
+
+    private fun overlapPush(
+        map: TileMap,
+        mob: MobEntity,
+        cx: Int,
+        cy: Int,
+        radius: Float,
+        passSeals: Boolean,
+    ): Pair<Float, Float>? {
+        val tile = map.get(GridPos(cx, cy)) ?: return null
+        val blockedBySeal = passSeals && tile == TileType.ROOM_SEAL
+        val blocksMovement = WorldVertical.blocksMovementAt(0, tile, mob.z)
+        val overlaps = EntityCollision.circleOverlapsTile(mob.x, mob.y, radius, cx, cy, tile)
+        if (blockedBySeal || !blocksMovement || !overlaps) return null
+        val centerX = cx + 0.5f
+        val centerY = cy + 0.5f
+        val dx = mob.x - centerX
+        val dy = mob.y - centerY
+        val len = hypot(dx.toDouble(), dy.toDouble()).toFloat().coerceAtLeast(0.001f)
+        return dx / len to dy / len
     }
 
     private val nudges = arrayOf(

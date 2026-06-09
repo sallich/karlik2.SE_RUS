@@ -247,6 +247,9 @@ object BillboardRenderer {
     ): Float {
         val meta = wallMeta ?: return wallDistance
         val tile = meta.tile
+        if (tile == TileType.ROOM_DOOR || tile == TileType.ROOM_SEAL || tile == TileType.WALL) {
+            return wallDistance - DOOR_OCCLUSION_BIAS
+        }
         if (tile != TileType.COLUMN) return wallDistance
 
         val columnTopZ = WorldVertical.COLUMN_HEIGHT
@@ -268,6 +271,7 @@ object BillboardRenderer {
     }
 
     private const val SPRITE_DEPTH_EPSILON = 0.05f
+    private const val DOOR_OCCLUSION_BIAS = 0.12f
 
     fun mobColor(kind: ru.course.roguelike.shared.model.MobKind): Int = when (kind) {
         ru.course.roguelike.shared.model.MobKind.MELEE -> rgb(0xFF, 0xD7, 0x00)

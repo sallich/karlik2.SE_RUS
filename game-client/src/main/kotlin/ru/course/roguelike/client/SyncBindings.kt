@@ -1,5 +1,6 @@
 package ru.course.roguelike.client
 
+import ru.course.roguelike.shared.dto.GameSnapshot
 import ru.course.roguelike.shared.dto.HotbarSnapshot
 import ru.course.roguelike.shared.dto.InventorySnapshot
 import ru.course.roguelike.shared.dto.ItemSnapshot
@@ -33,4 +34,6 @@ data class SyncBindings(
     val verticalMutator: (verticalVelocity: Float) -> Unit = {},
     val elevatorPhaseMutator: (elevatorPhase: String) -> Unit = {},
     val roomTimerMutator: (RoomClearTimerSnapshot?, Long) -> Unit = { _, _ -> },
+    /** Карта, метки дверей и ярус — меняются при запирании комнат (issue #24). */
+    val worldMutator: (GameSnapshot) -> Unit = {},
 )

@@ -2,6 +2,7 @@ package ru.course.roguelike.shared.engine
 
 import ru.course.roguelike.shared.model.GridPos
 import ru.course.roguelike.shared.model.PlayerPose
+import ru.course.roguelike.shared.model.TileType
 import ru.course.roguelike.shared.model.WorldVertical
 import kotlin.math.cos
 import kotlin.math.floor
@@ -33,7 +34,7 @@ object EntityCollision {
                 val tile = map.get(GridPos(cx, cy))
                 if (tile == null || tile.walkable) continue
                 if (worldZ > WorldVertical.tileTopWorldZ(floorLevel, tile) + 0.02f) continue
-                if (circleOverlapsCell(circle.x, circle.y, circle.radius, cx, cy)) {
+                if (circleOverlapsTile(circle.x, circle.y, circle.radius, cx, cy, tile)) {
                     return true
                 }
             }
@@ -108,12 +109,16 @@ object EntityCollision {
     fun playerCircle(pose: PlayerPose): Circle =
         Circle(pose.x, pose.y, ru.course.roguelike.shared.model.FpsConstants.PLAYER_RADIUS)
 
-    /** Блокировка движения с учётом высоты (колонны проходимы только с прыжка). */
+    /**
+     * Блокировка движения с учётом высоты (колонны проходимы только с прыжка).
+     * При [passRoomSeals] красные печати ([TileType.ROOM_SEAL]) проходимы для мобов (issue #24).
+     */
     fun overlapsMovement(
         map: TileMap,
         circle: Circle,
         localHeight: Float,
         floorLevel: Int = 0,
+        passRoomSeals: Boolean = false,
     ): Boolean {
         val minCellX = floor(circle.x - circle.radius).toInt()
         val maxCellX = floor(circle.x + circle.radius).toInt()
@@ -122,8 +127,9 @@ object EntityCollision {
         for (cy in minCellY..maxCellY) {
             for (cx in minCellX..maxCellX) {
                 val tile = map.get(GridPos(cx, cy)) ?: continue
+                if (passRoomSeals && tile == TileType.ROOM_SEAL) continue
                 if (!WorldVertical.blocksMovementAt(floorLevel, tile, localHeight)) continue
-                if (circleOverlapsCell(circle.x, circle.y, circle.radius, cx, cy)) {
+                if (circleOverlapsTile(circle.x, circle.y, circle.radius, cx, cy, tile)) {
                     return true
                 }
             }
@@ -138,31 +144,62 @@ object EntityCollision {
         dy: Float,
         localHeight: Float = 0f,
         floorLevel: Int = 0,
+        passRoomSeals: Boolean = false,
     ): Circle {
         if (dx == 0f && dy == 0f) return circle
         var nx = circle.x + dx
         var ny = circle.y + dy
-        if (!overlapsMovement(map, circle.copy(x = nx, y = ny), localHeight, floorLevel)) {
+        if (!overlapsMovement(map, circle.copy(x = nx, y = ny), localHeight, floorLevel, passRoomSeals)) {
             return circle.copy(x = nx, y = ny)
         }
         nx = circle.x + dx
         ny = circle.y
-        if (!overlapsMovement(map, circle.copy(x = nx, y = ny), localHeight, floorLevel)) {
+        if (!overlapsMovement(map, circle.copy(x = nx, y = ny), localHeight, floorLevel, passRoomSeals)) {
             return circle.copy(x = nx, y = ny)
         }
         nx = circle.x
         ny = circle.y + dy
-        if (!overlapsMovement(map, circle.copy(x = nx, y = ny), localHeight, floorLevel)) {
+        if (!overlapsMovement(map, circle.copy(x = nx, y = ny), localHeight, floorLevel, passRoomSeals)) {
             return circle.copy(x = nx, y = ny)
         }
         return circle
     }
 
-    private fun circleOverlapsCell(px: Float, py: Float, radius: Float, cellX: Int, cellY: Int): Boolean {
-        val closestX = px.coerceIn(cellX.toFloat(), cellX + 1f)
-        val closestY = py.coerceIn(cellY.toFloat(), cellY + 1f)
+    fun circleOverlapsTile(
+        px: Float,
+        py: Float,
+        radius: Float,
+        cellX: Int,
+        cellY: Int,
+        tile: TileType,
+    ): Boolean {
+        val (minX, maxX, minY, maxY) = obstacleBounds(cellX, cellY, tile)
+        val closestX = px.coerceIn(minX, maxX)
+        val closestY = py.coerceIn(minY, maxY)
         val diffX = px - closestX
         val diffY = py - closestY
         return diffX * diffX + diffY * diffY <= radius * radius
     }
+
+    private fun obstacleBounds(cellX: Int, cellY: Int, tile: TileType): ObstacleBounds {
+        if (tile == TileType.COLUMN) {
+            val half = WorldVertical.COLUMN_COLLISION_HALF_SIZE
+            val centerX = cellX + 0.5f
+            val centerY = cellY + 0.5f
+            return ObstacleBounds(
+                centerX - half,
+                centerX + half,
+                centerY - half,
+                centerY + half,
+            )
+        }
+        return ObstacleBounds(
+            cellX.toFloat(),
+            cellX + 1f,
+            cellY.toFloat(),
+            cellY + 1f,
+        )
+    }
+
+    private data class ObstacleBounds(val minX: Float, val maxX: Float, val minY: Float, val maxY: Float)
 }

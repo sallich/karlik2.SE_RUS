@@ -1,12 +1,15 @@
 package ru.course.roguelike.client.render
 
+import ru.course.roguelike.shared.dto.DoorMarkerSnapshot
 import ru.course.roguelike.shared.model.TileType
 import ru.course.roguelike.shared.model.wallHeight
 import ru.course.roguelike.shared.render.CameraProjection
 import ru.course.roguelike.shared.render.Raycaster
+import ru.course.roguelike.shared.render.RgbImageSampler
 import ru.course.roguelike.shared.render.SceneRenderConfig
 import ru.course.roguelike.shared.render.TextureMapping
 
+@Suppress("TooManyFunctions")
 internal class TexturedWallPainter(
     private val buffer: PixelFrameBuffer,
     private val viewHeight: Int,
@@ -69,17 +72,23 @@ internal class TexturedWallPainter(
         else -> null
     }
 
-    fun paintWalls(scene: Raycaster.SceneCast, pitchHorizon: Float, viewerHeight: Float) {
+    fun paintWalls(
+        scene: Raycaster.SceneCast,
+        pitchHorizon: Float,
+        viewerHeight: Float,
+        doorMarkers: List<DoorMarkerSnapshot>,
+    ) {
         for (x in scene.columns.indices) {
             val col = scene.columns[x]
             val meta = scene.wallMeta[x]
-            paintBackWallLayer(meta, col, pitchHorizon, viewerHeight, x)
+            paintBackWallLayer(meta, col, pitchHorizon, viewerHeight, x, doorMarkers)
             if (col.wallEnd - col.wallStart >= 0.5f) {
                 paintWallColumn(
                     x = x,
                     wallStart = col.wallStart,
                     wallEnd = col.wallEnd,
                     meta = meta,
+                    doorMarkers = doorMarkers,
                 )
             }
         }
@@ -108,6 +117,7 @@ internal class TexturedWallPainter(
         pitchHorizon: Float,
         viewerHeight: Float,
         x: Int,
+        doorMarkers: List<DoorMarkerSnapshot>,
     ) {
         val layer = backWallLayer(meta) ?: return
 
@@ -136,8 +146,10 @@ internal class TexturedWallPainter(
                 wallEnd = backEnd,
                 tile = layer.tile,
             )
-            val sample = textures.walls.samplePixel(u, v)
-            buffer.set(x, row, TextureMapping.shadeRgb(sample.rgb, layer.distance, sideDarken))
+            val rgb = wallRgb(
+                WallRgbSample(layer.tile, u, v, row, backStart, backEnd, layer.distance, sideDarken, meta, doorMarkers),
+            )
+            buffer.set(x, row, rgb)
         }
     }
 
@@ -146,25 +158,137 @@ internal class TexturedWallPainter(
         wallStart: Float,
         wallEnd: Float,
         meta: Raycaster.WallColumnMeta,
+        doorMarkers: List<DoorMarkerSnapshot>,
     ) {
         val top = kotlin.math.floor(wallStart).toInt().coerceIn(0, viewHeight - 1)
         val bottom = kotlin.math.ceil(wallEnd).toInt().coerceIn(top + 1, viewHeight)
         val sideDarken = SceneRenderConfig.sideDarken(meta.side)
         val u = TextureMapping.wallTextureUClamped(meta.wallU)
+        val tile = meta.tile ?: TileType.WALL
         for (row in top until bottom) {
             val v = TextureMapping.wallTextureV(
                 screenRow = row,
                 wallStart = wallStart,
                 wallEnd = wallEnd,
-                tile = meta.tile,
+                tile = tile,
             )
-            val sample = textures.walls.samplePixel(u, v)
-            buffer.set(
-                x,
-                row,
-                TextureMapping.shadeRgb(sample.rgb, meta.distance, sideDarken),
+            val rgb = wallRgb(
+                WallRgbSample(tile, u, v, row, wallStart, wallEnd, meta.distance, sideDarken, meta, doorMarkers),
             )
+            buffer.set(x, row, rgb)
         }
+    }
+
+    private data class WallRgbSample(
+        val tile: TileType,
+        val u: Float,
+        val v: Float,
+        val row: Int,
+        val wallStart: Float,
+        val wallEnd: Float,
+        val distance: Float,
+        val sideDarken: Float,
+        val meta: Raycaster.WallColumnMeta,
+        val doorMarkers: List<DoorMarkerSnapshot>,
+    )
+
+    private fun wallRgb(sample: WallRgbSample): Int {
+        val marker = if (sample.tile == TileType.ROOM_SEAL || sample.tile == TileType.ROOM_DOOR) {
+            doorMarkerAt(sample.doorMarkers, sample.meta.hitMapX, sample.meta.hitMapY)
+        } else {
+            null
+        }
+        val base = when (sample.tile) {
+            TileType.ROOM_SEAL -> if (marker != null) {
+                val doorRgb = textures.door.samplePixel(sample.u, sample.v).rgb
+                TextureMapping.shadeRgb(doorRgb, sample.distance, sample.sideDarken)
+            } else {
+                TextureMapping.shadeRgb(SEAL_RGB, sample.distance, sample.sideDarken * 0.95f)
+            }
+            TileType.ROOM_DOOR -> TextureMapping.shadeRgb(SEAL_RGB, sample.distance, sample.sideDarken * 0.95f)
+            else -> {
+                val wallSample = textures.walls.samplePixel(sample.u, sample.v)
+                TextureMapping.shadeRgb(wallSample.rgb, sample.distance, sample.sideDarken)
+            }
+        }
+        if (marker == null || sample.tile != TileType.ROOM_SEAL) return base
+        return blendPrize(base, marker, sample.u, sample.row, sample.wallStart, sample.wallEnd, sample.distance)
+    }
+
+    private fun blendPrize(
+        baseRgb: Int,
+        marker: DoorMarkerSnapshot,
+        u: Float,
+        row: Int,
+        wallStart: Float,
+        wallEnd: Float,
+        distance: Float,
+    ): Int {
+        val span = (wallEnd - wallStart).coerceAtLeast(1f)
+        val rel = ((row + 0.5f) - wallStart) / span
+        if (rel !in PRIZE_V_MIN..PRIZE_V_MAX) return baseRgb
+        val overlay = prizeOverlayRgb(marker, u, rel, distance) ?: return baseRgb
+        return mixRgb(baseRgb, overlay, PRIZE_BLEND)
+    }
+
+    private fun prizeOverlayRgb(
+        marker: DoorMarkerSnapshot,
+        u: Float,
+        rel: Float,
+        distance: Float,
+    ): Int? {
+        val prize = prizeSampler(marker)
+        if (prize != null) {
+            val sample = prize.samplePixel(u, rel)
+            return if (prize.isVisible(sample, chromaKey = true)) {
+                TextureMapping.shadeRgb(sample.rgb, distance)
+            } else {
+                null
+            }
+        }
+        val flat = prizeFlatRgb(marker) ?: return null
+        return if (u in 0.28f..0.72f) {
+            TextureMapping.shadeRgb(flat, distance)
+        } else {
+            null
+        }
+    }
+
+    private fun prizeSampler(marker: DoorMarkerSnapshot): RgbImageSampler? = when {
+        marker.mobRoom -> null
+        marker.prizeIsKey -> textures.keySprite
+        else -> null
+    }
+
+    private fun prizeFlatRgb(marker: DoorMarkerSnapshot): Int? = when {
+        marker.mobRoom -> COMBAT_ROOM_RGB
+        marker.prizeIsKey -> null
+        marker.kind == ru.course.roguelike.shared.model.ItemKind.WEAPON_PISTOL -> PISTOL_PRIZE_RGB
+        marker.kind == ru.course.roguelike.shared.model.ItemKind.WEAPON_SHOTGUN -> SHOTGUN_PRIZE_RGB
+        else -> null
+    }
+
+    private fun doorMarkerAt(markers: List<DoorMarkerSnapshot>, mapX: Int, mapY: Int): DoorMarkerSnapshot? =
+        if (mapX < 0 || mapY < 0) {
+            null
+        } else {
+            markers.find {
+                kotlin.math.floor(it.x).toInt() == mapX && kotlin.math.floor(it.y).toInt() == mapY
+            }
+        }
+
+    private fun mixRgb(base: Int, overlay: Int, overlayWeight: Float): Int {
+        val t = overlayWeight.coerceIn(0f, 1f)
+        val br = (base shr 16) and 0xFF
+        val bg = (base shr 8) and 0xFF
+        val bb = base and 0xFF
+        val or = (overlay shr 16) and 0xFF
+        val og = (overlay shr 8) and 0xFF
+        val ob = overlay and 0xFF
+        val r = (br * (1f - t) + or * t).toInt()
+        val g = (bg * (1f - t) + og * t).toInt()
+        val b = (bb * (1f - t) + ob * t).toInt()
+        return (r shl 16) or (g shl 8) or b
     }
 
     fun paintWallCaps(scene: Raycaster.SceneCast) {
@@ -172,14 +296,9 @@ internal class TexturedWallPainter(
             val col = scene.columns[x]
             val meta = scene.wallMeta[x]
             val tile = meta.tile
-            if (shouldSkipWallCap(tile)) continue
-            paintWallCapColumn(x, col, meta, tile!!)
+            if (tile != TileType.WALL && tile != TileType.COLUMN) continue
+            paintWallCapColumn(x, col, meta, tile)
         }
-    }
-
-    private fun shouldSkipWallCap(tile: TileType?): Boolean {
-        if (tile == null) return true
-        return tile != TileType.WALL && tile != TileType.COLUMN
     }
 
     private fun paintWallCapColumn(
@@ -209,5 +328,15 @@ internal class TexturedWallPainter(
                 TextureMapping.shadeRgb(sample.rgb, meta.distance, sideDarken),
             )
         }
+    }
+
+    private companion object {
+        const val SEAL_RGB = 0xCC2A22
+        const val PRIZE_V_MIN = 0.32f
+        const val PRIZE_V_MAX = 0.68f
+        const val PRIZE_BLEND = 0.72f
+        const val PISTOL_PRIZE_RGB = 0x66AAFF
+        const val SHOTGUN_PRIZE_RGB = 0xCC4433
+        const val COMBAT_ROOM_RGB = 0xDDAA33
     }
 }

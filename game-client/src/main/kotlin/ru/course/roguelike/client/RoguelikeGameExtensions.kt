@@ -48,7 +48,14 @@ internal fun RoguelikeGame.buildSyncBindings(): SyncBindings = SyncBindings(
         roomClearTimer = timer
         roomClearTimerReceivedAtMs = serverTimeMs
     },
+    worldMutator = { snap -> applyWorldFromSnapshot(snap) },
 )
+
+internal fun RoguelikeGame.applyWorldFromSnapshot(snap: GameSnapshot) {
+    currentLevel = snap.currentLevel
+    tileMap = TileMap.fromFlat(snap.width, snap.height, snap.tiles)
+    doorMarkers = snap.doorMarkers
+}
 
 internal fun RoguelikeGame.resetSessionState() {
     predictedPose = null
@@ -58,6 +65,7 @@ internal fun RoguelikeGame.resetSessionState() {
     currentLevel = 0
     keyPickups = emptyList()
     items = emptyList()
+    doorMarkers = emptyList()
     exitGate = null
     roomClearTimer = null
     roomClearTimerReceivedAtMs = 0L
@@ -91,14 +99,10 @@ internal fun RoguelikeGame.resetSessionState() {
 }
 
 internal fun RoguelikeGame.applyServerSnapshot(snap: GameSnapshot) {
-    if (snap.currentLevel != currentLevel) {
-        currentLevel = snap.currentLevel
-        visitedTracker.clear()
-    }
+    applyWorldFromSnapshot(snap)
     clientVerticalVelocity = snap.player.verticalVelocity
     clientElevatorPhase = runCatching { ElevatorPhase.valueOf(snap.elevatorPhase) }
         .getOrDefault(ElevatorPhase.IDLE)
-    tileMap = TileMap.fromFlat(snap.width, snap.height, snap.tiles)
     serverMobs = snap.mobs
     serverProjectiles = snap.projectiles
     sessionPhase = parseSessionPhase(snap.phase)
@@ -138,7 +142,7 @@ internal fun RoguelikeGame.drawGameHud() {
         inventory = playerInventory,
         inventoryOpen = showInventoryGrid,
         floorLevel = currentLevel,
-        floorCount = if (twoLevelLocation) 2 else 1,
+        floorCount = 1,
         keysCollected = keysCollected,
         keysRequired = keysRequired,
         interactionHint = interactionHint(

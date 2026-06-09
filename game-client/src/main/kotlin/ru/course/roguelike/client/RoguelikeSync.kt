@@ -126,6 +126,7 @@ class RoguelikeSync(
         bindings.verticalMutator(snap.player.verticalVelocity)
         bindings.elevatorPhaseMutator(snap.elevatorPhase)
         bindings.roomTimerMutator(snap.roomClearTimer, snap.serverTimeMs)
+        bindings.worldMutator(snap)
         currentLevel = snap.currentLevel
     }
 
@@ -149,6 +150,8 @@ class RoguelikeSync(
     }
 
     private fun applyObserveUpdate(snap: GameSnapshot) {
+        // observe — только мобы/агент/лут; карту, таймер и двери обновляем через sync,
+        // иначе опрос затирает состояние боя устаревшим снимком.
         bindings.agentMutator(snap.agent?.pose)
         bindings.combatMutator(snap.mobs, snap.projectiles)
         bindings.progressMutator(
@@ -159,8 +162,6 @@ class RoguelikeSync(
             snap.items,
             snap.exitGate,
         )
-        bindings.roomTimerMutator(snap.roomClearTimer, snap.serverTimeMs)
-        notifyLevelChange(snap.currentLevel)
     }
 
     fun restart(seed: Long? = null) {
@@ -175,6 +176,7 @@ class RoguelikeSync(
     }
 
     private fun applySyncSnapshot(snap: GameSnapshot) {
+        bindings.worldMutator(snap)
         bindings.vitalsMutator(
             snap.player.hp,
             snap.player.maxHp,
@@ -200,14 +202,5 @@ class RoguelikeSync(
             snap.exitGate,
         )
         bindings.roomTimerMutator(snap.roomClearTimer, snap.serverTimeMs)
-        notifyLevelChange(snap.currentLevel)
-    }
-
-    private fun notifyLevelChange(level: Int) {
-        if (level == currentLevel) return
-        currentLevel = level
-        onStatusLine(
-            if (level == 1) "Лифт: 2-й ярус (над колоннами)" else "Лифт: 1-й ярус",
-        )
     }
 }

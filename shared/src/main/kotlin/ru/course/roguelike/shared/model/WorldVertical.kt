@@ -15,6 +15,12 @@ object WorldVertical {
     const val WALL_HEIGHT = 1.0f
     const val COLUMN_HEIGHT = 0.45f
 
+    /** Половина ширины колонны для коллизии (уже клетки, как в рендере). */
+    const val COLUMN_COLLISION_HALF_SIZE = 0.25f
+
+    /** Высота красной печати ([TileType.ROOM_SEAL]) — как у стены лабиринта. */
+    const val SEAL_HEIGHT = WALL_HEIGHT
+
     /** Насколько смещается линия пола на экране на каждую единицу высоты мира. */
     const val ELEVATION_SCREEN_FACTOR = 0.32f
 
@@ -45,10 +51,14 @@ object WorldVertical {
         }
         return true
     }
+
 }
 
 fun TileType.wallHeight(): Float = when (this) {
-    TileType.WALL -> WorldVertical.WALL_HEIGHT
+    TileType.WALL,
+    TileType.ROOM_DOOR,
+    -> WorldVertical.WALL_HEIGHT
+    TileType.ROOM_SEAL -> WorldVertical.SEAL_HEIGHT
     TileType.COLUMN -> WorldVertical.COLUMN_HEIGHT
     else -> 0f
 }

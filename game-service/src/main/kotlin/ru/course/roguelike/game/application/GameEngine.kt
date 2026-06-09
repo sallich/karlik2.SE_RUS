@@ -17,6 +17,8 @@ import ru.course.roguelike.game.domain.session.ItemPickup
 import ru.course.roguelike.game.domain.session.ItemSpawner
 import ru.course.roguelike.game.domain.session.KeyPickup
 import ru.course.roguelike.game.domain.session.KeySpawner
+import ru.course.roguelike.game.domain.session.RoomDoorPlacer
+import ru.course.roguelike.game.domain.session.RoomDoorways
 import ru.course.roguelike.game.domain.session.RoomEngagementState
 import ru.course.roguelike.game.infrastructure.level.LevelGeneratorFactory
 import ru.course.roguelike.game.infrastructure.level.TwoLevelLabyrinthGenerator
@@ -57,6 +59,8 @@ class GameEngine(
         InventorySystem.initialize(build.session)
         sessions[sessionId] = build.session
         MobSpawner.spawnForLevel(build.session, build.level, resolvedSeed, build.occupiedCells)
+        val startRoom = build.level.rooms.firstOrNull { it.contains(build.level.playerSpawn) }
+        RoomDoorPlacer.place(build.session, startRoom)
         eventBus.publish(listOf(GameEvent.SessionCreated(build.session.sessionId, resolvedSeed)))
         return build.session.toSnapshot()
     }
@@ -88,9 +92,7 @@ class GameEngine(
             nextItemId = progress.items.size,
             bossRoom = progress.bossRoom,
             rooms = level.rooms,
-            roomEngagements = level.rooms.mapIndexed { index, _ ->
-                RoomEngagementState(roomIndex = index)
-            }.toMutableList(),
+            roomEngagements = buildEngagements(progress.map, level.rooms),
             exitGate = progress.exitGate,
         )
         return SessionBuild(
@@ -102,9 +104,9 @@ class GameEngine(
 
     private fun buildTwoLevelSession(sessionId: String, seed: Long, coopAgent: Boolean): SessionBuild {
         val dungeon = TwoLevelLabyrinthGenerator.generate(seed)
-        val ground = dungeon.levels[0]
-        val progress = setupProgress(ground, seed)
-        val playerSpawn = ground.playerSpawn
+        val level = dungeon.levels.single()
+        val progress = setupProgress(level, seed)
+        val playerSpawn = level.playerSpawn
         val occupied = occupiedCells(progress, playerSpawn)
         val session = GameSession(
             sessionId = sessionId,
@@ -117,23 +119,30 @@ class GameEngine(
             } else {
                 null
             },
-            secondLevel = dungeon.levels[1].map,
             keyPickups = progress.keys,
             itemPickups = progress.items,
             nextItemId = progress.items.size,
             bossRoom = progress.bossRoom,
-            rooms = ground.rooms,
-            roomEngagements = ground.rooms.mapIndexed { index, _ ->
-                RoomEngagementState(roomIndex = index)
-            }.toMutableList(),
+            rooms = level.rooms,
+            roomEngagements = buildEngagements(progress.map, level.rooms),
             exitGate = progress.exitGate,
         )
         return SessionBuild(
             session = session,
-            level = ground.copy(map = progress.map),
+            level = level.copy(map = progress.map),
             occupiedCells = occupied,
         )
     }
+
+    private fun buildEngagements(map: TileMap, rooms: List<Room>): MutableList<RoomEngagementState> =
+        rooms.mapIndexed { index, room ->
+            val doorways = RoomDoorways.of(map, room)
+            RoomEngagementState(
+                roomIndex = index,
+                doorways = doorways,
+                sealCells = RoomDoorways.sealCells(map, room, doorways),
+            )
+        }.toMutableList()
 
     private fun occupiedCells(progress: ProgressSetup, playerSpawn: GridPos): Set<GridPos> {
         val fromPickups = progress.keys.map { GridPos(it.x.toInt(), it.y.toInt()) } +

@@ -5,22 +5,15 @@ import ru.course.roguelike.game.domain.level.Room
 import ru.course.roguelike.shared.dto.RoomClearTimerSnapshot
 
 /**
- * Таймер зачистки комнаты: при входе стартует отсчёт; если за [RoomEngagementConstants.CLEAR_TIMER_MS]
- * в комнате остаются живые мобы, соседние по лабиринту комнаты отправляют своих мобов к ней.
+ * Таймер зачистки комнаты: стартует при входе через дверь (E); если за
+ * [RoomEngagementConstants.CLEAR_TIMER_MS] в комнате остаются живые мобы,
+ * соседние комнаты отправляют подкрепление.
  */
 object RoomEngagementSystem {
     fun tick(session: GameSession) {
         if (session.rooms.isEmpty() || session.roomEngagements.isEmpty()) return
 
         refreshClearedStates(session)
-
-        val playerRoom = findPlayerRoom(session)
-        if (playerRoom != null) {
-            val index = session.rooms.indexOf(playerRoom)
-            if (index >= 0) {
-                maybeStartTimer(session, index)
-            }
-        }
 
         for (state in session.roomEngagements) {
             if (state.cleared || state.reinforcementsTriggered || state.timerStartedAtMs == null) continue
@@ -37,19 +30,15 @@ object RoomEngagementSystem {
             if (state.cleared) continue
             if (!hasLivingMobs(session, state.roomIndex)) {
                 state.cleared = true
+                state.doorsLocked = false
                 clearReinforcementsTargeting(session, state.roomIndex)
+                RoomDoorPlacer.unseal(session, state)
+                if (state.entered) RoomPrizeReveal.revealAtCenter(session, state.roomIndex)
             }
         }
     }
 
-    private fun maybeStartTimer(session: GameSession, roomIndex: Int) {
-        val state = session.roomEngagements.getOrNull(roomIndex) ?: return
-        if (state.cleared || state.timerStartedAtMs != null) return
-        if (!hasLivingMobs(session, roomIndex)) return
-        state.timerStartedAtMs = session.serverTimeMs
-    }
-
-    private fun hasLivingMobs(session: GameSession, roomIndex: Int): Boolean {
+    fun hasLivingMobs(session: GameSession, roomIndex: Int): Boolean {
         val room = session.rooms.getOrNull(roomIndex) ?: return false
         return session.mobs.any { it.alive && it.aggroRoom == room }
     }
@@ -75,16 +64,15 @@ object RoomEngagementSystem {
         }
     }
 
-    fun findPlayerRoom(session: GameSession): Room? =
-        session.rooms.firstOrNull { it.containsWorld(session.playerPose.x, session.playerPose.y) }
+    fun findPlayerRoom(session: GameSession): Room? {
+        if (session.currentLevel != 0) return null
+        return session.rooms.firstOrNull { it.containsWorld(session.playerPose.x, session.playerPose.y) }
+    }
 
     fun timerSnapshot(session: GameSession): RoomClearTimerSnapshot? {
-        val state = findPlayerRoom(session)
-            ?.let { session.rooms.indexOf(it) }
-            ?.takeIf { it >= 0 }
-            ?.let { session.roomEngagements.getOrNull(it) }
-            ?: return null
-        if (state.cleared || state.timerStartedAtMs == null) return null
+        val room = findPlayerRoom(session) ?: return null
+        val state = session.roomEngagements.getOrNull(session.rooms.indexOf(room)) ?: return null
+        if (!state.entered || state.cleared || state.timerStartedAtMs == null) return null
 
         val elapsed = session.serverTimeMs - state.timerStartedAtMs!!
         val remaining = (RoomEngagementConstants.CLEAR_TIMER_MS - elapsed).coerceAtLeast(0)

@@ -16,7 +16,7 @@ import ru.course.roguelike.shared.engine.FpsMovementSystem
 internal object SyncInputPipeline {
     fun runPlayer(session: GameSession, input: InputSyncRequest): List<GameEvent> {
         val events = mutableListOf<GameEvent>()
-        ElevatorSystem.apply(session, input.deltaMs)?.let { events.add(it) }
+        ElevatorSystem.apply(session, input.deltaMs)
 
         val poseBeforeMove = session.playerPose
         PlayerVerticalMotion.applyJump(session, input)
@@ -27,6 +27,7 @@ internal object SyncInputPipeline {
         LavaDamageSystem.apply(session, input.deltaMs)?.let { events.add(it) }
         events.addAll(InteractSystem.apply(session, input, poseBeforeMove, session.playerPose))
         events.addAll(InventorySystem.handleHotbarInput(session, input.hotbarSelect, input.hotbarAssign, input.reload))
+        events.addAll(InventorySystem.handleInventoryInput(session, input.inventoryCycle, input.inventoryDrop))
         RoomEngagementSystem.tick(session)
         events.addAll(CombatSystem.tick(session, input.deltaMs, input.attack))
         return events

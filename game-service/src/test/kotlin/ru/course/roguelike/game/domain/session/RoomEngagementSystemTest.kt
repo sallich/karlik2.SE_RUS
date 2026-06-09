@@ -1,6 +1,7 @@
 package ru.course.roguelike.game.domain.session
 
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -15,17 +16,29 @@ import ru.course.roguelike.shared.model.TileType
 
 class RoomEngagementSystemTest {
     @Test
-    fun `timer starts when player enters room with living mobs`() {
+    fun `entering via door seals exits and starts timer`() {
         val roomA = Room(1, 1, 4, 4)
         val roomB = Room(8, 1, 4, 4)
-        val map = openMap(14, 8)
-        val session = sessionWithRooms(map, listOf(roomA, roomB), PlayerPose(2.5f, 2.5f, yaw = 0f))
+        val map = corridorMap(roomA, roomB)
+        val doorway = RoomDoorways.of(map, roomA).single()
+        val sealCell = RoomDoorways.sealCells(map, roomA, listOf(doorway)).single()
+        val session = sessionWithDoorways(
+            map,
+            listOf(roomA, roomB),
+            PlayerPose(sealCell.x + 0.5f, sealCell.y + 0.5f, yaw = Math.PI.toFloat()),
+        )
         session.mobs.add(MobSpawner.createMob(session, MobKind.MELEE, 2.5f, 3.5f, roomA))
+        session.map.setTile(sealCell, TileType.ROOM_SEAL)
 
-        RoomEngagementSystem.tick(session)
+        RoomDoorInteract.tryEnter(session, session.playerPose)
 
+        assertTrue(session.roomEngagements[0].entered)
+        assertTrue(session.roomEngagements[0].doorsLocked)
         assertNotNull(session.roomEngagements[0].timerStartedAtMs)
-        assertNull(session.roomEngagements[1].timerStartedAtMs)
+        assertEquals(TileType.FLOOR, session.map.get(doorway), "doorway inside room stays walkable")
+        assertEquals(TileType.ROOM_SEAL, session.map.get(sealCell))
+        assertTrue(sealCell != doorway, "seal must be in the corridor")
+        assertNotNull(RoomEngagementSystem.timerSnapshot(session))
     }
 
     @Test
@@ -33,11 +46,13 @@ class RoomEngagementSystemTest {
         val roomA = Room(1, 1, 4, 4)
         val roomB = Room(8, 1, 4, 4)
         val map = corridorMap(roomA, roomB)
-        val session = sessionWithRooms(map, listOf(roomA, roomB), PlayerPose(2.5f, 2.5f, yaw = 0f))
+        val session = sessionWithDoorways(map, listOf(roomA, roomB), PlayerPose(2.5f, 2.5f, yaw = 0f))
         session.mobs.add(MobSpawner.createMob(session, MobKind.MELEE, 2.5f, 3.5f, roomA))
         val neighborMob = MobSpawner.createMob(session, MobKind.MELEE, 9.5f, 3.5f, roomB)
         session.mobs.add(neighborMob)
 
+        session.roomEngagements[0].entered = true
+        session.roomEngagements[0].doorsLocked = true
         session.roomEngagements[0].timerStartedAtMs = session.serverTimeMs - RoomEngagementConstants.CLEAR_TIMER_MS - 1
 
         RoomEngagementSystem.tick(session)
@@ -47,19 +62,28 @@ class RoomEngagementSystemTest {
     }
 
     @Test
-    fun `timer snapshot exposes remaining time for player room`() {
+    fun `clearing a room removes seals and reveals prize`() {
         val roomA = Room(1, 1, 4, 4)
         val roomB = Room(8, 1, 4, 4)
-        val map = openMap(14, 8)
-        val session = sessionWithRooms(map, listOf(roomA, roomB), PlayerPose(2.5f, 2.5f, yaw = 0f))
-        session.mobs.add(MobSpawner.createMob(session, MobKind.MELEE, 2.5f, 3.5f, roomA))
+        val map = corridorMap(roomA, roomB)
+        val session = sessionWithDoorways(map, listOf(roomA, roomB), PlayerPose(2.5f, 2.5f, yaw = 0f))
+        val mob = MobSpawner.createMob(session, MobKind.MELEE, 2.5f, 3.5f, roomA)
+        session.mobs.add(mob)
+        val doorway = session.roomEngagements[0].doorways.single()
+        val sealCell = session.roomEngagements[0].sealCells.single()
+        session.roomEngagements[0].entered = true
+        session.roomEngagements[0].doorsLocked = true
+        session.roomEngagements[0].timerStartedAtMs = session.serverTimeMs
+        session.map.setTile(sealCell, TileType.ROOM_SEAL)
+
+        mob.hp = 0
         RoomEngagementSystem.tick(session)
 
-        val snapshot = RoomEngagementSystem.timerSnapshot(session)
-
-        assertNotNull(snapshot)
-        assertTrue(snapshot!!.remainingMs > 0)
-        assertEquals(RoomEngagementConstants.CLEAR_TIMER_MS, snapshot.totalMs)
+        assertTrue(session.roomEngagements[0].cleared)
+        assertFalse(session.roomEngagements[0].doorsLocked)
+        assertEquals(TileType.FLOOR, session.map.get(doorway))
+        assertEquals(TileType.FLOOR, session.map.get(sealCell))
+        assertNull(RoomEngagementSystem.timerSnapshot(session))
     }
 
     @Test
@@ -67,7 +91,7 @@ class RoomEngagementSystemTest {
         val roomA = Room(1, 1, 4, 4)
         val roomB = Room(8, 1, 4, 4)
         val map = corridorMap(roomA, roomB)
-        val session = sessionWithRooms(map, listOf(roomA, roomB), PlayerPose(2.5f, 2.5f, yaw = 0f))
+        val session = sessionWithDoorways(map, listOf(roomA, roomB), PlayerPose(2.5f, 2.5f, yaw = 0f))
         val mob = MobSpawner.createMob(session, MobKind.MELEE, 9.5f, 3.5f, roomB)
         mob.reinforceTarget = roomA
         session.mobs.add(mob)
@@ -80,18 +104,22 @@ class RoomEngagementSystemTest {
         assertTrue(mob.x < startX, "mob should march from room B toward room A")
     }
 
-    private fun sessionWithRooms(map: TileMap, rooms: List<Room>, pose: PlayerPose): GameSession =
+    private fun sessionWithDoorways(map: TileMap, rooms: List<Room>, pose: PlayerPose): GameSession =
         GameSession(
-            sessionId = "engagement",
+            sessionId = "engagement-doors",
             seed = 1L,
             map = map,
             playerPose = pose,
             rooms = rooms,
-            roomEngagements = rooms.mapIndexed { index, _ -> RoomEngagementState(roomIndex = index) }.toMutableList(),
+            roomEngagements = rooms.mapIndexed { index, room ->
+                val doorways = RoomDoorways.of(map, room)
+                RoomEngagementState(
+                    roomIndex = index,
+                    doorways = doorways,
+                    sealCells = RoomDoorways.sealCells(map, room, doorways),
+                )
+            }.toMutableList(),
         )
-
-    private fun openMap(width: Int, height: Int): TileMap =
-        TileMap(width, height, Array(width * height) { TileType.FLOOR })
 
     private fun corridorMap(roomA: Room, roomB: Room): TileMap {
         val width = roomB.x + roomB.width + 1

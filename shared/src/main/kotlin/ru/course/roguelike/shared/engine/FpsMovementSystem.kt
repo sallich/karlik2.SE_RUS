@@ -21,6 +21,7 @@ object FpsMovementSystem {
         applyInputWithDebug(map, pose, input).pose
 
     private fun withSurfaceHeight(map: TileMap, pose: PlayerPose): PlayerPose {
+        if (pose.height > WorldVertical.COLUMN_HEIGHT + 0.05f) return pose
         val h = VerticalMotion.snapHeightToSupport(map, pose.x, pose.y, pose.height)
         return if (h == pose.height) pose else pose.copy(height = h)
     }
@@ -250,17 +251,9 @@ object FpsMovementSystem {
         hits: MutableSet<GridPos>,
     ): Pair<Float, Float> {
         if (!overlapsWall(map, x, y, height, null)) return x to y
-        val nudge = 0.04f
-        val candidates = arrayOf(
-            nudge to 0f,
-            -nudge to 0f,
-            0f to nudge,
-            0f to -nudge,
-        )
-        for ((ox, oy) in candidates) {
-            val nx = x + ox
-            val ny = y + oy
-            if (!overlapsWall(map, nx, ny, height, hits)) return nx to ny
+        val resolved = PlayerPlacement.resolve(map, x, y, height)
+        if (!overlapsWall(map, resolved.first, resolved.second, height, hits)) {
+            return resolved
         }
         return x to y
     }
@@ -314,7 +307,7 @@ object FpsMovementSystem {
             for (cx in minCellX..maxCellX) {
                 val tile = map.get(GridPos(cx, cy)) ?: continue
                 if (WorldVertical.blocksMovementAt(floorLevel = 0, tile, height)) {
-                    if (circleOverlapsCell(x, y, r, cx, cy)) {
+                    if (EntityCollision.circleOverlapsTile(x, y, r, cx, cy, tile)) {
                         hits?.add(GridPos(cx, cy))
                         blocked = true
                     }
@@ -322,14 +315,6 @@ object FpsMovementSystem {
             }
         }
         return blocked
-    }
-
-    private fun circleOverlapsCell(px: Float, py: Float, radius: Float, cellX: Int, cellY: Int): Boolean {
-        val closestX = px.coerceIn(cellX.toFloat(), cellX + 1f)
-        val closestY = py.coerceIn(cellY.toFloat(), cellY + 1f)
-        val diffX = px - closestX
-        val diffY = py - closestY
-        return diffX * diffX + diffY * diffY <= radius * radius
     }
 
     private fun effectiveRadius(): Float = FpsConstants.PLAYER_RADIUS + FpsConstants.WALL_SKIN

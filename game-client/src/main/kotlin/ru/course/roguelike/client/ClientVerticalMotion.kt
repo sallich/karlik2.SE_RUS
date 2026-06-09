@@ -24,7 +24,6 @@ object ClientVerticalMotion {
         val pose: PlayerPose,
         val verticalVelocity: Float,
         val elevatorPhase: ElevatorPhase,
-        val levelSwitched: Boolean,
     )
 
     fun tick(input: TickInput): Result {
@@ -40,7 +39,6 @@ object ClientVerticalMotion {
                     pose = input.pose.copy(height = lift.height),
                     verticalVelocity = lift.verticalVelocity,
                     elevatorPhase = lift.phase,
-                    levelSwitched = lift.levelSwitch,
                 )
             }
         }
@@ -58,7 +56,6 @@ object ClientVerticalMotion {
             pose = input.pose.copy(height = jump.height),
             verticalVelocity = jump.verticalVelocity,
             elevatorPhase = ElevatorPhase.IDLE,
-            levelSwitched = false,
         )
     }
 }

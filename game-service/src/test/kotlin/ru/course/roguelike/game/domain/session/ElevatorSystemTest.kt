@@ -1,11 +1,7 @@
 package ru.course.roguelike.game.domain.session
 
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNull
-import org.junit.jupiter.api.Assertions.assertSame
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import ru.course.roguelike.game.domain.event.GameEvent
 import ru.course.roguelike.shared.engine.ElevatorPhase
 import ru.course.roguelike.shared.engine.ElevatorPhysics
 import ru.course.roguelike.shared.engine.TileMap
@@ -19,89 +15,85 @@ class ElevatorSystemTest {
         return TileMap(3, 3, tiles)
     }
 
-    private val ground = levelWithCenterElevator()
-    private val upper = levelWithCenterElevator()
-
-    private fun twoLevelSession() = GameSession(
+    private fun elevatorSession() = GameSession(
         sessionId = "t",
         seed = 1L,
-        map = ground,
+        map = levelWithCenterElevator(),
         playerPose = PlayerPose(0.5f, 0.5f, yaw = 0f),
-        secondLevel = upper,
     )
 
     private fun GameSession.moveTo(x: Float, y: Float) {
         playerPose = PlayerPose(x, y, yaw = 0f)
     }
 
-    private fun GameSession.rideElevatorToLevelSwitch(): GameEvent? {
+    private fun GameSession.rideElevatorToPeak() {
         moveTo(1.5f, 1.5f)
-        var event: GameEvent? = null
         repeat(120) {
-            ElevatorSystem.apply(this, deltaMs = 16)?.let { event = it }
-            if (event != null) return event
+            ElevatorSystem.apply(this, deltaMs = 16)
+            if (elevatorPhase == ElevatorPhase.DESCENDING) return
         }
-        error("elevator did not switch level")
+        error("elevator did not reach peak")
     }
 
     @Test
-    fun `entering an elevator animates up and switches level at peak`() {
-        val session = twoLevelSession()
-        assertNull(ElevatorSystem.apply(session, 16))
+    fun `entering an elevator animates up without changing level`() {
+        val session = elevatorSession()
+        ElevatorSystem.apply(session, 16)
+        assertEquals(ElevatorPhase.IDLE, session.elevatorPhase)
 
-        val event = session.rideElevatorToLevelSwitch()
+        session.rideElevatorToPeak()
 
-        assertEquals(1, session.currentLevel)
-        assertSame(upper, session.activeMap)
-        assertTrue(event is GameEvent.LevelChanged && event.level == 1)
+        assertEquals(0, session.currentLevel)
         assertEquals(ElevatorPhase.DESCENDING, session.elevatorPhase)
         assertEquals(ElevatorPhysics.PEAK_HEIGHT, session.playerPose.height, 0.05f)
     }
 
     @Test
-    fun `after level switch player descends from peak to ground`() {
-        val session = twoLevelSession()
-        session.rideElevatorToLevelSwitch()
+    fun `after peak player descends back to ground on the same map`() {
+        val session = elevatorSession()
+        session.rideElevatorToPeak()
         assertEquals(ElevatorPhysics.PEAK_HEIGHT, session.playerPose.height, 0.05f)
         repeat(120) { ElevatorSystem.apply(session, 16) }
         assertEquals(ElevatorPhase.IDLE, session.elevatorPhase)
         assertEquals(0f, session.playerPose.height, 0.05f)
+        assertEquals(0, session.currentLevel)
     }
 
     @Test
-    fun `standing on an elevator does not repeatedly toggle`() {
-        val session = twoLevelSession()
-        session.rideElevatorToLevelSwitch()
-        repeat(30) { ElevatorSystem.apply(session, 16) }
+    fun `standing on an elevator does not repeatedly trigger`() {
+        val session = elevatorSession()
+        session.rideElevatorToPeak()
+        repeat(80) { ElevatorSystem.apply(session, 16) }
 
-        assertEquals(1, session.currentLevel)
-        assertNull(ElevatorSystem.apply(session, 16))
+        assertEquals(0, session.currentLevel)
+        assertEquals(ElevatorPhase.IDLE, session.elevatorPhase)
     }
 
     @Test
-    fun `stepping off and back onto an elevator switches again`() {
-        val session = twoLevelSession()
-        session.rideElevatorToLevelSwitch()
+    fun `stepping off and back onto an elevator triggers another ride`() {
+        val session = elevatorSession()
+        session.rideElevatorToPeak()
         repeat(80) { ElevatorSystem.apply(session, 16) }
 
         session.moveTo(0.5f, 0.5f)
         ElevatorSystem.apply(session, 16)
-        session.rideElevatorToLevelSwitch()
+        session.rideElevatorToPeak()
 
         assertEquals(0, session.currentLevel)
-        assertSame(ground, session.activeMap)
+        assertEquals(ElevatorPhase.DESCENDING, session.elevatorPhase)
     }
 
     @Test
-    fun `single level session never changes level`() {
+    fun `map without elevator does nothing`() {
         val session = GameSession(
             sessionId = "single",
             seed = 1L,
-            map = levelWithCenterElevator(),
+            map = TileMap(3, 3, Array(9) { TileType.FLOOR }),
             playerPose = PlayerPose(1.5f, 1.5f, yaw = 0f),
         )
-        assertNull(ElevatorSystem.apply(session, 16))
+        ElevatorSystem.apply(session, 16)
         assertEquals(0, session.currentLevel)
+        assertEquals(ElevatorPhase.IDLE, session.elevatorPhase)
     }
 
     @Test
@@ -109,14 +101,12 @@ class ElevatorSystemTest {
         var height = 0f
         var phase = ElevatorPhase.ASCENDING
         var peak = 0f
-        var switched = false
         repeat(100) {
-            if (switched) return@repeat
             val result = ElevatorPhysics.tick(phase, height, 16)
             phase = result.phase
             height = result.height
             peak = maxOf(peak, height)
-            if (result.levelSwitch) switched = true
+            if (phase == ElevatorPhase.DESCENDING && height <= ElevatorPhysics.PEAK_HEIGHT) return@repeat
         }
         assertEquals(ElevatorPhysics.PEAK_HEIGHT, peak, 0.02f)
     }

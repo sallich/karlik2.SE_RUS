@@ -1,5 +1,6 @@
 package ru.course.roguelike.client.render
 
+import ru.course.roguelike.shared.dto.DoorMarkerSnapshot
 import ru.course.roguelike.shared.dto.ItemSnapshot
 import ru.course.roguelike.shared.dto.KeySnapshot
 import ru.course.roguelike.shared.dto.MobSnapshot
@@ -15,5 +16,6 @@ data class ViewportRenderScene(
     val projectiles: List<ProjectileSnapshot> = emptyList(),
     val keyPickups: List<KeySnapshot> = emptyList(),
     val items: List<ItemSnapshot> = emptyList(),
+    val doorMarkers: List<DoorMarkerSnapshot> = emptyList(),
     val agentPose: PlayerPose? = null,
 )

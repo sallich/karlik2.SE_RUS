@@ -1,5 +1,6 @@
 package ru.course.roguelike.client
 
+import ru.course.roguelike.shared.engine.DoorInteraction
 import ru.course.roguelike.shared.engine.TileMap
 import ru.course.roguelike.shared.model.GridPos
 import ru.course.roguelike.shared.model.InteractionConstants
@@ -20,10 +21,18 @@ fun interactionHint(
 ): String? {
     if (pose == null || sessionEnded || tileMap == null) return null
     return exitGateHint(pose, exitGate, keys)
+        ?: nearRoomDoorHint(tileMap, pose)
         ?: nearKeyHint(pose, keyPickups)
         ?: nearWeaponHint(pose, items)
         ?: exitTileHint(tileMap, pose, keys)
 }
+
+private fun nearRoomDoorHint(tileMap: TileMap, pose: PlayerPose): String? =
+    if (DoorInteraction.findInteractable(tileMap, pose) != null) {
+        "E — войти в комнату"
+    } else {
+        null
+    }
 
 private fun exitGateHint(pose: PlayerPose, exitGate: GridPos?, keys: KeyProgress): String? {
     val gate = exitGate ?: return null

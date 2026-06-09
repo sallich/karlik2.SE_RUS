@@ -30,4 +30,16 @@ enum class TileType(
 
     /** Ворота выхода в комнате босса — сюда нужно принести все ключи и нажать E. */
     EXIT_GATE(walkable = true, blocksVision = false, damaging = false),
+
+    /**
+     * Устаревший тип — на карте больше не ставится; оставлен для совместимости снимков.
+     * Актуальная печать — [ROOM_SEAL] в коридоре.
+     */
+    ROOM_DOOR(walkable = false, blocksVision = true, damaging = false),
+
+    /**
+     * Красная печать в коридоре у входа в комнату: блокирует проход, вход по E.
+     * Проём внутри комнаты остаётся проходимым ([FLOOR]).
+     */
+    ROOM_SEAL(walkable = false, blocksVision = true, damaging = false),
 }

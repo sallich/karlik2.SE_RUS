@@ -41,6 +41,8 @@ data class GameSession(
     val hotbarSlots: Array<Int?> = arrayOfNulls(InventoryConstants.HOTBAR_SLOTS),
     var selectedHotbarSlot: Int = 0,
     var equippedWeaponItemId: Int? = null,
+    /** Выбранная ячейка инвентаря (Tab+Q/F). */
+    var selectedInventoryItemId: Int? = null,
     /** Заряженные патроны для каждого оружия (по id предмета в инвентаре). */
     val weaponLoadedAmmo: MutableMap<Int, Int> = mutableMapOf(),
     var elevatorPhase: ElevatorPhase = ElevatorPhase.IDLE,
@@ -103,11 +105,16 @@ data class GameSession(
         projectiles = projectiles.map { it.toSnapshot() },
         keysCollected = keysCollected,
         keysRequired = keysRequired,
-        keyPickups = keyPickups.filter { !it.collected }.map { it.toSnapshot() },
-        items = itemPickups.filter { !it.collected }.map { it.toSnapshot() },
+        keyPickups = keyPickups
+            .filter { !it.collected && RoomVisibility.isKeyVisible(this, it) }
+            .map { it.toSnapshot() },
+        items = itemPickups
+            .filter { !it.collected && RoomVisibility.isItemVisible(this, it) }
+            .map { it.toSnapshot() },
         bossRoom = bossRoom?.toSnapshot(),
         roomClearTimer = RoomEngagementSystem.timerSnapshot(this),
         exitGate = exitGate,
+        doorMarkers = RoomVisibility.doorMarkers(this),
     )
 
     private fun playerSnapshot(): PlayerSnapshot {
@@ -122,7 +129,7 @@ data class GameSession(
             attackDamage = playerAttackDamage,
             ammo = playerAmmo,
             maxAmmo = InventoryWeapons.magazineCapacity(this),
-            inventory = InventorySnapshots.toInventorySnapshot(inventory),
+            inventory = InventorySnapshots.toInventorySnapshot(this),
             hotbar = InventorySnapshots.toHotbarSnapshot(this),
             equippedWeaponName = InventoryWeapons.equippedWeaponName(this),
             equippedWeaponType = InventoryWeapons.equippedWeaponType(this)?.name,

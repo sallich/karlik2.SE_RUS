@@ -10,7 +10,6 @@ import ru.course.roguelike.shared.render.BillboardRenderer
 import ru.course.roguelike.shared.render.Raycaster
 import ru.course.roguelike.shared.render.RgbImageSampler
 import ru.course.roguelike.shared.render.TextureMapping
-
 internal class TexturedSpritePainter(
     private val buffer: PixelFrameBuffer,
     private val viewWidth: Int,

@@ -3,6 +3,7 @@ package ru.course.roguelike.client.render
 import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer
 import com.badlogic.gdx.math.Matrix4
+import ru.course.roguelike.shared.dto.DoorMarkerSnapshot
 import ru.course.roguelike.shared.dto.ItemSnapshot
 import ru.course.roguelike.shared.dto.KeySnapshot
 import ru.course.roguelike.shared.dto.MobSnapshot
@@ -36,6 +37,7 @@ class LocationMapOverlay(
         keyPickups: List<KeySnapshot> = emptyList(),
         items: List<ItemSnapshot> = emptyList(),
         exitGate: GridPos? = null,
+        doorMarkers: List<DoorMarkerSnapshot> = emptyList(),
     ) {
         val layout = layout(screenWidth, screenHeight, map)
         shapeRenderer.projectionMatrix = Matrix4().setToOrtho2D(0f, 0f, screenWidth, screenHeight)
@@ -43,8 +45,17 @@ class LocationMapOverlay(
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
         shapeRenderer.color = BACKGROUND
         shapeRenderer.rect(layout.left, layout.bottom, layout.widthPx, layout.heightPx)
-        drawTiles(map, layout)
+        drawTiles(map, layout, doorMarkers)
         exitGate?.let { drawExitGate(it, layout) }
+        doorMarkers.forEach { marker ->
+            shapeRenderer.color = marker.kind?.let(::itemColor) ?: Color.GOLD
+            shapeRenderer.circle(
+                layout.left + marker.x * layout.cellPx,
+                layout.bottom + marker.y * layout.cellPx,
+                layout.cellPx * 0.2f,
+                8,
+            )
+        }
         drawKeys(keyPickups, layout)
         drawItems(items, layout)
         drawMobs(mobs, layout)
@@ -57,10 +68,17 @@ class LocationMapOverlay(
         shapeRenderer.end()
     }
 
-    private fun drawTiles(map: TileMap, layout: Layout) {
+    private fun drawTiles(map: TileMap, layout: Layout, doorMarkers: List<DoorMarkerSnapshot>) {
+        val hatchSeals = doorMarkers.map { marker ->
+            GridPos(
+                kotlin.math.floor(marker.x).toInt(),
+                kotlin.math.floor(marker.y).toInt(),
+            )
+        }.toSet()
         for (y in 0 until map.height) {
             for (x in 0 until map.width) {
-                val color = cellColor(map.get(GridPos(x, y))) ?: continue
+                val pos = GridPos(x, y)
+                val color = cellColor(map.get(pos), pos in hatchSeals) ?: continue
                 shapeRenderer.color = color
                 shapeRenderer.rect(
                     layout.left + x * layout.cellPx,
@@ -134,13 +152,15 @@ class LocationMapOverlay(
         shapeRenderer.rectLine(px, py, px + cos(pose.yaw) * aimLen, py + sin(pose.yaw) * aimLen, 1.5f)
     }
 
-    private fun cellColor(tile: TileType?): Color? = when (tile) {
+    private fun cellColor(tile: TileType?, isHatchEntrance: Boolean = false): Color? = when (tile) {
         TileType.FLOOR -> FLOOR
         TileType.WALL -> Color.DARK_GRAY
         TileType.COLUMN -> Color.GRAY
         TileType.LAVA -> Color.RED
         TileType.ELEVATOR -> Color.CYAN
         TileType.EXIT_GATE -> Color(0.2f, 0.85f, 0.35f, 1f)
+        TileType.ROOM_DOOR -> Color(0.8f, 0.2f, 0.16f, 1f)
+        TileType.ROOM_SEAL -> if (isHatchEntrance) Color.CYAN else Color(0.8f, 0.2f, 0.16f, 1f)
         else -> null
     }
 

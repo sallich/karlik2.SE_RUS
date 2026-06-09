@@ -1,5 +1,6 @@
 package ru.course.roguelike.client.render
 
+import ru.course.roguelike.shared.dto.DoorMarkerSnapshot
 import ru.course.roguelike.shared.dto.ItemSnapshot
 import ru.course.roguelike.shared.dto.KeySnapshot
 import ru.course.roguelike.shared.dto.MobSnapshot
@@ -101,8 +102,12 @@ internal class TexturedScenePainter(
         viewerHeight: Float,
     ) = wallPainter.paintHorizontalTops(scene, pitchHorizon, viewerHeight)
 
-    fun paintWalls(scene: Raycaster.SceneCast, pitchHorizon: Float, viewerHeight: Float) =
-        wallPainter.paintWalls(scene, pitchHorizon, viewerHeight)
+    fun paintWalls(
+        scene: Raycaster.SceneCast,
+        pitchHorizon: Float,
+        viewerHeight: Float,
+        doorMarkers: List<DoorMarkerSnapshot>,
+    ) = wallPainter.paintWalls(scene, pitchHorizon, viewerHeight, doorMarkers)
 
     fun paintWallCaps(scene: Raycaster.SceneCast) = wallPainter.paintWallCaps(scene)
 

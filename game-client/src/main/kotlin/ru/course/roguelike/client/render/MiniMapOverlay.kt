@@ -3,6 +3,7 @@ package ru.course.roguelike.client.render
 import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer
 import com.badlogic.gdx.math.Matrix4
+import ru.course.roguelike.shared.dto.DoorMarkerSnapshot
 import ru.course.roguelike.shared.dto.ItemSnapshot
 import ru.course.roguelike.shared.dto.KeySnapshot
 import ru.course.roguelike.shared.dto.MobSnapshot
@@ -35,6 +36,7 @@ class MiniMapOverlay(
         items: List<ItemSnapshot> = emptyList(),
         mobs: List<MobSnapshot> = emptyList(),
         exitGate: GridPos? = null,
+        doorMarkers: List<DoorMarkerSnapshot> = emptyList(),
     ) {
         if (visited.isEmpty()) return
         val layout = layout(screenWidth, screenHeight, map)
@@ -43,8 +45,9 @@ class MiniMapOverlay(
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
         shapeRenderer.color = MiniMapPalette.background
         shapeRenderer.rect(layout.left, layout.bottom, layout.widthPx, layout.heightPx)
-        drawVisitedTiles(map, visited, layout)
+        drawVisitedTiles(map, visited, layout, doorMarkers)
         exitGate?.takeIf { visited.contains(it) }?.let { drawExitGate(it, layout) }
+        drawDoorMarkers(doorMarkers, visited, layout)
         drawKeys(keyPickups, visited, layout)
         drawItems(items, visited, layout)
         drawMobs(mobs, visited, layout)
@@ -57,16 +60,25 @@ class MiniMapOverlay(
         shapeRenderer.end()
     }
 
-    private fun drawVisitedTiles(map: TileMap, visited: Set<GridPos>, layout: Layout) {
+    private fun drawVisitedTiles(
+        map: TileMap,
+        visited: Set<GridPos>,
+        layout: Layout,
+        doorMarkers: List<DoorMarkerSnapshot>,
+    ) {
+        val hatchSeals = doorMarkers.map { MiniMapPalette.cellOf(it.x, it.y) }.toSet()
         for (pos in visited) {
-            val color = MiniMapPalette.cellColor(map.get(pos)) ?: continue
-            shapeRenderer.color = color
-            shapeRenderer.rect(
-                layout.left + pos.x * layout.cellPx,
-                layout.bottom + pos.y * layout.cellPx,
-                layout.cellPx,
-                layout.cellPx,
-            )
+            val tile = map.get(pos)
+            val color = tile?.let { MiniMapPalette.cellColor(it, pos in hatchSeals) }
+            if (color != null) {
+                shapeRenderer.color = color
+                shapeRenderer.rect(
+                    layout.left + pos.x * layout.cellPx,
+                    layout.bottom + pos.y * layout.cellPx,
+                    layout.cellPx,
+                    layout.cellPx,
+                )
+            }
         }
     }
 
@@ -92,6 +104,16 @@ class MiniMapOverlay(
             val px = layout.left + item.x * layout.cellPx
             val py = layout.bottom + item.y * layout.cellPx
             shapeRenderer.circle(px, py, (layout.cellPx * 0.3f).coerceAtLeast(2f), 10)
+        }
+    }
+
+    private fun drawDoorMarkers(markers: List<DoorMarkerSnapshot>, visited: Set<GridPos>, layout: Layout) {
+        for (marker in markers) {
+            if (!visited.contains(MiniMapPalette.cellOf(marker.x, marker.y))) continue
+            shapeRenderer.color = MiniMapPalette.markerColor(marker.kind)
+            val px = layout.left + marker.x * layout.cellPx
+            val py = layout.bottom + marker.y * layout.cellPx
+            shapeRenderer.circle(px, py, (layout.cellPx * 0.28f).coerceAtLeast(2f), 8)
         }
     }
 
