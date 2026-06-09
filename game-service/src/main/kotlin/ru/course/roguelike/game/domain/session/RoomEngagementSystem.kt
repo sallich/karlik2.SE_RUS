@@ -3,6 +3,10 @@ package ru.course.roguelike.game.domain.session
 import ru.course.roguelike.game.domain.level.MapConnectivity
 import ru.course.roguelike.game.domain.level.Room
 import ru.course.roguelike.shared.dto.RoomClearTimerSnapshot
+import ru.course.roguelike.shared.engine.TileMap
+import ru.course.roguelike.shared.model.GridPos
+import ru.course.roguelike.shared.model.TileType
+import kotlin.math.floor
 
 /**
  * Таймер зачистки комнаты: при входе стартует отсчёт; если за [RoomEngagementConstants.CLEAR_TIMER_MS]
@@ -30,6 +34,8 @@ object RoomEngagementSystem {
                 triggerReinforcements(session, state.roomIndex)
             }
         }
+
+        applyDoorLocks(session)
     }
 
     private fun refreshClearedStates(session: GameSession) {
@@ -47,6 +53,37 @@ object RoomEngagementSystem {
         if (state.cleared || state.timerStartedAtMs != null) return
         if (!hasLivingMobs(session, roomIndex)) return
         state.timerStartedAtMs = session.serverTimeMs
+        state.doorsLocked = true
+    }
+
+    /**
+     * Запирает двери комнат с активным боем и открывает их после зачистки (issue #24).
+     * Ячейку, на которой сейчас стоит герой, не запираем — иначе он застрянет в стене;
+     * она запрётся на следующем тике, как только герой сойдёт с неё.
+     */
+    private fun applyDoorLocks(session: GameSession) {
+        val map = session.activeMap
+        val playerCell = GridPos(floor(session.playerPose.x).toInt(), floor(session.playerPose.y).toInt())
+        session.roomEngagements.forEach { updateRoomDoors(map, it, playerCell) }
+    }
+
+    private fun updateRoomDoors(map: TileMap, state: RoomEngagementState, playerCell: GridPos) {
+        if (state.doorways.isEmpty()) return
+        if (state.cleared) {
+            if (state.doorsLocked) {
+                state.doorways.forEach { map.setTile(it, TileType.FLOOR) }
+                state.doorsLocked = false
+            }
+            return
+        }
+        if (!state.doorsLocked) return
+        // Запираем все проёмы, но не «замуровываем» героя — клетку под ним оставляем полом.
+        state.doorways.forEach { cell ->
+            when {
+                cell != playerCell -> map.setTile(cell, TileType.DOOR_LOCKED)
+                map.get(cell) == TileType.DOOR_LOCKED -> map.setTile(cell, TileType.FLOOR)
+            }
+        }
     }
 
     private fun hasLivingMobs(session: GameSession, roomIndex: Int): Boolean {

@@ -30,4 +30,11 @@ enum class TileType(
 
     /** Ворота выхода в комнате босса — сюда нужно принести все ключи и нажать E. */
     EXIT_GATE(walkable = true, blocksVision = false, damaging = false),
+
+    /**
+     * Запертая дверь комнаты (issue #24): появляется в дверных проёмах, пока комната
+     * не зачищена. Блокирует движение героя (но не мобов — см. [ru.course.roguelike.shared.engine.EntityCollision])
+     * и перекрывает обзор, отображаясь как закрытая дверь. После зачистки снова становится полом.
+     */
+    DOOR_LOCKED(walkable = false, blocksVision = true, damaging = false),
 }

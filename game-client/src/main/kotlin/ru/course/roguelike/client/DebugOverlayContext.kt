@@ -4,6 +4,7 @@ import com.badlogic.gdx.graphics.GL20
 import ru.course.roguelike.client.render.CollisionDebugOverlay
 import ru.course.roguelike.client.render.LocationMapOverlay
 import ru.course.roguelike.client.render.MiniMapOverlay
+import ru.course.roguelike.shared.dto.DoorMarkerSnapshot
 import ru.course.roguelike.shared.dto.ItemSnapshot
 import ru.course.roguelike.shared.dto.KeySnapshot
 import ru.course.roguelike.shared.dto.MobSnapshot
@@ -24,6 +25,7 @@ data class DebugOverlayContext(
     val serverMobs: List<MobSnapshot>,
     val keyPickups: List<KeySnapshot>,
     val items: List<ItemSnapshot>,
+    val doorMarkers: List<DoorMarkerSnapshot>,
     val exitGate: GridPos?,
     val lastCollisionDebug: CollisionDebug?,
     val locationMapOverlay: LocationMapOverlay,
@@ -46,6 +48,7 @@ fun drawDebugOverlays(context: DebugOverlayContext) {
                 context.items,
                 context.serverMobs,
                 context.exitGate,
+                context.doorMarkers,
             )
         }
     }
@@ -60,6 +63,7 @@ fun drawDebugOverlays(context: DebugOverlayContext) {
                 context.keyPickups,
                 context.items,
                 context.exitGate,
+                context.doorMarkers,
             )
         }
     }

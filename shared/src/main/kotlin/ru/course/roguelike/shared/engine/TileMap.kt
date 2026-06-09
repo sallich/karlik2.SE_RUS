@@ -27,6 +27,16 @@ class TileMap(
 
     fun isWalkable(pos: GridPos): Boolean = get(pos)?.walkable == true
 
+    /**
+     * Мутирует тайл на месте (источник правды на сервере, issue #24: запирание дверей).
+     * Клиент пересобирает карту из снимка каждый кадр, поэтому новое состояние тайла
+     * доезжает до отрисовки само.
+     */
+    fun setTile(pos: GridPos, type: TileType) {
+        if (!inBounds(pos)) return
+        tiles[index(pos.x, pos.y)] = type
+    }
+
     fun getTileAt(worldX: Float, worldY: Float): TileType? =
         get(GridPos(floor(worldX).toInt(), floor(worldY).toInt()))
 

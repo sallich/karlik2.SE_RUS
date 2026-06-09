@@ -103,11 +103,16 @@ data class GameSession(
         projectiles = projectiles.map { it.toSnapshot() },
         keysCollected = keysCollected,
         keysRequired = keysRequired,
-        keyPickups = keyPickups.filter { !it.collected }.map { it.toSnapshot() },
-        items = itemPickups.filter { !it.collected }.map { it.toSnapshot() },
+        keyPickups = keyPickups
+            .filter { !it.collected && RoomVisibility.isKeyVisible(this, it) }
+            .map { it.toSnapshot() },
+        items = itemPickups
+            .filter { !it.collected && RoomVisibility.isItemVisible(this, it) }
+            .map { it.toSnapshot() },
         bossRoom = bossRoom?.toSnapshot(),
         roomClearTimer = RoomEngagementSystem.timerSnapshot(this),
         exitGate = exitGate,
+        doorMarkers = RoomVisibility.doorMarkers(this),
     )
 
     private fun playerSnapshot(): PlayerSnapshot {

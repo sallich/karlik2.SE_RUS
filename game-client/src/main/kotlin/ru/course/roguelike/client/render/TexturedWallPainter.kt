@@ -4,6 +4,7 @@ import ru.course.roguelike.shared.model.TileType
 import ru.course.roguelike.shared.model.wallHeight
 import ru.course.roguelike.shared.render.CameraProjection
 import ru.course.roguelike.shared.render.Raycaster
+import ru.course.roguelike.shared.render.RgbImageSampler
 import ru.course.roguelike.shared.render.SceneRenderConfig
 import ru.course.roguelike.shared.render.TextureMapping
 
@@ -130,13 +131,7 @@ internal class TexturedWallPainter(
         val sideDarken = SceneRenderConfig.sideDarken(layer.side)
         val u = TextureMapping.wallTextureUClamped(layer.wallU)
         for (row in top until bottom) {
-            val v = TextureMapping.wallTextureV(
-                screenRow = row,
-                wallStart = backStart,
-                wallEnd = backEnd,
-                tile = layer.tile,
-            )
-            val sample = textures.walls.samplePixel(u, v)
+            val sample = wallSample(layer.tile, u, row, backStart, backEnd)
             buffer.set(x, row, TextureMapping.shadeRgb(sample.rgb, layer.distance, sideDarken))
         }
     }
@@ -152,13 +147,7 @@ internal class TexturedWallPainter(
         val sideDarken = SceneRenderConfig.sideDarken(meta.side)
         val u = TextureMapping.wallTextureUClamped(meta.wallU)
         for (row in top until bottom) {
-            val v = TextureMapping.wallTextureV(
-                screenRow = row,
-                wallStart = wallStart,
-                wallEnd = wallEnd,
-                tile = meta.tile,
-            )
-            val sample = textures.walls.samplePixel(u, v)
+            val sample = wallSample(meta.tile, u, row, wallStart, wallEnd)
             buffer.set(
                 x,
                 row,
@@ -167,19 +156,40 @@ internal class TexturedWallPainter(
         }
     }
 
+    /**
+     * Текстура столбца стены. Запертая дверь (issue #24) рисуется ассетом двери
+     * на всю высоту проёма; остальные тайлы — атласом стен с тайлингом по V.
+     */
+    private fun wallSample(
+        tile: TileType?,
+        u: Float,
+        screenRow: Int,
+        wallStart: Float,
+        wallEnd: Float,
+    ): RgbImageSampler.PixelSample =
+        if (tile == TileType.DOOR_LOCKED) {
+            val span = (wallEnd - wallStart).coerceAtLeast(1f)
+            val v = ((screenRow + 0.5f - wallStart) / span).coerceIn(0f, 0.9999f)
+            textures.door.samplePixel(u, v)
+        } else {
+            val v = TextureMapping.wallTextureV(
+                screenRow = screenRow,
+                wallStart = wallStart,
+                wallEnd = wallEnd,
+                tile = tile,
+            )
+            textures.walls.samplePixel(u, v)
+        }
+
     fun paintWallCaps(scene: Raycaster.SceneCast) {
         for (x in scene.columns.indices) {
             val col = scene.columns[x]
             val meta = scene.wallMeta[x]
             val tile = meta.tile
-            if (shouldSkipWallCap(tile)) continue
-            paintWallCapColumn(x, col, meta, tile!!)
+            // Колпак-крышка только у сплошных WALL/COLUMN; двери и прочее пропускаем.
+            if (tile != TileType.WALL && tile != TileType.COLUMN) continue
+            paintWallCapColumn(x, col, meta, tile)
         }
-    }
-
-    private fun shouldSkipWallCap(tile: TileType?): Boolean {
-        if (tile == null) return true
-        return tile != TileType.WALL && tile != TileType.COLUMN
     }
 
     private fun paintWallCapColumn(

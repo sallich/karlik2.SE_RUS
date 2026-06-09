@@ -1,5 +1,6 @@
 package ru.course.roguelike.client.render
 
+import ru.course.roguelike.shared.dto.DoorMarkerSnapshot
 import ru.course.roguelike.shared.dto.ItemSnapshot
 import ru.course.roguelike.shared.dto.KeySnapshot
 import ru.course.roguelike.shared.dto.MobSnapshot
@@ -115,6 +116,7 @@ internal class TexturedScenePainter(
         projectiles: List<ProjectileSnapshot>,
         keyPickups: List<KeySnapshot>,
         items: List<ItemSnapshot>,
+        doorMarkers: List<DoorMarkerSnapshot>,
         agentPose: PlayerPose? = null,
         wallDistances: FloatArray,
         wallMeta: Array<Raycaster.WallColumnMeta>,
@@ -126,6 +128,7 @@ internal class TexturedScenePainter(
         projectiles,
         keyPickups,
         items,
+        doorMarkers,
         agentPose,
         wallDistances,
         wallMeta,

@@ -22,7 +22,14 @@ internal object CombatMobMovement {
         val moveX = dx / dist * step
         val moveY = dy / dist * step
         val circle = EntityCollision.Circle(mob.x, mob.y, CombatConstants.MOB_RADIUS)
-        val moved = EntityCollision.moveWithWallSlide(map, circle, moveX, moveY, localHeight = mob.z)
+        val moved = EntityCollision.moveWithWallSlide(
+            map,
+            circle,
+            moveX,
+            moveY,
+            localHeight = mob.z,
+            passLockedDoors = true,
+        )
         mob.x = moved.x
         mob.y = moved.y
     }
@@ -74,7 +81,14 @@ internal object CombatMobMovement {
 
     private fun nudgeMob(map: TileMap, mob: MobEntity, dx: Float, dy: Float) {
         val circle = EntityCollision.Circle(mob.x, mob.y, CombatConstants.MOB_RADIUS)
-        val moved = EntityCollision.moveWithWallSlide(map, circle, dx, dy, localHeight = mob.z)
+        val moved = EntityCollision.moveWithWallSlide(
+            map,
+            circle,
+            dx,
+            dy,
+            localHeight = mob.z,
+            passLockedDoors = true,
+        )
         mob.x = moved.x
         mob.y = moved.y
     }
@@ -83,7 +97,7 @@ internal object CombatMobMovement {
         val radius = CombatConstants.MOB_RADIUS
         repeat(6) {
             val circle = EntityCollision.Circle(mob.x, mob.y, radius)
-            if (!EntityCollision.overlapsMovement(map, circle, mob.z)) return
+            if (!EntityCollision.overlapsMovement(map, circle, mob.z, passLockedDoors = true)) return
             for ((dx, dy) in nudges) {
                 val moved = EntityCollision.moveWithWallSlide(
                     map,
@@ -91,8 +105,9 @@ internal object CombatMobMovement {
                     dx,
                     dy,
                     localHeight = mob.z,
+                    passLockedDoors = true,
                 )
-                if (!EntityCollision.overlapsMovement(map, moved, mob.z)) {
+                if (!EntityCollision.overlapsMovement(map, moved, mob.z, passLockedDoors = true)) {
                     mob.x = moved.x
                     mob.y = moved.y
                     return

@@ -3,6 +3,7 @@ package ru.course.roguelike.client.render
 import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer
 import com.badlogic.gdx.math.Matrix4
+import ru.course.roguelike.shared.dto.DoorMarkerSnapshot
 import ru.course.roguelike.shared.dto.ItemSnapshot
 import ru.course.roguelike.shared.dto.KeySnapshot
 import ru.course.roguelike.shared.dto.MobSnapshot
@@ -35,6 +36,7 @@ class MiniMapOverlay(
         items: List<ItemSnapshot> = emptyList(),
         mobs: List<MobSnapshot> = emptyList(),
         exitGate: GridPos? = null,
+        doorMarkers: List<DoorMarkerSnapshot> = emptyList(),
     ) {
         if (visited.isEmpty()) return
         val layout = layout(screenWidth, screenHeight, map)
@@ -45,6 +47,7 @@ class MiniMapOverlay(
         shapeRenderer.rect(layout.left, layout.bottom, layout.widthPx, layout.heightPx)
         drawVisitedTiles(map, visited, layout)
         exitGate?.takeIf { visited.contains(it) }?.let { drawExitGate(it, layout) }
+        drawDoorMarkers(doorMarkers, visited, layout)
         drawKeys(keyPickups, visited, layout)
         drawItems(items, visited, layout)
         drawMobs(mobs, visited, layout)
@@ -92,6 +95,16 @@ class MiniMapOverlay(
             val px = layout.left + item.x * layout.cellPx
             val py = layout.bottom + item.y * layout.cellPx
             shapeRenderer.circle(px, py, (layout.cellPx * 0.3f).coerceAtLeast(2f), 10)
+        }
+    }
+
+    private fun drawDoorMarkers(markers: List<DoorMarkerSnapshot>, visited: Set<GridPos>, layout: Layout) {
+        for (marker in markers) {
+            if (!visited.contains(MiniMapPalette.cellOf(marker.x, marker.y))) continue
+            shapeRenderer.color = MiniMapPalette.markerColor(marker.kind)
+            val px = layout.left + marker.x * layout.cellPx
+            val py = layout.bottom + marker.y * layout.cellPx
+            shapeRenderer.circle(px, py, (layout.cellPx * 0.28f).coerceAtLeast(2f), 8)
         }
     }
 

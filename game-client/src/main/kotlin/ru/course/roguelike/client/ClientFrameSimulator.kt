@@ -64,6 +64,7 @@ internal object ClientFrameSimulator {
                 projectiles = game.serverProjectiles,
                 keyPickups = game.keyPickups,
                 items = game.items,
+                doorMarkers = game.doorMarkers,
                 agentPose = game.agentPose,
             ),
         )

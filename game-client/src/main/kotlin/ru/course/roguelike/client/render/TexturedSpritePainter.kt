@@ -1,5 +1,6 @@
 package ru.course.roguelike.client.render
 
+import ru.course.roguelike.shared.dto.DoorMarkerSnapshot
 import ru.course.roguelike.shared.dto.ItemSnapshot
 import ru.course.roguelike.shared.dto.KeySnapshot
 import ru.course.roguelike.shared.dto.MobSnapshot
@@ -28,6 +29,7 @@ internal class TexturedSpritePainter(
         projectiles: List<ProjectileSnapshot>,
         keyPickups: List<KeySnapshot>,
         items: List<ItemSnapshot>,
+        doorMarkers: List<DoorMarkerSnapshot>,
         agentPose: PlayerPose? = null,
         wallDistances: FloatArray,
         wallMeta: Array<Raycaster.WallColumnMeta>,
@@ -55,6 +57,11 @@ internal class TexturedSpritePainter(
         keyPickups.forEach { add(it.x, it.y, BillboardRenderer.SpriteTexture.KEY, 0.55f) }
         items.forEach {
             add(it.x, it.y, BillboardRenderer.itemTexture(it.kind), 0.45f * BillboardRenderer.itemSizeScale(it.kind))
+        }
+        // Метки призов парят над дверными проёмами незачищенных комнат (issue #24).
+        doorMarkers.forEach {
+            val texture = it.kind?.let(BillboardRenderer::itemTexture) ?: BillboardRenderer.SpriteTexture.KEY
+            add(it.x, it.y, texture, scale = 0.4f, worldZ = 0.5f)
         }
         mobs.forEach {
             val texture = when (it.kind) {

@@ -46,6 +46,7 @@ class FpsViewportRenderer(
             scene.projectiles,
             scene.keyPickups,
             scene.items,
+            scene.doorMarkers,
             scene.agentPose,
             cast.wallDistances,
             cast.wallMeta,

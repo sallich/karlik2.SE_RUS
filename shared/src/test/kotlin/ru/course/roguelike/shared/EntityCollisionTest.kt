@@ -58,6 +58,16 @@ class EntityCollisionTest {
     }
 
     @Test
+    fun `locked door blocks by default but mobs pass with passLockedDoors`() {
+        val tiles = Array(9) { TileType.FLOOR }
+        tiles[1 * 3 + 1] = TileType.DOOR_LOCKED
+        val map = TileMap(3, 3, tiles)
+        val onDoor = EntityCollision.Circle(1.5f, 1.5f, CombatConstants.MOB_RADIUS)
+        assertTrue(EntityCollision.overlapsMovement(map, onDoor, localHeight = 0f))
+        assertFalse(EntityCollision.overlapsMovement(map, onDoor, localHeight = 0f, passLockedDoors = true))
+    }
+
+    @Test
     fun `projectile circle blocked by wall tile`() {
         val tiles = Array(9) { TileType.FLOOR }
         tiles[1 * 3 + 2] = TileType.WALL

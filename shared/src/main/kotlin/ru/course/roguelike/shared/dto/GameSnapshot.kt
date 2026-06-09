@@ -36,6 +36,8 @@ data class GameSnapshot(
     val roomClearTimer: RoomClearTimerSnapshot? = null,
     /** Ячейка ворот выхода в комнате босса (куда нужно принести ключи). */
     val exitGate: GridPos? = null,
+    /** Метки призов над дверями незачищенных комнат (issue #24). */
+    val doorMarkers: List<DoorMarkerSnapshot> = emptyList(),
 )
 
 @Serializable

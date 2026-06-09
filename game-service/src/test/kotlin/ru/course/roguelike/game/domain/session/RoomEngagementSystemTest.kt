@@ -1,6 +1,7 @@
 package ru.course.roguelike.game.domain.session
 
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -80,6 +81,56 @@ class RoomEngagementSystemTest {
         assertTrue(mob.x < startX, "mob should march from room B toward room A")
     }
 
+    @Test
+    fun `entering a room with mobs locks its doorways except the player cell`() {
+        val roomA = Room(1, 1, 4, 4)
+        val roomB = Room(8, 1, 4, 4)
+        val map = corridorMap(roomA, roomB)
+        val session = sessionWithDoorways(map, listOf(roomA, roomB), PlayerPose(2.5f, 2.5f, yaw = 0f))
+        session.mobs.add(MobSpawner.createMob(session, MobKind.MELEE, 2.5f, 3.5f, roomA))
+        val doorway = session.roomEngagements[0].doorways.single()
+
+        RoomEngagementSystem.tick(session)
+
+        assertTrue(session.roomEngagements[0].doorsLocked)
+        assertEquals(TileType.DOOR_LOCKED, session.activeMap.get(doorway))
+    }
+
+    @Test
+    fun `player standing on a doorway keeps it passable`() {
+        val roomA = Room(1, 1, 4, 4)
+        val roomB = Room(8, 1, 4, 4)
+        val map = corridorMap(roomA, roomB)
+        // Doorway of roomA is (4, 3); put the player exactly there.
+        val session = sessionWithDoorways(map, listOf(roomA, roomB), PlayerPose(4.5f, 3.5f, yaw = 0f))
+        session.mobs.add(MobSpawner.createMob(session, MobKind.MELEE, 2.5f, 3.5f, roomA))
+        val doorway = session.roomEngagements[0].doorways.single()
+
+        RoomEngagementSystem.tick(session)
+
+        assertEquals(TileType.FLOOR, session.activeMap.get(doorway))
+    }
+
+    @Test
+    fun `clearing a room reopens its doorways`() {
+        val roomA = Room(1, 1, 4, 4)
+        val roomB = Room(8, 1, 4, 4)
+        val map = corridorMap(roomA, roomB)
+        val session = sessionWithDoorways(map, listOf(roomA, roomB), PlayerPose(2.5f, 2.5f, yaw = 0f))
+        val mob = MobSpawner.createMob(session, MobKind.MELEE, 2.5f, 3.5f, roomA)
+        session.mobs.add(mob)
+        val doorway = session.roomEngagements[0].doorways.single()
+        RoomEngagementSystem.tick(session)
+        assertEquals(TileType.DOOR_LOCKED, session.activeMap.get(doorway))
+
+        mob.hp = 0
+        RoomEngagementSystem.tick(session)
+
+        assertTrue(session.roomEngagements[0].cleared)
+        assertFalse(session.roomEngagements[0].doorsLocked)
+        assertEquals(TileType.FLOOR, session.activeMap.get(doorway))
+    }
+
     private fun sessionWithRooms(map: TileMap, rooms: List<Room>, pose: PlayerPose): GameSession =
         GameSession(
             sessionId = "engagement",
@@ -88,6 +139,18 @@ class RoomEngagementSystemTest {
             playerPose = pose,
             rooms = rooms,
             roomEngagements = rooms.mapIndexed { index, _ -> RoomEngagementState(roomIndex = index) }.toMutableList(),
+        )
+
+    private fun sessionWithDoorways(map: TileMap, rooms: List<Room>, pose: PlayerPose): GameSession =
+        GameSession(
+            sessionId = "engagement-doors",
+            seed = 1L,
+            map = map,
+            playerPose = pose,
+            rooms = rooms,
+            roomEngagements = rooms.mapIndexed { index, room ->
+                RoomEngagementState(roomIndex = index, doorways = RoomDoorways.of(map, room))
+            }.toMutableList(),
         )
 
     private fun openMap(width: Int, height: Int): TileMap =

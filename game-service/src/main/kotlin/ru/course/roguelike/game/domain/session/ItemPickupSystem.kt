@@ -21,7 +21,7 @@ object ItemPickupSystem {
 
         val events = mutableListOf<GameEvent>()
         session.itemPickups
-            .filter { !it.collected && canCollect(it, pose, interact) }
+            .filter { !it.collected && RoomVisibility.isItemVisible(session, it) && canCollect(it, pose, interact) }
             .forEach { item ->
                 val kindEvents = when (item.kind) {
                     ItemKind.EXPERIENCE -> {

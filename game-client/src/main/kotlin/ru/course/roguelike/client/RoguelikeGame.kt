@@ -22,6 +22,7 @@ import ru.course.roguelike.client.render.InventoryUiOverlay
 import ru.course.roguelike.client.render.LocationMapOverlay
 import ru.course.roguelike.client.render.MiniMapOverlay
 import ru.course.roguelike.client.render.RoomClearTimerOverlay
+import ru.course.roguelike.shared.dto.DoorMarkerSnapshot
 import ru.course.roguelike.shared.dto.HotbarSnapshot
 import ru.course.roguelike.shared.dto.InputSyncRequest
 import ru.course.roguelike.shared.dto.InventorySnapshot
@@ -112,6 +113,9 @@ class RoguelikeGame : ApplicationAdapter() {
     internal var items: List<ItemSnapshot> = emptyList()
 
     @Volatile
+    internal var doorMarkers: List<DoorMarkerSnapshot> = emptyList()
+
+    @Volatile
     internal var exitGate: GridPos? = null
 
     @Volatile
@@ -169,6 +173,7 @@ class RoguelikeGame : ApplicationAdapter() {
                     serverMobs = serverMobs,
                     keyPickups = keyPickups,
                     items = items,
+                    doorMarkers = doorMarkers,
                     exitGate = exitGate,
                     lastCollisionDebug = lastCollisionDebug,
                     locationMapOverlay = locationMapOverlay,

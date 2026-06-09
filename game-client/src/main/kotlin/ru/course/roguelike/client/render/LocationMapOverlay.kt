@@ -3,6 +3,7 @@ package ru.course.roguelike.client.render
 import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer
 import com.badlogic.gdx.math.Matrix4
+import ru.course.roguelike.shared.dto.DoorMarkerSnapshot
 import ru.course.roguelike.shared.dto.ItemSnapshot
 import ru.course.roguelike.shared.dto.KeySnapshot
 import ru.course.roguelike.shared.dto.MobSnapshot
@@ -36,6 +37,7 @@ class LocationMapOverlay(
         keyPickups: List<KeySnapshot> = emptyList(),
         items: List<ItemSnapshot> = emptyList(),
         exitGate: GridPos? = null,
+        doorMarkers: List<DoorMarkerSnapshot> = emptyList(),
     ) {
         val layout = layout(screenWidth, screenHeight, map)
         shapeRenderer.projectionMatrix = Matrix4().setToOrtho2D(0f, 0f, screenWidth, screenHeight)
@@ -45,6 +47,15 @@ class LocationMapOverlay(
         shapeRenderer.rect(layout.left, layout.bottom, layout.widthPx, layout.heightPx)
         drawTiles(map, layout)
         exitGate?.let { drawExitGate(it, layout) }
+        doorMarkers.forEach { marker ->
+            shapeRenderer.color = marker.kind?.let(::itemColor) ?: Color.GOLD
+            shapeRenderer.circle(
+                layout.left + marker.x * layout.cellPx,
+                layout.bottom + marker.y * layout.cellPx,
+                layout.cellPx * 0.2f,
+                8,
+            )
+        }
         drawKeys(keyPickups, layout)
         drawItems(items, layout)
         drawMobs(mobs, layout)
@@ -141,6 +152,7 @@ class LocationMapOverlay(
         TileType.LAVA -> Color.RED
         TileType.ELEVATOR -> Color.CYAN
         TileType.EXIT_GATE -> Color(0.2f, 0.85f, 0.35f, 1f)
+        TileType.DOOR_LOCKED -> Color(0.55f, 0.36f, 0.18f, 1f)
         else -> null
     }
 

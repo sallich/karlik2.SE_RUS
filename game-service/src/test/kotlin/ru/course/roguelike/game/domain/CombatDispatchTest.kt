@@ -33,7 +33,9 @@ class CombatDispatchTest {
         val snap = GameEngine().createSession(seed = 42L)
         assertEquals(3, snap.keysRequired)
         assertEquals(0, snap.keysCollected)
-        assertEquals(3, snap.keyPickups.size)
+        // Ключи — призы комнат (issue #24): они спрятаны, пока комната не зачищена,
+        // поэтому видимых ключей в свежей сессии нет, хотя требуется собрать все 3.
+        assertEquals(0, snap.keyPickups.size)
         assertTrue(snap.bossRoom != null)
         assertTrue(snap.exitGate != null)
     }

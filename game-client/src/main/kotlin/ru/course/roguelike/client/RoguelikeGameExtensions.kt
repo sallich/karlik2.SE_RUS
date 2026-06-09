@@ -58,6 +58,7 @@ internal fun RoguelikeGame.resetSessionState() {
     currentLevel = 0
     keyPickups = emptyList()
     items = emptyList()
+    doorMarkers = emptyList()
     exitGate = null
     roomClearTimer = null
     roomClearTimerReceivedAtMs = 0L
@@ -106,6 +107,7 @@ internal fun RoguelikeGame.applyServerSnapshot(snap: GameSnapshot) {
     keysRequired = snap.keysRequired
     keyPickups = snap.keyPickups
     items = snap.items
+    doorMarkers = snap.doorMarkers
     exitGate = snap.exitGate
     roomClearTimer = snap.roomClearTimer
     roomClearTimerReceivedAtMs = snap.serverTimeMs

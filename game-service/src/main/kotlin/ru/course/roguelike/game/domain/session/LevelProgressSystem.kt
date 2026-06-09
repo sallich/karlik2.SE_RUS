@@ -27,7 +27,7 @@ object LevelProgressSystem {
         val px = pose.x
         val py = pose.y
         val nearest = session.keyPickups
-            .filter { !it.collected }
+            .filter { !it.collected && RoomVisibility.isKeyVisible(session, it) }
             .minByOrNull { hypot((it.x - px).toDouble(), (it.y - py).toDouble()) }
             ?: return
 

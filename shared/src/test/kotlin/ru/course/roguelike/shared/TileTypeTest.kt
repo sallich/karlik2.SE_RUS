@@ -2,8 +2,11 @@ package ru.course.roguelike.shared
 
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import ru.course.roguelike.shared.model.TileType
+import ru.course.roguelike.shared.model.WorldVertical
+import ru.course.roguelike.shared.model.wallHeight
 
 class TileTypeTest {
     @Test
@@ -46,6 +49,14 @@ class TileTypeTest {
         assertTrue(TileType.EXIT_GATE.walkable)
         assertFalse(TileType.EXIT_GATE.blocksVision)
         assertFalse(TileType.EXIT_GATE.damaging)
+    }
+
+    @Test
+    fun `locked door blocks movement and vision and rises to wall height`() {
+        assertFalse(TileType.DOOR_LOCKED.walkable)
+        assertTrue(TileType.DOOR_LOCKED.blocksVision)
+        assertFalse(TileType.DOOR_LOCKED.damaging)
+        assertEquals(WorldVertical.WALL_HEIGHT, TileType.DOOR_LOCKED.wallHeight())
     }
 
     @Test

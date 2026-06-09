@@ -17,6 +17,7 @@ import ru.course.roguelike.game.domain.session.ItemPickup
 import ru.course.roguelike.game.domain.session.ItemSpawner
 import ru.course.roguelike.game.domain.session.KeyPickup
 import ru.course.roguelike.game.domain.session.KeySpawner
+import ru.course.roguelike.game.domain.session.RoomDoorways
 import ru.course.roguelike.game.domain.session.RoomEngagementState
 import ru.course.roguelike.game.infrastructure.level.LevelGeneratorFactory
 import ru.course.roguelike.game.infrastructure.level.TwoLevelLabyrinthGenerator
@@ -88,9 +89,7 @@ class GameEngine(
             nextItemId = progress.items.size,
             bossRoom = progress.bossRoom,
             rooms = level.rooms,
-            roomEngagements = level.rooms.mapIndexed { index, _ ->
-                RoomEngagementState(roomIndex = index)
-            }.toMutableList(),
+            roomEngagements = buildEngagements(progress.map, level.rooms),
             exitGate = progress.exitGate,
         )
         return SessionBuild(
@@ -123,9 +122,7 @@ class GameEngine(
             nextItemId = progress.items.size,
             bossRoom = progress.bossRoom,
             rooms = ground.rooms,
-            roomEngagements = ground.rooms.mapIndexed { index, _ ->
-                RoomEngagementState(roomIndex = index)
-            }.toMutableList(),
+            roomEngagements = buildEngagements(progress.map, ground.rooms),
             exitGate = progress.exitGate,
         )
         return SessionBuild(
@@ -134,6 +131,11 @@ class GameEngine(
             occupiedCells = occupied,
         )
     }
+
+    private fun buildEngagements(map: TileMap, rooms: List<Room>): MutableList<RoomEngagementState> =
+        rooms.mapIndexed { index, room ->
+            RoomEngagementState(roomIndex = index, doorways = RoomDoorways.of(map, room))
+        }.toMutableList()
 
     private fun occupiedCells(progress: ProgressSetup, playerSpawn: GridPos): Set<GridPos> {
         val fromPickups = progress.keys.map { GridPos(it.x.toInt(), it.y.toInt()) } +
