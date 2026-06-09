@@ -29,7 +29,7 @@ internal object MiniMapPalette {
     /** Цвет метки приза над дверью (issue #24): ключ — золото, иначе цвет предмета. */
     fun markerColor(kind: ItemKind?): Color = kind?.let { itemColor(it) } ?: Color.GOLD
 
-    fun cellColor(tile: TileType?): Color? = when (tile) {
+    fun cellColor(tile: TileType?, isHatchEntrance: Boolean = false): Color? = when (tile) {
         TileType.FLOOR -> floor
         TileType.WALL -> Color.DARK_GRAY
         TileType.COLUMN -> Color.GRAY
@@ -37,7 +37,7 @@ internal object MiniMapPalette {
         TileType.ELEVATOR -> Color.CYAN
         TileType.EXIT_GATE -> Color(0.2f, 0.85f, 0.35f, 1f)
         TileType.ROOM_DOOR -> Color(0.8f, 0.2f, 0.16f, 1f)
-        TileType.ROOM_SEAL -> Color(0.8f, 0.2f, 0.16f, 1f)
+        TileType.ROOM_SEAL -> if (isHatchEntrance) Color.CYAN else Color(0.8f, 0.2f, 0.16f, 1f)
         else -> null
     }
 

@@ -45,7 +45,7 @@ class MiniMapOverlay(
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
         shapeRenderer.color = MiniMapPalette.background
         shapeRenderer.rect(layout.left, layout.bottom, layout.widthPx, layout.heightPx)
-        drawVisitedTiles(map, visited, layout)
+        drawVisitedTiles(map, visited, layout, doorMarkers)
         exitGate?.takeIf { visited.contains(it) }?.let { drawExitGate(it, layout) }
         drawDoorMarkers(doorMarkers, visited, layout)
         drawKeys(keyPickups, visited, layout)
@@ -60,9 +60,16 @@ class MiniMapOverlay(
         shapeRenderer.end()
     }
 
-    private fun drawVisitedTiles(map: TileMap, visited: Set<GridPos>, layout: Layout) {
+    private fun drawVisitedTiles(
+        map: TileMap,
+        visited: Set<GridPos>,
+        layout: Layout,
+        doorMarkers: List<DoorMarkerSnapshot>,
+    ) {
+        val hatchSeals = doorMarkers.map { MiniMapPalette.cellOf(it.x, it.y) }.toSet()
         for (pos in visited) {
-            val color = MiniMapPalette.cellColor(map.get(pos)) ?: continue
+            val tile = map.get(pos) ?: continue
+            val color = MiniMapPalette.cellColor(tile, pos in hatchSeals) ?: continue
             shapeRenderer.color = color
             shapeRenderer.rect(
                 layout.left + pos.x * layout.cellPx,

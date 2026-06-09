@@ -186,16 +186,25 @@ internal class TexturedWallPainter(
         meta: Raycaster.WallColumnMeta,
         doorMarkers: List<DoorMarkerSnapshot>,
     ): Int {
+        val marker = if (tile == TileType.ROOM_SEAL || tile == TileType.ROOM_DOOR) {
+            doorMarkerAt(doorMarkers, meta.hitMapX, meta.hitMapY)
+        } else {
+            null
+        }
         val base = when (tile) {
-            TileType.ROOM_SEAL, TileType.ROOM_DOOR ->
+            TileType.ROOM_SEAL -> if (marker != null) {
+                val doorRgb = textures.door.samplePixel(u, v).rgb
+                TextureMapping.shadeRgb(doorRgb, distance, sideDarken)
+            } else {
                 TextureMapping.shadeRgb(SEAL_RGB, distance, sideDarken * 0.95f)
+            }
+            TileType.ROOM_DOOR -> TextureMapping.shadeRgb(SEAL_RGB, distance, sideDarken * 0.95f)
             else -> {
                 val sample = textures.walls.samplePixel(u, v)
                 TextureMapping.shadeRgb(sample.rgb, distance, sideDarken)
             }
         }
-        if (tile != TileType.ROOM_SEAL && tile != TileType.ROOM_DOOR) return base
-        val marker = doorMarkerAt(doorMarkers, meta.hitMapX, meta.hitMapY) ?: return base
+        if (marker == null || tile != TileType.ROOM_SEAL) return base
         return blendPrize(base, marker, u, row, wallStart, wallEnd, distance)
     }
 
@@ -246,13 +255,6 @@ internal class TexturedWallPainter(
                 kotlin.math.floor(it.x).toInt() == mapX && kotlin.math.floor(it.y).toInt() == mapY
             }
         }
-
-    private fun tintBrown(rgb: Int): Int {
-        val r = (((rgb shr 16) and 0xFF) * 0.85f + 0x7A * 0.15f).toInt().coerceIn(0, 255)
-        val g = (((rgb shr 8) and 0xFF) * 0.7f + 0x4A * 0.3f).toInt().coerceIn(0, 255)
-        val b = ((rgb and 0xFF) * 0.55f + 0x22 * 0.45f).toInt().coerceIn(0, 255)
-        return (r shl 16) or (g shl 8) or b
-    }
 
     private fun mixRgb(base: Int, overlay: Int, overlayWeight: Float): Int {
         val t = overlayWeight.coerceIn(0f, 1f)
