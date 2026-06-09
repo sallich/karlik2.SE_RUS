@@ -6,6 +6,14 @@ import ru.course.roguelike.shared.model.CombatConstants
 import kotlin.math.hypot
 
 internal object CombatMobMovement {
+    /**
+     * Печати ([TileType.ROOM_SEAL]) проходимы только для подкрепления в пути
+     * (у моба задан [MobEntity.reinforceTarget]). «Родные» мобы запертой комнаты
+     * печать не проходят и не могут её покинуть — иначе комната не зачтётся как
+     * зачищенная и герой останется заперт (issue #24).
+     */
+    private fun MobEntity.passesSeals(): Boolean = reinforceTarget != null
+
     fun moveToward(
         map: TileMap,
         mob: MobEntity,
@@ -28,7 +36,7 @@ internal object CombatMobMovement {
             moveX,
             moveY,
             localHeight = mob.z,
-            passRoomSeals = true,
+            passRoomSeals = mob.passesSeals(),
         )
         mob.x = moved.x
         mob.y = moved.y
@@ -87,7 +95,7 @@ internal object CombatMobMovement {
             dx,
             dy,
             localHeight = mob.z,
-            passRoomSeals = true,
+            passRoomSeals = mob.passesSeals(),
         )
         mob.x = moved.x
         mob.y = moved.y
@@ -95,9 +103,10 @@ internal object CombatMobMovement {
 
     fun clampMobOutOfWalls(map: TileMap, mob: MobEntity) {
         val radius = CombatConstants.MOB_RADIUS
+        val passSeals = mob.passesSeals()
         repeat(6) {
             val circle = EntityCollision.Circle(mob.x, mob.y, radius)
-            if (!EntityCollision.overlapsMovement(map, circle, mob.z, passRoomSeals = true)) return
+            if (!EntityCollision.overlapsMovement(map, circle, mob.z, passRoomSeals = passSeals)) return
             for ((dx, dy) in nudges) {
                 val moved = EntityCollision.moveWithWallSlide(
                     map,
@@ -105,9 +114,9 @@ internal object CombatMobMovement {
                     dx,
                     dy,
                     localHeight = mob.z,
-                    passRoomSeals = true,
+                    passRoomSeals = passSeals,
                 )
-                if (!EntityCollision.overlapsMovement(map, moved, mob.z, passRoomSeals = true)) {
+                if (!EntityCollision.overlapsMovement(map, moved, mob.z, passRoomSeals = passSeals)) {
                     mob.x = moved.x
                     mob.y = moved.y
                     return

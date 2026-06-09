@@ -15,6 +15,13 @@ object WorldVertical {
     const val WALL_HEIGHT = 1.0f
     const val COLUMN_HEIGHT = 0.45f
 
+    /**
+     * Высота красной печати ([TileType.ROOM_SEAL]): низкий барьер в проёме, а не
+     * сплошной куб во всю клетку. Движение героя печать блокирует на любой высоте
+     * (см. [blocksMovementAt]), поэтому перепрыгнуть её нельзя несмотря на низкий рендер.
+     */
+    const val SEAL_HEIGHT = 0.5f
+
     /** Насколько смещается линия пола на экране на каждую единицу высоты мира. */
     const val ELEVATION_SCREEN_FACTOR = 0.32f
 
@@ -51,8 +58,8 @@ object WorldVertical {
 fun TileType.wallHeight(): Float = when (this) {
     TileType.WALL,
     TileType.ROOM_DOOR,
-    TileType.ROOM_SEAL,
     -> WorldVertical.WALL_HEIGHT
+    TileType.ROOM_SEAL -> WorldVertical.SEAL_HEIGHT
     TileType.COLUMN -> WorldVertical.COLUMN_HEIGHT
     else -> 0f
 }
