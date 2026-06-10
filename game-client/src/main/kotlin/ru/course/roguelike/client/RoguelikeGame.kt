@@ -22,6 +22,7 @@ import ru.course.roguelike.client.render.InventoryUiOverlay
 import ru.course.roguelike.client.render.LocationMapOverlay
 import ru.course.roguelike.client.render.MiniMapOverlay
 import ru.course.roguelike.client.render.RoomClearTimerOverlay
+import ru.course.roguelike.client.render.WeaponViewOverlay
 import ru.course.roguelike.shared.dto.DoorMarkerSnapshot
 import ru.course.roguelike.shared.dto.HotbarSnapshot
 import ru.course.roguelike.shared.dto.InputSyncRequest
@@ -54,6 +55,7 @@ class RoguelikeGame : ApplicationAdapter() {
     internal lateinit var inventoryUiOverlay: InventoryUiOverlay
     internal lateinit var gameEndOverlay: GameEndOverlay
     internal lateinit var roomClearTimerOverlay: RoomClearTimerOverlay
+    internal lateinit var weaponViewOverlay: WeaponViewOverlay
     internal lateinit var sync: RoguelikeSync
     internal lateinit var audio: GameAudio
 
@@ -154,6 +156,12 @@ class RoguelikeGame : ApplicationAdapter() {
 
         drawWorldFrame()
         if (!isSessionEnded && !showInventoryGrid) {
+            weaponViewOverlay.render(
+                batch,
+                Gdx.graphics.width.toFloat(),
+                Gdx.graphics.height.toFloat(),
+                equippedWeaponType,
+            )
             crosshairOverlay.render(
                 Gdx.graphics.width.toFloat(),
                 Gdx.graphics.height.toFloat(),
@@ -237,6 +245,7 @@ class RoguelikeGame : ApplicationAdapter() {
         InputSampler.disableMouseLook()
         viewport.dispose()
         audio.dispose()
+        weaponViewOverlay.dispose()
         shapeRenderer.dispose()
         batch.dispose()
         font.dispose()

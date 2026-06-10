@@ -13,13 +13,14 @@ import ru.course.roguelike.client.render.InventoryUiOverlay
 import ru.course.roguelike.client.render.LocationMapOverlay
 import ru.course.roguelike.client.render.MiniMapOverlay
 import ru.course.roguelike.client.render.RoomClearTimerOverlay
+import ru.course.roguelike.client.render.WeaponViewOverlay
 import ru.course.roguelike.shared.render.SceneRenderConfig
 
 internal fun RoguelikeGame.initRendering() {
     batch = SpriteBatch()
     font = BitmapFont()
-    hud = RoguelikeHud(batch, font)
     shapeRenderer = ShapeRenderer()
+    hud = RoguelikeHud(batch, font, shapeRenderer)
     collisionDebugOverlay = CollisionDebugOverlay(shapeRenderer)
     crosshairOverlay = CrosshairOverlay(shapeRenderer)
     locationMapOverlay = LocationMapOverlay(shapeRenderer)
@@ -27,6 +28,8 @@ internal fun RoguelikeGame.initRendering() {
     inventoryUiOverlay = InventoryUiOverlay(shapeRenderer)
     gameEndOverlay = GameEndOverlay(batch, font, shapeRenderer)
     roomClearTimerOverlay = RoomClearTimerOverlay(shapeRenderer, batch, font)
+    weaponViewOverlay = WeaponViewOverlay()
+    weaponViewOverlay.load()
     audio = GameAudio()
     audio.load()
     audio.playAmbient()

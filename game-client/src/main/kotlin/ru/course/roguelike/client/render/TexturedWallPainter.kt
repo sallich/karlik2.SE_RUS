@@ -203,7 +203,8 @@ internal class TexturedWallPainter(
                 val doorRgb = textures.door.samplePixel(sample.u, sample.v).rgb
                 TextureMapping.shadeRgb(doorRgb, sample.distance, sample.sideDarken)
             } else {
-                TextureMapping.shadeRgb(SEAL_RGB, sample.distance, sample.sideDarken * 0.95f)
+                val fireRgb = textures.fireWall.samplePixel(sample.u, sample.v).rgb
+                TextureMapping.shadeRgb(fireRgb, sample.distance, sample.sideDarken * 0.95f)
             }
             TileType.ROOM_DOOR -> TextureMapping.shadeRgb(SEAL_RGB, sample.distance, sample.sideDarken * 0.95f)
             else -> {
@@ -257,14 +258,17 @@ internal class TexturedWallPainter(
     private fun prizeSampler(marker: DoorMarkerSnapshot): RgbImageSampler? = when {
         marker.mobRoom -> null
         marker.prizeIsKey -> textures.keySprite
+        marker.kind == ru.course.roguelike.shared.model.ItemKind.WEAPON_PISTOL -> textures.pistol
+        marker.kind == ru.course.roguelike.shared.model.ItemKind.WEAPON_SHOTGUN -> textures.shotgun
+        marker.kind == ru.course.roguelike.shared.model.ItemKind.AMMO_PISTOL -> textures.pistolAmmo
+        marker.kind == ru.course.roguelike.shared.model.ItemKind.AMMO_SHOTGUN -> textures.shotgunAmmo
+        marker.kind == ru.course.roguelike.shared.model.ItemKind.HEALTH -> textures.firstAid
         else -> null
     }
 
     private fun prizeFlatRgb(marker: DoorMarkerSnapshot): Int? = when {
         marker.mobRoom -> COMBAT_ROOM_RGB
         marker.prizeIsKey -> null
-        marker.kind == ru.course.roguelike.shared.model.ItemKind.WEAPON_PISTOL -> PISTOL_PRIZE_RGB
-        marker.kind == ru.course.roguelike.shared.model.ItemKind.WEAPON_SHOTGUN -> SHOTGUN_PRIZE_RGB
         else -> null
     }
 
@@ -335,8 +339,6 @@ internal class TexturedWallPainter(
         const val PRIZE_V_MIN = 0.32f
         const val PRIZE_V_MAX = 0.68f
         const val PRIZE_BLEND = 0.72f
-        const val PISTOL_PRIZE_RGB = 0x66AAFF
-        const val SHOTGUN_PRIZE_RGB = 0xCC4433
         const val COMBAT_ROOM_RGB = 0xDDAA33
     }
 }

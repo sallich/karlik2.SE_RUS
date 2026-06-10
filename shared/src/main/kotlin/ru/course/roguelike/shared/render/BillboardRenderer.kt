@@ -18,6 +18,7 @@ object BillboardRenderer {
         PLAYER,
         MELEE,
         RANGED,
+        BOSS,
         BLAST,
         KEY,
         ITEM_HEALTH,

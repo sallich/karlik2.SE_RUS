@@ -94,7 +94,7 @@ class RoguelikeHud(
 
     private fun drawInteractionHint(hint: String) {
         val c = font.color.cpy()
-        font.color = Color.GOLD
+        font.color = Color.GREEN
         font.draw(batch, hint, Gdx.graphics.width / 2f - 120f, 120f)
         font.color = c
     }
