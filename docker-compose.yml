@@ -40,9 +40,14 @@ services:
       dockerfile: agent-runner/Dockerfile
     ports:
       - "8082:8082"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       PORT: "8082"
-      LLM_PROVIDER: heuristic
+      LLM_PROVIDER: yandex-openai
+      LLM_API_KEY: ${LLM_API_KEY}
+      YANDEX_FOLDER_ID: ${YANDEX_FOLDER_ID}
+      OLLAMA_MODEL_URL: "qwen2.5:3b"
       MCP_TRANSPORT: stdio
       MCP_SERVER_COMMAND: "/opt/mcp-server/bin/mcp-server stdio"
       GAME_SERVICE_URL: http://game-service:8080
@@ -54,7 +59,7 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8082/health"]
-      interval: 5s
+      interval: 10s
       timeout: 3s
       retries: 5
       start_period: 20s

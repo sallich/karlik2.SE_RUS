@@ -16,21 +16,22 @@ import kotlin.math.hypot
 import kotlin.math.min
 
 data class ToolCallDecision(
+    val id: String? = null,
     val tool: String,
     val arguments: Map<String, kotlinx.serialization.json.JsonElement>,
 )
 
 class KeyHuntPlanner {
-    fun plan(snapshot: GameSnapshot, sessionId: String, actor: String = ACTOR_PLAYER): ToolCallDecision {
+    fun plan(snapshot: GameSnapshot, sessionId: String, actor: String = ACTOR_PLAYER): List<ToolCallDecision> {
         val map = TileMap.fromFlat(snapshot.width, snapshot.height, snapshot.tiles)
-        val pose = actorPose(snapshot, actor) ?: return act(sessionId, GameActions.WAIT)
+        val pose = actorPose(snapshot, actor) ?: return listOf(act(sessionId, GameActions.WAIT))
 
         if (shouldInteract(snapshot, pose)) {
-            return act(sessionId, GameActions.INTERACT)
+            return listOf(act(sessionId, GameActions.INTERACT))
         }
 
         val cell = resolveCell(map, pose)
-        return navigate(sessionId, map, snapshot, cell, pose)
+        return listOf(navigate(sessionId, map, snapshot, cell, pose))
     }
 
     private fun navigate(
