@@ -1,5 +1,10 @@
+@file:Suppress("ImportOrdering")
+
 package ru.course.roguelike.agent.mcp
 
+import java.io.BufferedReader
+import java.io.BufferedWriter
+import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
@@ -8,10 +13,9 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.put
 import ru.course.roguelike.agent.config.AgentConfig
-import java.io.BufferedReader
-import java.io.BufferedWriter
-import java.util.concurrent.atomic.AtomicInteger
+import ru.course.roguelike.shared.mcp.McpTool
 
 class StdioMcpClient(
     command: List<String>,
@@ -44,6 +48,43 @@ class StdioMcpClient(
             writer.flush()
             val line = reader.readLine() ?: return McpToolResult("MCP process closed", isError = true)
             return parseResponse(line)
+        }
+    }
+
+    override suspend fun getTools(): List<McpTool> {
+        val id = requestId.incrementAndGet()
+        val request = buildJsonObject {
+            put("jsonrpc", JsonPrimitive("2.0"))
+            put("id", JsonPrimitive(id))
+            put("method", JsonPrimitive("tools/list"))
+            put("params", buildJsonObject { })
+        }
+        synchronized(process) {
+            writer.write(json.encodeToString(JsonObject.serializer(), request))
+            writer.newLine()
+            writer.flush()
+            val line = reader.readLine() ?: return emptyList()
+            return parseToolsResponse(line)
+        }
+    }
+
+    private fun parseToolsResponse(line: String): List<McpTool> {
+        val root = json.parseToJsonElement(line).jsonObject
+        root["error"]?.jsonObject?.let {
+            return emptyList()
+        }
+        val result = root["result"]?.jsonObject ?: return emptyList()
+        val toolsArray = result["tools"]?.jsonArray ?: return emptyList()
+        return toolsArray.mapNotNull { toolElement ->
+            val toolObj = toolElement.jsonObject
+            val name = toolObj["name"]?.jsonPrimitive?.content ?: return@mapNotNull null
+            val description = toolObj["description"]?.jsonPrimitive?.content ?: ""
+            val inputSchema = toolObj["inputSchema"]?.jsonObject ?: buildJsonObject {
+                put("type", "object")
+                put("properties", buildJsonObject { })
+                put("additionalProperties", false)
+            }
+            McpTool(name, description, inputSchema)
         }
     }
 
