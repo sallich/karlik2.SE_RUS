@@ -14,7 +14,7 @@ import ru.course.roguelike.shared.mcp.McpTool
 class MobDecisionService(
     private val config: AgentConfig,
     private val llm: AgentDecisionClient = LlmClientFactory().create(config, HeuristicDecisionClient()),
-    private val fallback: HeuristicDecisionClient
+    private val fallback: HeuristicDecisionClient = HeuristicDecisionClient()
 ) {
     private val budget = config.maxMobToolCalls
     private var steps = 0
