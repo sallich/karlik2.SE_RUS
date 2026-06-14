@@ -10,7 +10,6 @@ import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
-import java.util.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -146,111 +145,6 @@ class YandexGptClient(
             parameters = inputSchema
         )
     )
-
-    @Suppress("unused")
-    private fun buildPrompt(snapshot: GameSnapshot): String {
-        val playerX = snapshot.agent?.pose?.x ?: snapshot.player.pose.x
-        val playerY = snapshot.agent?.pose?.y ?: snapshot.player.pose.y
-        val playerYaw = snapshot.agent?.pose?.yaw ?: snapshot.player.pose.yaw
-        val playerHP = snapshot.agent?.hp ?: snapshot.player.hp
-        val playerMaxHP = snapshot.agent?.maxHp ?: snapshot.player.maxHp
-
-        val keys = snapshot.keyPickups.joinToString(prefix = "[", postfix = "]") { key ->
-            val x = key.x.toInt()
-            val y = key.y.toInt()
-            "($x, $y)"
-        }
-
-        val localMap = formatFullMap(snapshot)
-
-        return """
-        Фаза: ${snapshot.phase}
-        Здоровье: $playerHP/$playerMaxHP
-        Ключи: ${snapshot.keysCollected}/${snapshot.keysRequired} (собрано/необходимо)
-        Позиция игрока: x: $playerX, y: $playerY
-        Направление взгляда: $playerYaw
-        Список координат оставшихся ключей: $keys$
-        
-        Выход: ${snapshot.exitGate}
-       
-        Полная карта игры (@=ты, K=ключ, E=выход, #=стена, .=пол), ходить можно только по полу:
-        $localMap
-        
-        Посмотри на карту и историю. Реши какое действие сделать следующим, чтобы приблизиться к концу игры. Вертикальная ось это x, а горизонтальная это y. 
-        """.trimIndent()
-    }
-
-    private fun getCellChar(
-        x: Int,
-        y: Int,
-        snapshot: GameSnapshot,
-        playerX: Int,
-        playerY: Int
-    ): Char {
-        // Игрок
-        if (x == playerX && y == playerY) return '@'
-        // Ключ
-        if (snapshot.keyPickups.any { it.x.toInt() == x && it.y.toInt() == y }) return 'K'
-        // Выход
-        if (snapshot.exitGate?.x == x && snapshot.exitGate?.y == y) return 'E'
-
-        val tileType = snapshot.tiles[y * snapshot.width + x]
-        return when {
-            tileType.damaging -> 'L'
-            tileType.walkable -> '.'
-            else -> '#'
-        }
-    }
-
-    fun formatFullMap(snapshot: GameSnapshot): String {
-        val w = snapshot.width
-        val h = snapshot.height
-        val tiles = snapshot.tiles
-        val playerX = snapshot.agent?.pose?.x ?: snapshot.player.pose.x
-        val playerY = snapshot.agent?.pose?.y ?: snapshot.player.pose.y
-        // Строим исходную сетку символов без поворота
-        val originalGrid = Array(h) { y ->
-            CharArray(w) { x ->
-                getCellChar(x, y, snapshot, playerX.toInt(), playerY.toInt())
-            }
-        }
-
-        val rotatedGrid = rotateRight(originalGrid)
-
-        val newHeight = rotatedGrid.size
-        val newWidth = rotatedGrid[0].size
-
-        val sb = StringBuilder()
-
-        sb.append("     ")
-        for (x in 0 until newWidth) {
-            if (x % 10 == 0) sb.append("|")
-            sb.append(x % 10)
-        }
-        sb.append('\n')
-        sb.append("     ")
-        repeat(newWidth) { sb.append('-') }
-        sb.append('\n')
-
-        for (y in 0 until newHeight) {
-            sb.append(String.format(Locale.US, "%3d |", newHeight - 1 - y))
-            sb.append(rotatedGrid[y])
-            sb.append('\n')
-        }
-        return sb.toString()
-    }
-
-    private fun rotateRight(grid: Array<CharArray>): Array<CharArray> {
-        val height = grid.size
-        val width = grid[0].size
-        val rotated = Array(width) { CharArray(height) }
-        for (y in 0 until height) {
-            for (x in 0 until width) {
-                rotated[width - 1 - x][y] = grid[y][x]
-            }
-        }
-        return rotated
-    }
 
     /**
      * Функция для загрузки tools напрямую из mcp-contract.

@@ -25,22 +25,38 @@ class MobDecisionService(
         description = "Выбор действия моба в бою",
         inputSchema = buildJsonObject {
             put("type", "object")
-            put("properties", buildJsonObject {
-                put("intent", buildJsonObject {
-                    put("type", "string")
-                    put("enum", buildJsonArray {
-                        add("chase")
-                        add("shoot")
-                        add("kite")
-                        add("idle")
-                    })
+            put(
+                "properties",
+                buildJsonObject {
                     put(
-                        "description",
-                        "Действие моба: chase - преследовать, shoot - стрелять, kite - отступать, idle - бездействовать"
+                        "intent",
+                        buildJsonObject {
+                            put("type", "string")
+                            put(
+                                "enum",
+                                buildJsonArray {
+                                    add("chase")
+                                    add("shoot")
+                                    add("kite")
+                                    add("idle")
+                                }
+                            )
+                            put(
+                                "description",
+                                "Действие моба: chase - преследовать," +
+                                    " shoot - стрелять, kite - отступать," +
+                                    " idle - бездействовать"
+                            )
+                        }
                     )
-                })
-            })
-            put("required", buildJsonArray { add("intent") })
+                }
+            )
+            put(
+                "required",
+                buildJsonArray {
+                    add("intent")
+                }
+            )
             put("additionalProperties", false)
         }
     )
@@ -81,11 +97,4 @@ class MobDecisionService(
         
         Выбери действие: преследовать, стрелять, отступать или бездействовать.
     """.trimIndent()
-
-    private fun heuristicIntent(request: MobDecideRequest): String = when {
-        request.distance <= 2.5f && request.playerHp > 0 -> "shoot"
-        request.distance < 1.2f -> "kite"
-        request.distance > 4f -> "chase"
-        else -> "idle"
-    }
 }
