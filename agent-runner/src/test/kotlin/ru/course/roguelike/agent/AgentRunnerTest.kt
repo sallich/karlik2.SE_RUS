@@ -28,11 +28,11 @@ import ru.course.roguelike.mcp.protocol.McpToolRegistry
 class AgentRunnerTest {
     @Test
     fun `health exposes agent-runner`() = testApplication {
-            application { module() }
-            val response = client.get("/health")
-            assertEquals(HttpStatusCode.OK, response.status)
-            assertTrue(response.bodyAsText().contains("agent-runner"))
-        }
+        application { module() }
+        val response = client.get("/health")
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertTrue(response.bodyAsText().contains("agent-runner"))
+    }
 
     @Test
     fun `heuristic planner chooses game_act`() {
