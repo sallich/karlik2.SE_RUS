@@ -1,10 +1,5 @@
-@file:Suppress("ImportOrdering")
-
 package ru.course.roguelike.agent.mcp
 
-import java.io.BufferedReader
-import java.io.BufferedWriter
-import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
@@ -16,19 +11,24 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import ru.course.roguelike.agent.config.AgentConfig
 import ru.course.roguelike.shared.mcp.McpTool
+import java.io.BufferedReader
+import java.io.BufferedWriter
+import java.util.concurrent.atomic.AtomicInteger
 
 class StdioMcpClient(
     command: List<String>,
 ) : McpClient {
+
     private val json = Json { ignoreUnknownKeys = true }
     private val requestId = AtomicInteger(0)
-    private val process = ProcessBuilder(command)
-        .redirectError(ProcessBuilder.Redirect.INHERIT)
-        .start()
+    private val process = ProcessBuilder(command).redirectError(ProcessBuilder.Redirect.INHERIT).start()
     private val writer: BufferedWriter = process.outputStream.bufferedWriter()
     private val reader: BufferedReader = process.inputStream.bufferedReader()
 
-    override suspend fun callTool(name: String, arguments: Map<String, JsonElement>): McpToolResult {
+    override suspend fun callTool(
+        name: String,
+        arguments: Map<String, JsonElement>,
+    ): McpToolResult {
         val id = requestId.incrementAndGet()
         val request = buildJsonObject {
             put("jsonrpc", JsonPrimitive("2.0"))
@@ -95,12 +95,11 @@ class StdioMcpClient(
         }
         val result = root["result"]?.jsonObject ?: return McpToolResult("Empty MCP result", isError = true)
         if (result["isError"]?.jsonPrimitive?.content == "true") {
-            val text = result["content"]?.jsonArray?.firstOrNull()
-                ?.jsonObject?.get("text")?.jsonPrimitive?.content ?: "Tool error"
+            val text = result["content"]?.jsonArray?.firstOrNull()?.jsonObject?.get("text")?.jsonPrimitive?.content
+                ?: "Tool error"
             return McpToolResult(text, isError = true)
         }
-        val text = result["content"]?.jsonArray?.firstOrNull()
-            ?.jsonObject?.get("text")?.jsonPrimitive?.content ?: line
+        val text = result["content"]?.jsonArray?.firstOrNull()?.jsonObject?.get("text")?.jsonPrimitive?.content ?: line
         return McpToolResult(text, isError = false)
     }
 

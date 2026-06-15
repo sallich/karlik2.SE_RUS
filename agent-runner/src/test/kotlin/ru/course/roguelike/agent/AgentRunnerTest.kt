@@ -28,19 +28,21 @@ import ru.course.roguelike.mcp.protocol.McpToolRegistry
 class AgentRunnerTest {
     @Test
     fun `health exposes agent-runner`() = testApplication {
-        application { module() }
-        val response = client.get("/health")
-        assertEquals(HttpStatusCode.OK, response.status)
-        assertTrue(response.bodyAsText().contains("agent-runner"))
-    }
+            application { module() }
+            val response = client.get("/health")
+            assertEquals(HttpStatusCode.OK, response.status)
+            assertTrue(response.bodyAsText().contains("agent-runner"))
+        }
 
     @Test
     fun `heuristic planner chooses game_act`() {
         val planner = KeyHuntPlanner()
-        val decision = planner.plan(
-            snapshot = TestSnapshots.simpleRoom(),
-            sessionId = "test-session",
-        )
+        val decisions =
+            planner.plan(
+                snapshot = TestSnapshots.simpleRoom(),
+                sessionId = "test-session",
+            )
+        val decision = decisions.first()
         assertTrue(decision.tool == "game_act" || decision.tool == "game_sync")
     }
 
@@ -50,17 +52,24 @@ class AgentRunnerTest {
         System.setProperty("SKIP_LLM_MOB", "true")
         val engine = GameEngine()
         val registry = McpToolRegistry(LocalGameSessionClient(engine))
-        val mcp = embeddedServer(Netty, port = 0) {
-            install(ContentNegotiation) {
-                json(Json { ignoreUnknownKeys = true })
-            }
-            routing {
-                route("/mcp") {
-                    configureMcpRoutes(registry)
+        val mcp =
+            embeddedServer(Netty, port = 0) {
+                install(ContentNegotiation) {
+                    json(Json { ignoreUnknownKeys = true })
                 }
+                routing {
+                    route("/mcp") {
+                        configureMcpRoutes(registry)
+                    }
+                }
+            }.start(wait = false)
+        val mcpPort =
+            runBlocking {
+                mcp.engine
+                    .resolvedConnectors()
+                    .first()
+                    .port
             }
-        }.start(wait = false)
-        val mcpPort = runBlocking { mcp.engine.resolvedConnectors().first().port }
         try {
             System.setProperty("MCP_TRANSPORT", "http")
             System.setProperty("MCP_SERVER_URL", "http://127.0.0.1:$mcpPort")
@@ -69,10 +78,11 @@ class AgentRunnerTest {
 
             testApplication {
                 application { module() }
-                val response = client.post("/api/v1/agent/run") {
-                    contentType(ContentType.Application.Json)
-                    setBody("""{"seed":42,"maxSteps":5}""")
-                }
+                val response =
+                    client.post("/api/v1/agent/run") {
+                        contentType(ContentType.Application.Json)
+                        setBody("""{"seed":42,"maxSteps":5}""")
+                    }
                 assertEquals(HttpStatusCode.OK, response.status)
                 assertTrue(response.bodyAsText().contains("\"status\""))
             }

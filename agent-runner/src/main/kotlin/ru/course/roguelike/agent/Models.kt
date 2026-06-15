@@ -69,13 +69,17 @@ sealed class LLMMessage {
     abstract val toolResultList: ToolResultList?
 }
 
-data class SystemMessage(override val text: String) : LLMMessage() {
+data class SystemMessage(
+    override val text: String,
+) : LLMMessage() {
     override val role = "system"
     override val toolCallList = null
     override val toolResultList = null
 }
 
-data class UserMessage(override val text: String) : LLMMessage() {
+data class UserMessage(
+    override val text: String,
+) : LLMMessage() {
     override val role = "user"
     override val toolCallList = null
     override val toolResultList = null
@@ -83,30 +87,46 @@ data class UserMessage(override val text: String) : LLMMessage() {
 
 data class AssistantMessage(
     override val text: String?,
-    override val toolCallList: ToolCallList?
+    override val toolCallList: ToolCallList?,
 ) : LLMMessage() {
     override val role = "assistant"
     override val toolResultList = null
 }
 
 data class ToolResultMessage(
-    override val toolResultList: ToolResultList
+    override val toolResultList: ToolResultList,
 ) : LLMMessage() {
     override val role = "assistant"
     override val text = null
     override val toolCallList = null
 }
 
-data class ToolCallList(val toolCalls: List<ToolCall>)
-data class ToolCall(val id: String? = null, val functionCall: FunctionCall)
-data class FunctionCall(val name: String, val arguments: JsonObject)
+data class ToolCallList(
+    val toolCalls: List<ToolCall>,
+)
 
-data class ToolResultList(val toolResults: List<ToolResult>)
-data class ToolResult(val functionResult: FunctionResult)
+data class ToolCall(
+    val id: String? = null,
+    val functionCall: FunctionCall,
+)
+
+data class FunctionCall(
+    val name: String,
+    val arguments: JsonObject,
+)
+
+data class ToolResultList(
+    val toolResults: List<ToolResult>,
+)
+
+data class ToolResult(
+    val functionResult: FunctionResult,
+)
+
 data class FunctionResult(
     val name: String,
     val content: String,
-    val toolCallId: String? = null
+    val toolCallId: String? = null,
 )
 
 @Serializable
@@ -116,17 +136,17 @@ data class OpenAiChatRequest(
     val tools: List<OpenAiTool>? = null,
     @SerialName("tool_choice")
     val toolChoice: String? = null,
-    val stream: Boolean = false
+    val stream: Boolean = false,
 )
 
 @Serializable
 data class OpenAiChatResponse(
-    val choices: List<OpenAiChoice>
+    val choices: List<OpenAiChoice>,
 )
 
 @Serializable
 data class OpenAiChoice(
-    val message: OpenAiMessage
+    val message: OpenAiMessage,
 )
 
 @Serializable
@@ -136,7 +156,7 @@ data class OpenAiMessage(
     @SerialName("tool_calls")
     val toolCalls: List<OpenAiToolCall>? = null,
     @SerialName("tool_call_id")
-    val toolCallId: String? = null
+    val toolCallId: String? = null,
 )
 
 @Serializable
@@ -144,56 +164,62 @@ data class OpenAiToolCall(
     val id: String,
     val index: Int? = null,
     val type: String,
-    val function: OpenAiFunctionCall
+    val function: OpenAiFunctionCall,
 )
 
 @Serializable
 data class OpenAiFunctionCall(
     val name: String,
-    val arguments: String
+    val arguments: String,
 )
 
 @Serializable
 data class OpenAiTool(
     val type: String,
-    val function: OpenAiFunction
+    val function: OpenAiFunction,
 )
 
 @Serializable
 data class OpenAiFunction(
     val name: String,
     val description: String,
-    val parameters: JsonObject
+    val parameters: JsonObject,
 )
 
 @Serializable
 data class ToolChoice(
-    val mode: String // "required", "auto", или "function"
+    val mode: String, // "required", "auto", или "function"
 )
 
 // extensions to convert our internal model to Yandex API model
-fun ToolCallList.toYandex(): YandexToolCallList = YandexToolCallList(
-    toolCalls = toolCalls.map { it.toYandex() }
-)
+fun ToolCallList.toYandex(): YandexToolCallList =
+    YandexToolCallList(
+        toolCalls = toolCalls.map { it.toYandex() },
+    )
 
-fun ToolCall.toYandex(): YandexToolCall = YandexToolCall(
-    functionCall = functionCall.toYandex()
-)
+fun ToolCall.toYandex(): YandexToolCall =
+    YandexToolCall(
+        functionCall = functionCall.toYandex(),
+    )
 
-fun FunctionCall.toYandex(): YandexFunctionCall = YandexFunctionCall(
-    name = name,
-    arguments = arguments
-)
+fun FunctionCall.toYandex(): YandexFunctionCall =
+    YandexFunctionCall(
+        name = name,
+        arguments = arguments,
+    )
 
-fun ToolResultList.toYandex(): YandexToolResultList = YandexToolResultList(
-    toolResults = toolResults.map { it.toYandex() }
-)
+fun ToolResultList.toYandex(): YandexToolResultList =
+    YandexToolResultList(
+        toolResults = toolResults.map { it.toYandex() },
+    )
 
-fun ToolResult.toYandex(): YandexToolResult = YandexToolResult(
-    functionResult = functionResult.toYandex()
-)
+fun ToolResult.toYandex(): YandexToolResult =
+    YandexToolResult(
+        functionResult = functionResult.toYandex(),
+    )
 
-fun FunctionResult.toYandex(): YandexFunctionResult = YandexFunctionResult(
-    name = name,
-    content = content
-)
+fun FunctionResult.toYandex(): YandexFunctionResult =
+    YandexFunctionResult(
+        name = name,
+        content = content,
+    )

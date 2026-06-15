@@ -14,7 +14,7 @@ import ru.course.roguelike.shared.mcp.McpTool
 class MobDecisionService(
     private val config: AgentConfig,
     private val llm: AgentDecisionClient = LlmClientFactory().create(config, HeuristicDecisionClient()),
-    private val fallback: HeuristicDecisionClient = HeuristicDecisionClient()
+    private val fallback: HeuristicDecisionClient = HeuristicDecisionClient(),
 ) {
     private val budget = config.maxMobToolCalls
     private var steps = 0
@@ -39,26 +39,26 @@ class MobDecisionService(
                                     add("shoot")
                                     add("kite")
                                     add("idle")
-                                }
+                                },
                             )
                             put(
                                 "description",
                                 "Действие моба: chase - преследовать," +
                                     " shoot - стрелять, kite - отступать," +
-                                    " idle - бездействовать"
+                                    " idle - бездействовать",
                             )
-                        }
+                        },
                     )
-                }
+                },
             )
             put(
                 "required",
                 buildJsonArray {
                     add("intent")
-                }
+                },
             )
             put("additionalProperties", false)
-        }
+        },
     )
 
     private val tools = listOf(mobTool)

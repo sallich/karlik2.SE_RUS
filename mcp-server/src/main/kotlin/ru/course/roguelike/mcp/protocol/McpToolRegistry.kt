@@ -10,8 +10,8 @@ import kotlinx.serialization.json.put
 import ru.course.roguelike.mcp.JsonRpcRequest
 import ru.course.roguelike.mcp.JsonRpcResponse
 import ru.course.roguelike.mcp.McpToolCallResponse
-import ru.course.roguelike.mcp.McpToolDescriptor
 import ru.course.roguelike.mcp.client.GameSessionPort
+import ru.course.roguelike.shared.mcp.McpTool
 import ru.course.roguelike.shared.protocol.GameActions
 
 class McpToolRegistry(
@@ -19,7 +19,7 @@ class McpToolRegistry(
 ) {
     private val json = Json { ignoreUnknownKeys = true }
 
-    fun descriptors(): List<McpToolDescriptor> = McpToolDefinitions.ALL
+    fun descriptors(): List<McpTool> = McpToolDefinitions.ALL
 
     suspend fun invoke(name: String, arguments: Map<String, JsonElement>): McpToolCallResponse =
         when (name) {

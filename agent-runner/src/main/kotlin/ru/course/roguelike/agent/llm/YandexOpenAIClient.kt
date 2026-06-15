@@ -34,11 +34,10 @@ import ru.course.roguelike.agent.llm.PromptBuilder.buildSystemPrompt
 import ru.course.roguelike.agent.planner.ToolCallDecision
 import ru.course.roguelike.shared.dto.GameSnapshot
 import ru.course.roguelike.shared.mcp.McpTool
-import kotlin.collections.set
 import kotlin.math.min
 
 /**
- * Клиент OpenAI API совместимый (использовался для Qwen 3 через Ollama локально) с поддержкой вызова инструментов.
+ * Клиент OpenAI API совместимый (использовался для Qwen 2.5 через Ollama локально) с поддержкой вызова инструментов.
  * Использует API /api/chat/completions Ollama.
  */
 class YandexOpenAIClient(
@@ -46,7 +45,7 @@ class YandexOpenAIClient(
     private val fallback: AgentDecisionClient,
     private val http: HttpClient = defaultClient(),
     private val modelName: String = "qwen3.6-35b-a3b/latest",
-    private val baseUrl: String = "https://ai.api.cloud.yandex.net/v1/chat/completions"
+    private val baseUrl: String = "https://ai.api.cloud.yandex.net/v1/chat/completions",
 ) : AgentDecisionClient {
 
     private val log = LoggerFactory.getLogger(YandexOpenAIClient::class.java)
@@ -57,7 +56,7 @@ class YandexOpenAIClient(
         sessionId: String,
         messages: List<LLMMessage>,
         availableTools: List<McpTool>,
-        actor: String
+        actor: String,
     ): List<ToolCallDecision> {
         val openAiMessages = buildOpenAiMessages(messages, snapshot)
         log.debug("openAiMessages -> {}", openAiMessages)
@@ -104,7 +103,7 @@ class YandexOpenAIClient(
     override suspend fun decide(
         messages: List<LLMMessage>,
         availableTools: List<McpTool>,
-        request: MobDecideRequest
+        request: MobDecideRequest,
     ): MobDecideResponse {
         val openAiMessages = buildOpenAiMessagesForMob(messages)
         log.debug("openAiMessages -> {}", openAiMessages)
@@ -153,14 +152,14 @@ class YandexOpenAIClient(
         messages: List<OpenAiMessage>,
         tools: List<OpenAiTool>,
         apiKey: String? = config.llmApiKey,
-        folderId: String? = config.yandexFolderId
+        folderId: String? = config.yandexFolderId,
     ): OpenAiChatResponse {
         val request = OpenAiChatRequest(
             model = "gpt://$folderId/$modelName",
             messages = messages,
             tools = tools,
             toolChoice = "required",
-            stream = false
+            stream = false,
         )
         val responseText = http.post(baseUrl) {
             contentType(ContentType.Application.Json)
@@ -179,7 +178,7 @@ class YandexOpenAIClient(
      */
     private fun buildOpenAiMessages(
         history: List<LLMMessage>,
-        snapshot: GameSnapshot
+        snapshot: GameSnapshot,
     ): List<OpenAiMessage> {
         val userPrompt = "Пройди игру."
         val systemPrompt = buildSystemPrompt(snapshot)
@@ -192,6 +191,7 @@ class YandexOpenAIClient(
         for (msg in localHistory) {
             when (msg) {
                 is SystemMessage -> continue
+
                 is UserMessage -> {
                     result.add(OpenAiMessage(role = "user", content = msg.text))
                 }
@@ -205,16 +205,16 @@ class YandexOpenAIClient(
                                 type = "function",
                                 function = OpenAiFunctionCall(
                                     name = call.functionCall.name,
-                                    arguments = call.functionCall.arguments.toString()
-                                )
+                                    arguments = call.functionCall.arguments.toString(),
+                                ),
                             )
                         }
                         result.add(
                             OpenAiMessage(
                                 role = "assistant",
                                 content = msg.text,
-                                toolCalls = toolCalls
-                            )
+                                toolCalls = toolCalls,
+                            ),
                         )
                     } else {
                         result.add(OpenAiMessage(role = "assistant", content = msg.text))
@@ -228,8 +228,8 @@ class YandexOpenAIClient(
                             OpenAiMessage(
                                 role = "tool",
                                 content = toolResult.functionResult.content,
-                                toolCallId = toolResult.functionResult.toolCallId
-                            )
+                                toolCallId = toolResult.functionResult.toolCallId,
+                            ),
                         )
                     }
                 }
@@ -254,18 +254,17 @@ class YandexOpenAIClient(
         return result
     }
 
-    private fun McpTool.toOpenAiTool(): OpenAiTool {
-        return OpenAiTool(
-            type = "function",
-            function = OpenAiFunction(
-                name = this.name,
-                description = this.description,
-                parameters = this.inputSchema
-            )
-        )
-    }
+    private fun McpTool.toOpenAiTool(): OpenAiTool = OpenAiTool(
+        type = "function",
+        function = OpenAiFunction(
+            name = this.name,
+            description = this.description,
+            parameters = this.inputSchema,
+        ),
+    )
 
     companion object {
+
         private fun defaultClient(): HttpClient = HttpClient(CIO) {
             install(ContentNegotiation) {
                 json(Json { ignoreUnknownKeys = true })

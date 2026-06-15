@@ -14,11 +14,16 @@ data class McpToolResult(
 data class GameActResponse(
     val accepted: Boolean,
     val message: String? = null,
-    val snapshot: GameSnapshot
+    val snapshot: GameSnapshot,
 )
 
 interface McpClient {
-    suspend fun callTool(name: String, arguments: Map<String, JsonElement>): McpToolResult
+    suspend fun callTool(
+        name: String,
+        arguments: Map<String, JsonElement>,
+    ): McpToolResult
+
     suspend fun getTools(): List<McpTool>
+
     fun close()
 }

@@ -24,6 +24,7 @@ import ru.course.roguelike.agent.mcp.McpClientFactory
 import ru.course.roguelike.agent.planner.KeyHuntPlanner
 import ru.course.roguelike.agent.planner.ToolCallDecision
 import ru.course.roguelike.shared.dto.GameSnapshot
+import ru.course.roguelike.shared.mcp.McpTool
 import ru.course.roguelike.shared.model.SessionPhase
 
 class AgentLoop(
@@ -50,8 +51,9 @@ class AgentLoop(
         return try {
             val coop = request.sessionId != null
             val actor = if (coop) KeyHuntPlanner.ACTOR_AGENT else KeyHuntPlanner.ACTOR_PLAYER
-            val sessionId = request.sessionId ?: createSession(mcp, request.seed, toolLog)
-                ?: return failed("Failed to create session", toolLog)
+            val sessionId =
+                request.sessionId ?: createSession(mcp, request.seed, toolLog)
+                    ?: return failed("Failed to create session", toolLog)
 
             val outcome = executeSteps(mcp, llm, sessionId, budget, toolLog, actor, fallback)
             val success = outcome.finalPhase == SessionPhase.LEVEL_COMPLETE.name
@@ -77,26 +79,27 @@ class AgentLoop(
         budget: Int,
         toolLog: MutableList<String>,
         actor: String,
-        fallback: AgentDecisionClient
+        fallback: AgentDecisionClient,
     ): StepOutcome {
         var steps = 0
         var finalPhase = SessionPhase.EXPLORATION.name
 
-        val tools = mcp.getTools()
+        val tools = getTools(mcp)
         log.debug("Tools: {}", tools)
 
-        val toolExecutor = ToolExecutor(
-            mcp,
-            fallback,
-            conversation,
-            lastPositions,
-            lastActionKeys,
-            tools,
-            sessionId,
-            actor,
-            toolLog,
-            budget,
-        )
+        val toolExecutor =
+            ToolExecutor(
+                mcp,
+                fallback,
+                conversation,
+                lastPositions,
+                lastActionKeys,
+                tools,
+                sessionId,
+                actor,
+                toolLog,
+                budget,
+            )
 
         conversation.add(SystemMessage(buildSystemPromptInLoop(sessionId)))
 
@@ -126,13 +129,21 @@ class AgentLoop(
         return StepOutcome(steps, finalPhase)
     }
 
+    private suspend fun getTools(mcp: McpClient): List<McpTool> {
+        val allTools = mcp.getTools()
+        val allowedToolNames = config.allowedTools
+        val filteredTools = allTools.filter { it.name in allowedToolNames }
+        return filteredTools
+    }
+
     private fun recordAssistantMessage(decisions: List<ToolCallDecision>) {
-        val toolCalls = decisions.map { decision ->
-            ToolCall(
-                id = decision.id,
-                functionCall = FunctionCall(decision.tool, JsonObject(decision.arguments))
-            )
-        }
+        val toolCalls =
+            decisions.map { decision ->
+                ToolCall(
+                    id = decision.id,
+                    functionCall = FunctionCall(decision.tool, JsonObject(decision.arguments)),
+                )
+            }
         conversation.add(AssistantMessage(text = null, toolCallList = ToolCallList(toolCalls)))
     }
 
@@ -140,7 +151,7 @@ class AgentLoop(
         mcp: McpClient,
         sessionId: String,
         snapshot: GameSnapshot,
-        toolLog: MutableList<String>
+        toolLog: MutableList<String>,
     ) {
         val yaw = snapshot.agent?.pose?.yaw ?: snapshot.player.pose.yaw
         if (yaw != 0.0F) {
@@ -154,41 +165,62 @@ class AgentLoop(
     private fun isTerminalPhase(phase: String): Boolean =
         phase == SessionPhase.LEVEL_COMPLETE.name || phase == SessionPhase.GAME_OVER.name
 
-    private data class StepOutcome(val steps: Int, val finalPhase: String)
+    private data class StepOutcome(
+        val steps: Int,
+        val finalPhase: String,
+    )
 
-    private suspend fun createSession(mcp: McpClient, seed: Long?, log: MutableList<String>): String? {
-        val args = buildJsonObject {
-            seed?.let { put("seed", it) }
-            put("twoLevel", false)
-        }.mapValues { it.value }
+    private suspend fun createSession(
+        mcp: McpClient,
+        seed: Long?,
+        log: MutableList<String>,
+    ): String? {
+        val args =
+            buildJsonObject {
+                seed?.let { put("seed", it) }
+                put("twoLevel", false)
+            }.mapValues { it.value }
         val result = mcp.callTool("game_new_session", args)
         log.add("game_new_session -> error=${result.isError}")
         if (result.isError) return null
         return json.decodeFromString<GameSnapshot>(result.text).sessionId
     }
 
-    private suspend fun observe(mcp: McpClient, sessionId: String, log: MutableList<String>): GameSnapshot? {
-        val args = mapOf(
-            "sessionId" to json.parseToJsonElement("\"$sessionId\""),
-        )
+    private suspend fun observe(
+        mcp: McpClient,
+        sessionId: String,
+        log: MutableList<String>,
+    ): GameSnapshot? {
+        val args =
+            mapOf(
+                "sessionId" to json.parseToJsonElement("\"$sessionId\""),
+            )
         val result = mcp.callTool("game_observe", args)
         log.add("game_observe -> error=${result.isError}")
         if (result.isError) return null
         return json.decodeFromString<GameSnapshot>(result.text)
     }
 
-    private fun failed(message: String, log: List<String>) = AgentRunResponse(
+    private fun failed(
+        message: String,
+        log: List<String>,
+    ) = AgentRunResponse(
         status = "FAILED",
         message = message,
         toolCallLog = log,
     )
 
-    private suspend fun calibrate(mcp: McpClient, sessionId: String, yaw: Float) {
-        val args = mapOf(
-            "sessionId" to json.parseToJsonElement("\"$sessionId\""),
-            "yawDelta" to JsonPrimitive(yaw),
-            "deltaMS" to JsonPrimitive(50),
-        )
+    private suspend fun calibrate(
+        mcp: McpClient,
+        sessionId: String,
+        yaw: Float,
+    ) {
+        val args =
+            mapOf(
+                "sessionId" to json.parseToJsonElement("\"$sessionId\""),
+                "yawDelta" to JsonPrimitive(yaw),
+                "deltaMS" to JsonPrimitive(50),
+            )
         val result = mcp.callTool("game_sync", args)
         log.debug("game_sync -> error=${result.isError}")
     }

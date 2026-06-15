@@ -44,7 +44,7 @@ class OpenAIClient(
     private val fallback: AgentDecisionClient,
     private val http: HttpClient = defaultClient(),
     private val modelName: String = config.ollamaModelUrl,
-    private val ollamaUrl: String = "http://host.docker.internal:11434"
+    private val ollamaUrl: String = "http://host.docker.internal:11434",
 ) : AgentDecisionClient {
 
     private val log = LoggerFactory.getLogger(OpenAIClient::class.java)
@@ -55,7 +55,7 @@ class OpenAIClient(
         sessionId: String,
         messages: List<LLMMessage>,
         availableTools: List<McpTool>,
-        actor: String
+        actor: String,
     ): List<ToolCallDecision> {
         val openAiMessages = buildOpenAiMessages(messages, snapshot)
         log.debug("openAiMessages -> {}", openAiMessages)
@@ -102,7 +102,7 @@ class OpenAIClient(
     override suspend fun decide(
         messages: List<LLMMessage>,
         availableTools: List<McpTool>,
-        request: MobDecideRequest
+        request: MobDecideRequest,
     ): MobDecideResponse {
         val openAiMessages = buildOpenAiMessagesForMob(messages)
         log.debug("openAiMessages -> {}", openAiMessages)
@@ -149,14 +149,14 @@ class OpenAIClient(
 
     private suspend fun callOpenAi(
         messages: List<OpenAiMessage>,
-        tools: List<OpenAiTool>
+        tools: List<OpenAiTool>,
     ): OpenAiChatResponse {
         val request = OpenAiChatRequest(
             model = modelName,
             messages = messages,
             tools = tools,
             toolChoice = "required",
-            stream = false
+            stream = false,
         )
         return http.post("$ollamaUrl/v1/chat/completions") {
             contentType(ContentType.Application.Json)
@@ -170,7 +170,7 @@ class OpenAIClient(
      */
     private fun buildOpenAiMessages(
         history: List<LLMMessage>,
-        snapshot: GameSnapshot
+        snapshot: GameSnapshot,
     ): List<OpenAiMessage> {
         val systemPrompt = buildSystemPrompt(snapshot)
         val result = mutableListOf<OpenAiMessage>()
@@ -193,16 +193,16 @@ class OpenAIClient(
                                 type = "function",
                                 function = OpenAiFunctionCall(
                                     name = call.functionCall.name,
-                                    arguments = call.functionCall.arguments.toString()
-                                )
+                                    arguments = call.functionCall.arguments.toString(),
+                                ),
                             )
                         }
                         result.add(
                             OpenAiMessage(
                                 role = "assistant",
                                 content = msg.text,
-                                toolCalls = toolCalls
-                            )
+                                toolCalls = toolCalls,
+                            ),
                         )
                     } else {
                         result.add(OpenAiMessage(role = "assistant", content = msg.text))
@@ -216,8 +216,8 @@ class OpenAIClient(
                             OpenAiMessage(
                                 role = "tool",
                                 content = toolResult.functionResult.content,
-                                toolCallId = toolResult.functionResult.toolCallId
-                            )
+                                toolCallId = toolResult.functionResult.toolCallId,
+                            ),
                         )
                     }
                 }
@@ -242,18 +242,17 @@ class OpenAIClient(
         return result
     }
 
-    private fun McpTool.toOpenAiTool(): OpenAiTool {
-        return OpenAiTool(
-            type = "function",
-            function = OpenAiFunction(
-                name = this.name,
-                description = this.description,
-                parameters = this.inputSchema
-            )
-        )
-    }
+    private fun McpTool.toOpenAiTool(): OpenAiTool = OpenAiTool(
+        type = "function",
+        function = OpenAiFunction(
+            name = this.name,
+            description = this.description,
+            parameters = this.inputSchema,
+        ),
+    )
 
     companion object {
+
         private fun defaultClient(): HttpClient = HttpClient(CIO) {
             install(ContentNegotiation) {
                 json(Json { ignoreUnknownKeys = true })

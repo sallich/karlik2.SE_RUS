@@ -31,8 +31,9 @@ class ToolExecutor(
     private val sessionId: String,
     private val actor: String,
     private val toolLog: MutableList<String>,
-    private val budget: Int
+    private val budget: Int,
 ) {
+
     private val log = LoggerFactory.getLogger(ToolExecutor::class.java)
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -65,9 +66,9 @@ class ToolExecutor(
         return ExecutionResult(snapshot, stepsUsed, shouldStop = false)
     }
 
-    private suspend fun executeDecision(
+    internal suspend fun executeDecision(
         decision: ToolCallDecision,
-        snapshotBefore: GameSnapshot
+        snapshotBefore: GameSnapshot,
     ): DecisionExecutionResult {
         val executionResult = callTool(decision)
 
@@ -76,14 +77,22 @@ class ToolExecutor(
         conversation.add(
             ToolResultMessage(
                 toolResultList = ToolResultList(
-                    listOf(ToolResult(FunctionResult(decision.tool, executionResult.content, toolCallId = decision.id)))
-                )
-            )
+                    listOf(
+                        ToolResult(
+                            FunctionResult(
+                                decision.tool,
+                                executionResult.content,
+                                toolCallId = decision.id,
+                            ),
+                        ),
+                    ),
+                ),
+            ),
         )
 
         if (executionResult.isError) {
             conversation.add(
-                UserMessage("Ошибка: ${executionResult.errorText}. Попробуйте другой инструмент или аргументы.")
+                UserMessage("Ошибка: ${executionResult.errorText}. Попробуйте другой инструмент или аргументы."),
             )
         }
 
@@ -104,15 +113,15 @@ class ToolExecutor(
                                     FunctionResult(
                                         fbResult.tool,
                                         fbResult.content,
-                                        toolCallId = "fallback_${System.currentTimeMillis()}"
-                                    )
-                                )
-                            )
-                        )
-                    )
+                                        toolCallId = "fallback_${System.currentTimeMillis()}",
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
                 )
                 conversation.add(
-                    UserMessage("Внимание: обнаружено зацикливание. Принудительно выполнен ${fbResult.tool}")
+                    UserMessage("Внимание: обнаружено зацикливание. Принудительно выполнен ${fbResult.tool}"),
                 )
                 return DecisionExecutionResult(fbResult.snapshot, shouldStop = isTerminalPhase(fbResult.snapshot.phase))
             }
@@ -121,9 +130,7 @@ class ToolExecutor(
         return DecisionExecutionResult(snapshotAfter, shouldStop = isTerminalPhase(snapshotAfter.phase))
     }
 
-    private suspend fun callTool(
-        decision: ToolCallDecision
-    ): ToolExecutionResult {
+    private suspend fun callTool(decision: ToolCallDecision): ToolExecutionResult {
         val args = decision.arguments.toMutableMap().apply {
             if (!containsKey("sessionId")) this["sessionId"] = JsonPrimitive(sessionId)
             if (actor == KeyHuntPlanner.ACTOR_AGENT && !containsKey("actor")) {
@@ -140,7 +147,7 @@ class ToolExecutor(
                 content = json.encodeToString(mapOf("error" to result.text)),
                 isError = true,
                 errorText = result.text,
-                newSnapshot = null
+                newSnapshot = null,
             )
         }
 
@@ -153,13 +160,17 @@ class ToolExecutor(
                     buildJsonObject {
                         put(
                             "x",
-                            JsonPrimitive(response.snapshot.agent?.pose?.x ?: response.snapshot.player.pose.x)
+                            JsonPrimitive(
+                                response.snapshot.agent?.pose?.x ?: response.snapshot.player.pose.x,
+                            ),
                         )
                         put(
                             "y",
-                            JsonPrimitive(response.snapshot.agent?.pose?.y ?: response.snapshot.player.pose.y)
+                            JsonPrimitive(
+                                response.snapshot.agent?.pose?.y ?: response.snapshot.player.pose.y,
+                            ),
                         )
-                    }
+                    },
                 )
                 put("keysCollected", JsonPrimitive(response.snapshot.keysCollected))
                 put("phase", JsonPrimitive(response.snapshot.phase))
@@ -169,19 +180,22 @@ class ToolExecutor(
                 content = json.encodeToString(compact),
                 isError = false,
                 errorText = null,
-                newSnapshot = response.snapshot
+                newSnapshot = response.snapshot,
             )
         } else {
             ToolExecutionResult(
                 content = result.text,
                 isError = false,
                 errorText = null,
-                newSnapshot = null
+                newSnapshot = null,
             )
         }
     }
 
-    private fun detectLoop(snapshot: GameSnapshot, decision: ToolCallDecision): Boolean {
+    internal fun detectLoop(
+        snapshot: GameSnapshot,
+        decision: ToolCallDecision,
+    ): Boolean {
         val px = (snapshot.agent?.pose?.x ?: snapshot.player.pose.x).toInt()
         val py = (snapshot.agent?.pose?.y ?: snapshot.player.pose.y).toInt()
         val posKey = px to py
@@ -193,7 +207,7 @@ class ToolExecutor(
             "${decision.tool}:${decision.arguments.filterNot { it.key == "sessionId" || it.key == "actor" }}"
         lastActionKeys.addLast(actionKey)
         if (lastActionKeys.size > 10) lastActionKeys.removeFirst()
-        val repeatedAction = lastActionKeys.size == 4 && lastActionKeys.toSet().size == 1
+        val repeatedAction = lastActionKeys.size == 10 && lastActionKeys.toSet().size == 1
 
         return stuckInPlace || repeatedAction
     }
@@ -201,7 +215,7 @@ class ToolExecutor(
     private fun buildActionResultDescription(
         before: GameSnapshot,
         after: GameSnapshot,
-        decision: ToolCallDecision
+        decision: ToolCallDecision,
     ): String {
         val oldPos = before.agent?.pose ?: before.player.pose
         val newPos = after.agent?.pose ?: after.player.pose
@@ -229,9 +243,7 @@ class ToolExecutor(
         }
     }
 
-    private suspend fun applyFallback(
-        snapshot: GameSnapshot
-    ): FallbackOutcome? {
+    private suspend fun applyFallback(snapshot: GameSnapshot): FallbackOutcome? {
         val fallbackDecision = fallback.chooseTool(snapshot, sessionId, conversation, tools, actor)
         if (fallbackDecision.isEmpty()) return null
 
@@ -267,24 +279,24 @@ class ToolExecutor(
     private data class FallbackOutcome(
         val snapshot: GameSnapshot,
         val tool: String,
-        val content: String
+        val content: String,
     )
 
     data class ToolExecutionResult(
         val content: String,
         val isError: Boolean,
         val errorText: String?,
-        val newSnapshot: GameSnapshot?
+        val newSnapshot: GameSnapshot?,
     )
 
     data class DecisionExecutionResult(
         val snapshot: GameSnapshot,
-        val shouldStop: Boolean
+        val shouldStop: Boolean,
     )
 
     data class ExecutionResult(
         val snapshot: GameSnapshot,
         val stepsUsed: Int,
-        val shouldStop: Boolean
+        val shouldStop: Boolean,
     )
 }

@@ -5,8 +5,14 @@ import ru.course.roguelike.shared.model.MobKind
 import java.util.Locale
 
 object MapRenderer {
-    private fun getMobChar(x: Int, y: Int, snapshot: GameSnapshot): Char? {
-        return snapshot.mobs.firstOrNull { it.x.toInt() == x && it.y.toInt() == y }
+
+    private fun getMobChar(
+        x: Int,
+        y: Int,
+        snapshot: GameSnapshot,
+    ): Char? =
+        snapshot.mobs
+            .firstOrNull { it.x.toInt() == x && it.y.toInt() == y }
             ?.let { mob ->
                 when (mob.kind) {
                     MobKind.MELEE -> 'M'
@@ -15,29 +21,58 @@ object MapRenderer {
                     else -> '?'
                 }
             }
-    }
 
-    private fun getLocalCellChar(x: Int, y: Int, playerX: Int, playerY: Int, snapshot: GameSnapshot): Char {
+    private fun getLocalCellChar(
+        x: Int,
+        y: Int,
+        playerX: Int,
+        playerY: Int,
+        snapshot: GameSnapshot,
+    ): Char {
         if (x !in 0 until snapshot.width || y !in 0 until snapshot.height) return '#'
-        return getSpecialCellChar(x, y, playerX, playerY, snapshot)
-            ?: getTileChar(x, y, snapshot)
+        return getSpecialCellChar(
+            x,
+            y,
+            playerX,
+            playerY,
+            snapshot
+        )
+            ?: getTileChar(
+                x,
+                y,
+                snapshot
+            )
     }
 
-    private fun getSpecialCellChar(x: Int, y: Int, playerX: Int, playerY: Int, snapshot: GameSnapshot): Char? {
-        return when {
+    private fun getSpecialCellChar(
+        x: Int,
+        y: Int,
+        playerX: Int,
+        playerY: Int,
+        snapshot: GameSnapshot,
+    ): Char? =
+        when {
             x == playerX && y == playerY -> '@'
-            else -> getMobChar(x, y, snapshot)
-                ?: if (snapshot.keyPickups.any { it.x.toInt() == x && it.y.toInt() == y }) {
-                    'K'
-                } else if (snapshot.exitGate?.x == x && snapshot.exitGate?.y == y) {
-                    'E'
-                } else {
-                    null
-                }
+            else ->
+                getMobChar(
+                    x,
+                    y,
+                    snapshot
+                )
+                    ?: if (snapshot.keyPickups.any { it.x.toInt() == x && it.y.toInt() == y }) {
+                        'K'
+                    } else if (snapshot.exitGate?.x == x && snapshot.exitGate?.y == y) {
+                        'E'
+                    } else {
+                        null
+                    }
         }
-    }
 
-    private fun getTileChar(x: Int, y: Int, snapshot: GameSnapshot): Char {
+    private fun getTileChar(
+        x: Int,
+        y: Int,
+        snapshot: GameSnapshot,
+    ): Char {
         val tile = snapshot.tiles[y * snapshot.width + x]
         return when {
             tile.damaging -> 'L'
@@ -46,7 +81,10 @@ object MapRenderer {
         }
     }
 
-    fun getLocalMap(snapshot: GameSnapshot, radius: Int = 4): String {
+    fun getLocalMap(
+        snapshot: GameSnapshot,
+        radius: Int = 4,
+    ): String {
         val playerX = (snapshot.agent?.pose?.x ?: snapshot.player.pose.x).toInt()
         val playerY = (snapshot.agent?.pose?.y ?: snapshot.player.pose.y).toInt()
         val sb = StringBuilder()
@@ -56,7 +94,13 @@ object MapRenderer {
             for (dx in -radius..radius) {
                 val x = playerX + dx
                 val y = playerY + dy
-                val ch = getLocalCellChar(x, y, playerX, playerY, snapshot)
+                val ch = getLocalCellChar(
+                    x,
+                    y,
+                    playerX,
+                    playerY,
+                    snapshot
+                )
                 sb.append(ch).append(' ')
             }
             sb.append('\n')
@@ -69,7 +113,7 @@ object MapRenderer {
         y: Int,
         snapshot: GameSnapshot,
         playerX: Int,
-        playerY: Int
+        playerY: Int,
     ): Char {
         // Игрок
         if (x == playerX && y == playerY) return '@'
@@ -92,11 +136,18 @@ object MapRenderer {
         val playerX = snapshot.agent?.pose?.x ?: snapshot.player.pose.x
         val playerY = snapshot.agent?.pose?.y ?: snapshot.player.pose.y
 
-        val grid = Array(h) { y ->
-            CharArray(w) { x ->
-                getCellChar(x, y, snapshot, playerX.toInt(), playerY.toInt())
+        val grid =
+            Array(h) { y ->
+                CharArray(w) { x ->
+                    getCellChar(
+                        x,
+                        y,
+                        snapshot,
+                        playerX.toInt(),
+                        playerY.toInt()
+                    )
+                }
             }
-        }
         val rotated = rotateRight(grid)
         val sb = StringBuilder()
         sb.append("     ")
@@ -105,7 +156,13 @@ object MapRenderer {
         repeat(rotated[0].size) { sb.append('-') }
         sb.append('\n')
         for (y in rotated.indices) {
-            sb.append(String.format(Locale.US, "%3d |", rotated.size - 1 - y))
+            sb.append(
+                String.format(
+                    Locale.US,
+                    "%3d |",
+                    rotated.size - 1 - y
+                )
+            )
             sb.append(rotated[y])
             sb.append('\n')
         }

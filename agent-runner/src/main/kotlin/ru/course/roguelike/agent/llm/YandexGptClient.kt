@@ -10,9 +10,11 @@ import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
+import kotlinx.coroutines.delay
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.slf4j.LoggerFactory
 import ru.course.roguelike.agent.AssistantMessage
 import ru.course.roguelike.agent.LLMMessage
@@ -36,7 +38,11 @@ class YandexGptClient(
     private val config: AgentConfig,
     private val fallback: AgentDecisionClient,
     private val http: HttpClient = defaultClient(),
+    private val model: String = "yandexgpt-lite/latest"
+// "yandexgpt-5.1/latest
+// "aliceai-llm/latest"
 ) : AgentDecisionClient {
+
     private val log = LoggerFactory.getLogger(YandexGptClient::class.java)
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -45,7 +51,7 @@ class YandexGptClient(
         sessionId: String,
         messages: List<LLMMessage>,
         availableTools: List<McpTool>,
-        actor: String
+        actor: String,
     ): List<ToolCallDecision> {
         val yandexMessages = messages.map { it.toYandexMessage() }
         val yandexTools = availableTools.map { it.toYandexTool() }
@@ -69,7 +75,7 @@ class YandexGptClient(
                             log.debug(
                                 "Successfully got tool call: {}, {}",
                                 call.functionCall.name,
-                                call.functionCall.arguments
+                                call.functionCall.arguments,
                             )
                             ToolCallDecision(null, call.functionCall.name, call.functionCall.arguments)
                         } else {
@@ -97,26 +103,70 @@ class YandexGptClient(
     override suspend fun decide(
         messages: List<LLMMessage>,
         availableTools: List<McpTool>,
-        request: MobDecideRequest
+        request: MobDecideRequest,
     ): MobDecideResponse {
-        TODO("Not yet implemented")
+        val yandexMessages = messages.map { it.toYandexMessage() }
+
+        log.debug("openAiMessages -> {}", yandexMessages)
+        val yandexTools = availableTools.map { it.toYandexTool() }
+
+        var delayMs = 500L
+        repeat(config.retryAttempts) { attempt ->
+            val decision = runCatching {
+                val response = callYandex(yandexMessages, yandexTools)
+                log.debug("YandexGPT response: {}", response)
+                log.debug("Status: {}, message: {}", response.status, response.message)
+                response.message?.toolCallList?.toolCalls?.forEach { call ->
+                    log.debug("Tool call: {} with args {}", call.functionCall.name, call.functionCall.arguments)
+                }
+                when (response.status) {
+                    ALTERNATIVE_STATUS_TOOL_CALL -> {
+                        val toolCalls = response.message?.toolCallList?.toolCalls
+                        if (!toolCalls.isNullOrEmpty()) {
+                            val call = toolCalls.first()
+                            val args = call.functionCall.arguments.toMutableMap()
+                            val intent = args["intent"]?.jsonPrimitive?.content?.lowercase()
+                            if (intent != null) {
+                                MobDecideResponse(intent, model)
+                            } else {
+                                log.warn("Некорректный intent")
+                                null
+                            }
+                        } else {
+                            null
+                        }
+                    }
+                    else -> {
+                        log.warn("Модель не вызвала инструмент, текст ответа: ${response.message?.text}")
+                        null
+                    }
+                }
+            }.getOrElse { ex ->
+                log.warn("Попытка ${attempt + 1} завершилась ошибкой: ${ex.message}", ex)
+                null
+            }
+            if (decision != null) return decision
+            if (attempt + 1 < config.retryAttempts) {
+                delay(delayMs)
+                delayMs = min(delayMs * 2, 8_000L)
+            }
+        }
+        log.warn("Все попытки вызова исчерпаны, переключение на fallback")
+        return fallback.decide(messages, availableTools, request)
     }
 
     private suspend fun callYandex(
         messages: List<YandexMessage>,
         tools: List<YandexTool>,
         apiKey: String? = config.llmApiKey,
-        folderId: String? = config.yandexFolderId
+        folderId: String? = config.yandexFolderId,
     ): YandexAlternative {
-//        val model = "yandexgpt-5.1/latest"
-        val modelLight = "yandexgpt-lite/latest"
-//        val modelAlice = "aliceai-llm/latest"
         val body = YandexCompletionRequest(
-            modelUri = "gpt://$folderId/$modelLight",
+            modelUri = "gpt://$folderId/$model",
             completionOptions = YandexCompletionOptions(temperature = 0.7, maxTokens = 512),
             messages = messages,
             tools = tools,
-            toolChoice = ToolChoice(mode = "REQUIRED")
+            toolChoice = ToolChoice(mode = "REQUIRED"),
         )
 
         val jsonBody = json.encodeToString(body)
@@ -133,8 +183,15 @@ class YandexGptClient(
 
     fun LLMMessage.toYandexMessage(): YandexMessage = when (this) {
         is SystemMessage -> YandexMessage(role = "system", text = text)
+
         is UserMessage -> YandexMessage(role = "user", text = text)
-        is AssistantMessage -> YandexMessage(role = "assistant", text = text, toolCallList = toolCallList?.toYandex())
+
+        is AssistantMessage -> YandexMessage(
+            role = "assistant",
+            text = text,
+            toolCallList = toolCallList?.toYandex(),
+        )
+
         is ToolResultMessage -> YandexMessage(role = "assistant", toolResultList = toolResultList.toYandex())
     }
 
@@ -142,8 +199,8 @@ class YandexGptClient(
         function = YandexFunction(
             name = name,
             description = description,
-            parameters = inputSchema
-        )
+            parameters = inputSchema,
+        ),
     )
 
     /**
@@ -151,8 +208,8 @@ class YandexGptClient(
      */
     @Suppress("unused")
     private fun loadToolsFromContract(): List<YandexTool> {
-        val inputStream = javaClass.getResourceAsStream("/mcp-contract.json")
-            ?: error("mcp-contract.json not found in resources")
+        val inputStream =
+            javaClass.getResourceAsStream("/mcp-contract.json") ?: error("mcp-contract.json not found in resources")
         val contractJson = inputStream.bufferedReader().readText()
         val contract = json.decodeFromString<McpContract>(contractJson)
         return contract.tools.map { tool ->
@@ -160,16 +217,16 @@ class YandexGptClient(
                 YandexFunction(
                     name = tool.name,
                     description = tool.description,
-                    parameters = tool.inputSchema
-                )
+                    parameters = tool.inputSchema,
+                ),
             )
         }
     }
 
     companion object {
+
         @Suppress("unused")
-        private const val SYSTEM_PROMPT =
-            """"
+        private const val SYSTEM_PROMPT = """"
 Ты управляешь игроком в roguelike игре. У тебя есть MCP-инструменты:
 - game_act: выполнить одно из действий:
     * move_north   — шаг наверх (увеличение координаты x)
@@ -218,7 +275,7 @@ private data class YandexCompletionRequest(
     val completionOptions: YandexCompletionOptions,
     val messages: List<YandexMessage>,
     val tools: List<YandexTool>,
-    val toolChoice: ToolChoice
+    val toolChoice: ToolChoice,
 )
 
 @Serializable
@@ -232,66 +289,70 @@ data class YandexMessage(
     val role: String,
     val text: String? = null,
     val toolCallList: YandexToolCallList? = null,
-    val toolResultList: YandexToolResultList? = null
+    val toolResultList: YandexToolResultList? = null,
 )
 
 @Serializable
 data class YandexToolCallList(
-    val toolCalls: List<YandexToolCall>
+    val toolCalls: List<YandexToolCall>,
 )
 
 @Serializable
 data class YandexToolCall(
-    val functionCall: YandexFunctionCall
+    val functionCall: YandexFunctionCall,
 )
 
 @Serializable
 data class YandexFunctionCall(
     val name: String,
-    val arguments: JsonObject
+    val arguments: JsonObject,
 )
 
 @Serializable
-private data class YandexCompletionResponse(val result: YandexResult)
+private data class YandexCompletionResponse(
+    val result: YandexResult,
+)
 
 @Serializable
-private data class YandexResult(val alternatives: List<YandexAlternative>)
+private data class YandexResult(
+    val alternatives: List<YandexAlternative>,
+)
 
 @Serializable
 private data class YandexAlternative(
     val message: YandexMessage? = null,
-    val status: String
+    val status: String,
 )
 
 @Serializable
 data class YandexTool(
-    val function: YandexFunction
+    val function: YandexFunction,
 )
 
 @Serializable
 data class YandexFunction(
     val name: String,
     val description: String,
-    val parameters: JsonObject
+    val parameters: JsonObject,
 )
 
 @Serializable
 data class YandexToolResultList(
-    val toolResults: List<YandexToolResult>
+    val toolResults: List<YandexToolResult>,
 )
 
 @Serializable
 data class YandexToolResult(
-    val functionResult: YandexFunctionResult
+    val functionResult: YandexFunctionResult,
 )
 
 @Serializable
 data class YandexFunctionResult(
     val name: String,
-    val content: String
+    val content: String,
 )
 
 @Serializable
 private data class McpContract(
-    val tools: List<McpTool>
+    val tools: List<McpTool>,
 )

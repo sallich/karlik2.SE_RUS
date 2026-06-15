@@ -4,21 +4,19 @@ import ru.course.roguelike.agent.llm.MapRenderer.formatFullMap
 import ru.course.roguelike.shared.dto.GameSnapshot
 
 object PromptBuilder {
-    fun buildSystemPrompt(snapshot: GameSnapshot): String {
-        return buildString {
-            appendLine(buildHeader())
-            appendLine(buildSessionInfo(snapshot))
-            appendLine(buildToolsDescription())
-            appendLine(buildRules())
-            appendLine(buildGameState(snapshot))
-            appendLine(buildMapSection(snapshot))
-            appendLine(buildKeyCollectedMessage(snapshot))
-            appendLine(buildClosingRules())
-        }.trimIndent()
-    }
 
-    fun buildSystemPromptInLoop(sessionId: String): String {
-        return """
+    fun buildSystemPrompt(snapshot: GameSnapshot): String = buildString {
+        appendLine(buildHeader())
+        appendLine(buildSessionInfo(snapshot))
+        appendLine(buildToolsDescription())
+        appendLine(buildRules())
+        appendLine(buildGameState(snapshot))
+        appendLine(buildMapSection(snapshot))
+        appendLine(buildKeyCollectedMessage(snapshot))
+        appendLine(buildClosingRules())
+    }.trimIndent()
+
+    fun buildSystemPromptInLoop(sessionId: String): String = """
         Ты — агент в roguelike игре. Твоя задача — собрать все ключи и встать на выход.
         Текущая сессия: $sessionId
         Доступен ТОЛЬКО один инструмент: game_act.
@@ -37,8 +35,7 @@ object PromptBuilder {
 
 **Если ты получил сообщение "Внимание: вы повторяете одни и те же действия или стоите на месте. Измените стратегию." – ты НЕМЕДЛЕННО должен выбрать действие, отличное от предыдущих четырёх. Например, если ты 4 раза подряд двигался на восток, выбери move_south, move_north или move_west.**
         Никаких слов. Только вызов инструмента.
-        """.trimIndent()
-    }
+    """.trimIndent()
 
     private fun buildHeader(): String = """
         Ты — агент в roguelike игре. Твоя задача — собрать все ключи и встать на выход и дойти до выхода (На карте выход отмечен как E, а ключ как K).
@@ -46,8 +43,7 @@ object PromptBuilder {
         Тебе предстоит передвигаться через коридоры между комнатами и достигнуть выхода.
     """.trimIndent()
 
-    private fun buildSessionInfo(snapshot: GameSnapshot): String =
-        "Текущая сессия: ${snapshot.sessionId}"
+    private fun buildSessionInfo(snapshot: GameSnapshot): String = "Текущая сессия: ${snapshot.sessionId}"
 
     private fun buildToolsDescription(): String = """
         Доступен ТОЛЬКО один инструмент: game_act.
@@ -110,13 +106,12 @@ object PromptBuilder {
         """.trimIndent()
     }
 
-    private fun buildKeyCollectedMessage(snapshot: GameSnapshot): String {
-        return if (snapshot.keysCollected == snapshot.keysRequired) {
+    private fun buildKeyCollectedMessage(snapshot: GameSnapshot): String =
+        if (snapshot.keysCollected == snapshot.keysRequired) {
             "Все ключи собраны, надо идти к выходу."
         } else {
             ""
         }
-    }
 
     private fun buildClosingRules(): String = """
         Правила:

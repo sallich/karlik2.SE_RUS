@@ -22,7 +22,7 @@ interface AgentDecisionClient {
     suspend fun decide(
         messages: List<LLMMessage>,
         availableTools: List<McpTool>,
-        request: MobDecideRequest
+        request: MobDecideRequest,
     ): MobDecideResponse
 }
 
@@ -40,21 +40,26 @@ class HeuristicDecisionClient(
     override suspend fun decide(
         messages: List<LLMMessage>,
         availableTools: List<McpTool>,
-        request: MobDecideRequest
+        request: MobDecideRequest,
     ): MobDecideResponse {
-        val tool = when {
-            request.distance <= 2.5f && request.playerHp > 0 -> "shoot"
-            request.distance < 1.2f -> "kite"
-            request.distance > 4f -> "chase"
-            else -> "idle"
-        }
+        val tool =
+            when {
+                request.distance <= 2.5f && request.distance > 1.2f && request.playerHp > 0 -> "shoot"
+                request.distance <= 1.2f -> "kite"
+                request.distance > 4f -> "chase"
+                else -> "idle"
+            }
         return MobDecideResponse(tool, "heuristic")
     }
 }
 
 open class LlmClientFactory {
     private val log = LoggerFactory.getLogger(LlmClientFactory::class.java)
-    open fun create(config: AgentConfig, fallback: AgentDecisionClient): AgentDecisionClient =
+
+    open fun create(
+        config: AgentConfig,
+        fallback: AgentDecisionClient,
+    ): AgentDecisionClient =
         when (config.llmProvider.lowercase()) {
             "yandex" -> {
                 if (hasYandexCredentials(config)) {

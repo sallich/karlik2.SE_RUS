@@ -4,19 +4,20 @@ data class AgentConfig(
     val llmProvider: String,
     val llmApiKey: String?,
     val yandexFolderId: String?,
-    val ollamaModelUrl: String,
+    val ollamaModelUrl: String = "qwen2.5:3b",
     val mcpCommand: List<String>,
     val mcpTransport: String,
     val mcpServerUrl: String,
     val maxToolCalls: Int,
     val retryAttempts: Int,
-    val maxMobToolCalls: Int = 30
+    val maxMobToolCalls: Int = 30,
+    val allowedTools: Set<String> = setOf("game_act"),
 ) {
+
     companion object {
+
         fun fromEnvironment(): AgentConfig {
-            val mcpCommand = env("MCP_SERVER_COMMAND")
-                ?.split(' ')
-                ?.filter { it.isNotBlank() }
+            val mcpCommand = env("MCP_SERVER_COMMAND")?.split(' ')?.filter { it.isNotBlank() }
                 ?: listOf("./gradlew", ":mcp-server:run", "--args=stdio")
 
             return AgentConfig(
@@ -33,7 +34,6 @@ data class AgentConfig(
             )
         }
 
-        private fun env(name: String): String? =
-            System.getenv(name) ?: System.getProperty(name)
+        private fun env(name: String): String? = System.getenv(name) ?: System.getProperty(name)
     }
 }
