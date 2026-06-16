@@ -252,9 +252,7 @@ GitHub Actions (`.github/workflows/ci.yml`): на push/PR в `main`/`master` —
 | MCP tools и контракт | черновики схем | валидация аргументов, интеграция с game-service |
 | Agent loop, policy DSL | прототипы промптов и парсеров | budget, loop detection, replan-триггеры, тесты |
 | Игровой движок / бой | идеи по структуре | баланс, reinforcement, FPS sync, все unit-тесты |
-| README / docs | структура по ТЗ | проверка фактов, ссылки на реальный код |
 
-Команда отвечает на Q&A по своему коду на защите.
 
 ## Документация
 
