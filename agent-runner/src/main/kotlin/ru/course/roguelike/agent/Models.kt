@@ -26,26 +26,6 @@ data class AgentStatusResponse(
 )
 
 @Serializable
-data class AgentRunRequest(
-    val seed: Long? = null,
-    val maxSteps: Int = 500,
-    /** Подключиться к существующей сессии (кооп с игроком). */
-    val sessionId: String? = null,
-)
-
-@Serializable
-data class AgentRunResponse(
-    val status: String,
-    val message: String,
-    val stepsUsed: Int = 0,
-    val stepsPlanned: Int = 0,
-    val sessionId: String? = null,
-    val finalPhase: String? = null,
-    val success: Boolean = false,
-    val toolCallLog: List<String> = emptyList(),
-)
-
-@Serializable
 data class MobDecideRequest(
     val mobId: Long,
     val mobX: Float,
@@ -137,11 +117,15 @@ data class OpenAiChatRequest(
     @SerialName("tool_choice")
     val toolChoice: String? = null,
     val stream: Boolean = false,
+    val options: OllamaChatOptions? = null,
+    @SerialName("keep_alive")
+    val keepAlive: String? = null,
 )
 
 @Serializable
 data class OpenAiChatResponse(
-    val choices: List<OpenAiChoice>,
+    val choices: List<OpenAiChoice> = emptyList(),
+    val error: OpenAiApiError? = null,
 )
 
 @Serializable

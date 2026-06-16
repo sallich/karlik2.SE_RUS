@@ -55,6 +55,13 @@ class CombatDispatchTest {
                 InputSyncRequest(deltaMs = 50, clientYaw = 0f, clientPitch = 0f),
             ),
         )
+        mob.attackCooldownMs = 0
+        dispatcher.dispatch(
+            session,
+            SyncInputCommand(
+                InputSyncRequest(deltaMs = 50, clientYaw = 0f, clientPitch = 0f),
+            ),
+        )
 
         assertEquals(0, session.playerHp)
         assertEquals(SessionPhase.GAME_OVER, session.phase)

@@ -92,6 +92,12 @@ object McpArgumentParser {
             clientPitch = arguments["clientPitch"]?.jsonPrimitive?.floatOrNull,
             attack = optionalBoolean(arguments, "attack", false),
             interact = optionalBoolean(arguments, "interact", false),
+            reload = optionalBoolean(arguments, "reload", false),
+            hotbarSelect = arguments["hotbarSelect"]?.jsonPrimitive?.intOrNull,
+            hotbarAssign = arguments["hotbarAssign"]?.jsonPrimitive?.intOrNull,
+            inventoryCycle = optionalBoolean(arguments, "inventoryCycle", false),
+            inventoryDrop = optionalBoolean(arguments, "inventoryDrop", false),
+            jump = optionalBoolean(arguments, "jump", false),
             actor = optionalActor(arguments),
         )
 
