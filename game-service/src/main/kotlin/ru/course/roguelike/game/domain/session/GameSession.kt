@@ -50,6 +50,8 @@ data class GameSession(
     var locationCompletionAwarded: Boolean = false,
     /** Накопитель дробного урона лавой (HP списывается целыми единицами). */
     var lavaDamageBuffer: Float = 0f,
+    /** Накопитель дробного урона от попаданий мобов. */
+    var mobDamageBuffer: Float = 0f,
     var tick: Long = 0,
     var serverTimeMs: Long = System.currentTimeMillis(),
     /** Верхний уровень двухуровневой локации (null — одноуровневая сессия). */

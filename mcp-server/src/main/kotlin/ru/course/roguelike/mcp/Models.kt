@@ -2,6 +2,7 @@ package ru.course.roguelike.mcp
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
+import ru.course.roguelike.shared.mcp.McpTool
 
 @Serializable
 data class HealthResponse(
@@ -11,14 +12,8 @@ data class HealthResponse(
 )
 
 @Serializable
-data class McpToolDescriptor(
-    val name: String,
-    val description: String,
-)
-
-@Serializable
 data class McpToolsListResponse(
-    val tools: List<McpToolDescriptor>,
+    val tools: List<McpTool>,
 )
 
 @Serializable

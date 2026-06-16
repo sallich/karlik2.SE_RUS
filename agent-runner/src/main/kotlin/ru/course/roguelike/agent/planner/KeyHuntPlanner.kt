@@ -15,11 +15,6 @@ import kotlin.math.floor
 import kotlin.math.hypot
 import kotlin.math.min
 
-data class ToolCallDecision(
-    val tool: String,
-    val arguments: Map<String, kotlinx.serialization.json.JsonElement>,
-)
-
 class KeyHuntPlanner {
     fun plan(snapshot: GameSnapshot, sessionId: String, actor: String = ACTOR_PLAYER): ToolCallDecision {
         val map = TileMap.fromFlat(snapshot.width, snapshot.height, snapshot.tiles)

@@ -6,13 +6,14 @@
 api/              HTTP (Ktor), только DTO
 application/      GameEngine — сессии, фасад для API
 domain/           правила без фреймворков
-  session/        GameSession
-  command/        Command, CommandDispatcher
+  session/        GameSession, RoomEngagementSystem
+  command/        Command, CommandDispatcher, CommandRegistry
   phase/          State: PhaseHandler, PhaseRegistry
   event/          Observer: GameEvent, GameEventBus
+  combat/         бой, мобы, урон
+  ai/             Strategy: MobBehavior
   level/          LevelGenerator (порт)
-  ai/             Strategy: MobBehavior (заготовка)
-infrastructure/   адаптеры: TestLevelGenerator, LevelGeneratorFactory
+infrastructure/   адаптеры: TestLevelGenerator, LevelGeneratorFactory, AgentRunnerMobClient
 ```
 
 ## Паттерны
@@ -21,7 +22,7 @@ infrastructure/   адаптеры: TestLevelGenerator, LevelGeneratorFactory
 |---------|-----|
 | **Command** | `SyncInputCommand`, `LegacyMovementCommand`, `CommandRegistry`, `CommandDispatcher` |
 | **State** | `PhaseHandler`, `SessionPhase`, `PhaseRegistry` |
-| **Strategy** | `MobBehavior` (+ реализации позже) |
+| **Strategy** | `MobBehavior` — `RusherBehavior`, `ShooterBehavior`, `LlmGuardBehavior` |
 | **Factory** | `LevelGeneratorFactory` |
 | **Observer** | `GameEventBus`, `GameEventListener` |
 
@@ -46,9 +47,9 @@ sequenceDiagram
 
 ## Расширение
 
-- Новое действие: класс `GameCommand` + одна строка в `CommandRegistry.defaultBuilder()` (`register("attack") { … }`).
+- Новое действие: класс `GameCommand` + регистрация в `CommandRegistry.defaultBuilder()`.
 - Новая фаза: `PhaseHandler` + запись в `PhaseRegistry.defaultHandlers()`.
 - Процген: `LevelGenerator` + ветка в `LevelGeneratorFactory`.
-- Мобы: `MobBehavior` в `CombatSystem` (будущий пакет `domain/combat`).
+- Новый тип моба: реализация `MobBehavior` + wiring в `MobSpawner` / `CombatSystem`.
 
-`shared` — только то, что нужно клиенту: `TileMap`, DTO, `SessionPhase`, движение FPS.
+`shared` — DTO, `TileMap`, `SessionPhase`, FPS-движение, протокол MCP; общие типы агентов (`AgentConfig`, MCP tool schemas) — для `agent-runner` и `policy-agent-runner`.

@@ -14,16 +14,20 @@ object CombatConstants {
     const val PLAYER_MAX_AMMO = 99
 
     const val MELEE_MOB_HP = 10
+    /** HP с игрока за одно мили-попадание (дробная часть копится на сервере). */
+    const val MELEE_MOB_PLAYER_DAMAGE = 0.85f
     const val MELEE_MOB_DAMAGE = 1
     const val MELEE_ATTACK_RANGE = 0.85f
     const val MELEE_MOVE_SPEED = 2.2f
-    const val MELEE_ATTACK_COOLDOWN_MS = 900
+    const val MELEE_ATTACK_COOLDOWN_MS = 1200
 
     const val RANGED_MOB_HP = 10
+    /** HP с игрока за попадание снаряда моба. */
+    const val RANGED_MOB_PLAYER_DAMAGE = 0.85f
     const val RANGED_MOB_DAMAGE = 1
     const val RANGED_ATTACK_RANGE = 9f
     const val RANGED_MOVE_SPEED = 2.0f
-    const val RANGED_ATTACK_COOLDOWN_MS = 1400
+    const val RANGED_ATTACK_COOLDOWN_MS = 1800
     const val RANGED_MIN_DISTANCE = 3.5f
 
     /** Высота летающих мобов над полом (заметно выше колонн). */

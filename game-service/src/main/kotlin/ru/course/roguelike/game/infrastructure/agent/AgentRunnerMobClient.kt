@@ -67,14 +67,17 @@ class AgentRunnerMobClient(
                 System.getenv("AGENT_RUNNER_URL")?.trimEnd('/') ?: "http://localhost:8082",
             )
 
-        private fun defaultClient(): HttpClient = HttpClient(CIO) {
-            install(HttpTimeout) {
-                requestTimeoutMillis = 500
-                connectTimeoutMillis = 500
-                socketTimeoutMillis = 500
-            }
-            install(ContentNegotiation) {
-                json(Json { ignoreUnknownKeys = true })
+        private fun defaultClient(): HttpClient {
+            val timeoutMs = System.getenv("MOB_DECIDE_TIMEOUT_MS")?.toLongOrNull() ?: 60_000L
+            return HttpClient(CIO) {
+                install(HttpTimeout) {
+                    requestTimeoutMillis = timeoutMs
+                    connectTimeoutMillis = 5_000
+                    socketTimeoutMillis = timeoutMs
+                }
+                install(ContentNegotiation) {
+                    json(Json { ignoreUnknownKeys = true })
+                }
             }
         }
 

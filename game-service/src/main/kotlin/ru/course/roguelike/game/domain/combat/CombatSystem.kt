@@ -5,6 +5,7 @@ import ru.course.roguelike.game.domain.inventory.InventoryWeapons
 import ru.course.roguelike.game.domain.progression.ProgressionSystem
 import ru.course.roguelike.game.domain.session.GameSession
 import ru.course.roguelike.game.domain.session.MobLootDropper
+import ru.course.roguelike.game.domain.session.MobPlayerDamage
 import ru.course.roguelike.shared.engine.EntityCollision
 import ru.course.roguelike.shared.engine.TileMap
 import ru.course.roguelike.shared.model.CombatConstants
@@ -68,7 +69,7 @@ object CombatSystem {
                     playerZ,
                     CombatConstants.MOB_HIT_HALF_HEIGHT,
                 ) -> {
-                    damagePlayer(session, projectile.damage, events)
+                    damagePlayer(session, CombatConstants.RANGED_MOB_PLAYER_DAMAGE, events)
                     true
                 }
                 else -> false
@@ -140,10 +141,8 @@ object CombatSystem {
         return GameEvent.AmmoChanged(-ammoCost, session.playerAmmo)
     }
 
-    private fun damagePlayer(session: GameSession, amount: Int, events: MutableList<GameEvent>) {
-        val before = session.playerHp
-        session.playerHp = (before - amount).coerceAtLeast(0)
-        events.add(GameEvent.PlayerDamaged(before - session.playerHp, session.playerHp))
+    private fun damagePlayer(session: GameSession, amount: Float, events: MutableList<GameEvent>) {
+        MobPlayerDamage.apply(session, amount, events)
     }
 
     private fun removeDeadMobs(session: GameSession, events: MutableList<GameEvent>) {

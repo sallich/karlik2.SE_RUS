@@ -22,12 +22,12 @@ flowchart TB
         INP[Input]
     end
 
-    subgraph agents [agent-runner]
+    subgraph agents [agent-runner / policy-agent]
         MCP[MCP tools]
     end
 
     MCP -->|HTTP via mcp-server| game_service
-    client -->|WebSocket or poll state| game_service
+    client -->|HTTP REST| game_service
     INP -->|commands| game_service
     SIM --> WORLD
     PROC --> WORLD
@@ -85,7 +85,7 @@ class GameScreen(private val stateClient: GameStateClient) : ScreenAdapter() {
 - `game-service` отдаёт JSON; UI на JS/Compose.
 - Плюс: CI без GPU; минус: «движок на Kotlin» только на сервере.
 
-**Для отчёта «свой движок на Kotlin»** достаточно: **своя simulation + libGDX-клиент** в модуле `game-client` (можно добавить позже в monorepo).
+**Для курса:** **своя simulation в game-service + libGDX-клиент** в модуле `game-client`.
 
 ---
 
@@ -248,11 +248,12 @@ modelBatch.render(instance, environment)
 
 ```text
 roguelike/
-  shared/           # TileMap, GameSnapshot, SessionPhase, FpsMovementSystem
-  game-service/     # слои api / application / domain / infrastructure — см. game-service-architecture.md
-  game-client/      # libGDX FPS raycast
+  shared/                 # TileMap, GameSnapshot, FpsMovement, agent DTO
+  game-service/           # api / application / domain / infrastructure
+  game-client/            # libGDX FPS raycast
   mcp-server/
-  agent-runner/
+  agent-runner/           # step-agent (llm-boss)
+  policy-agent-runner/    # policy DSL agent
 ```
 
 Подробная схема движка: [game-service-architecture.md](game-service-architecture.md).
@@ -274,26 +275,13 @@ roguelike/
 
 ---
 
-## Открытые технические вопросы
-
-- [ ] 2D vs 2.5D vs полноценный 3D для демо.
-- [ ] libGDX vs LWJGL vs headless + web UI.
-- [ ] Отдельный процесс клиента или embedded для локальной отладки.
-- [ ] Формат ассетов в репо (git LFS для PNG/gltf).
-- [ ] Tiled Editor для кистей шаблонов vs чистый JSON.
-- [ ] Частота snapshot и размер fog-of-war в observe для MCP.
-- [ ] Нужна ли запись реплея (список команд + seed).
-
----
-
 ## Связь с геймдизайном
 
-| Механика GDD | Компонент движка |
-|--------------|------------------|
-| Граф этажа | `FloorGraph` + generator |
-| Шаблоны комнат | `RoomTemplate` + validator |
-| Reinforcement | `FightTimer` + `AdjacencySystem` |
-| RE-инвентарь | `InventoryGrid` (логика в sim, UI в client) |
-| Развилка | `FloorPhase.CHOICE` + snapshot `choices[]` |
+| Механика | Компонент движка |
+|----------|------------------|
+| Процедурные комнаты | `LevelGenerator` + шаблоны |
+| Reinforcement | `RoomEngagementSystem` |
+| RE-инвентарь | `InventoryGrid` (sim) + UI в client |
+| FPS-бой | `SyncInputCommand`, `CombatSystem` |
 
 См. [game-design.md](game-design.md).

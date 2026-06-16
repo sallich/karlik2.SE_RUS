@@ -9,6 +9,7 @@ import ru.course.roguelike.game.domain.ai.ShooterBehavior
 import ru.course.roguelike.game.domain.event.GameEvent
 import ru.course.roguelike.game.domain.level.Room
 import ru.course.roguelike.game.domain.session.GameSession
+import ru.course.roguelike.shared.combat.CombatAim
 import ru.course.roguelike.shared.engine.EntityCollision
 import ru.course.roguelike.shared.engine.TileMap
 import ru.course.roguelike.shared.model.CombatConstants
@@ -138,9 +139,12 @@ class CombatSystemTest {
         mob.attackCooldownMs = 0
         session.mobs.add(mob)
 
-        val events = CombatSystem.tick(session, deltaMs = 50, playerAttacking = false)
+        val events = mutableListOf<GameEvent>()
+        events.addAll(CombatSystem.tick(session, deltaMs = 50, playerAttacking = false))
+        mob.attackCooldownMs = 0
+        events.addAll(CombatSystem.tick(session, deltaMs = 50, playerAttacking = false))
 
-        assertEquals(100 - CombatConstants.MELEE_MOB_DAMAGE, session.playerHp)
+        assertTrue(session.playerHp < 100)
         assertTrue(events.any { it is GameEvent.PlayerDamaged })
     }
 
@@ -175,6 +179,36 @@ class CombatSystemTest {
         }
 
         assertTrue(mob.x < startX)
+    }
+
+    @Test
+    fun `player hits flying ranged mob when pitch aims at hit center`() {
+        val session = openArenaSession(PlayerPose(2.5f, 2.5f, yaw = 0f))
+        val mob = MobSpawner.createMob(session, MobKind.RANGED, 3.5f, 2.5f, arenaRoom)
+        session.mobs.add(mob)
+        val pitch = CombatAim.pitchToTarget(session.playerPose, mob.x, mob.y, mob.hitCenterZ())
+        session.playerPose = session.playerPose.copy(pitch = pitch)
+
+        CombatSystem.tick(session, deltaMs = 50, playerAttacking = true)
+        repeat(40) {
+            CombatSystem.tick(session, deltaMs = 50, playerAttacking = false)
+        }
+
+        assertTrue(mob.hp < CombatConstants.RANGED_MOB_HP)
+    }
+
+    @Test
+    fun `horizontal aim misses flying ranged mob`() {
+        val session = openArenaSession(PlayerPose(2.5f, 2.5f, yaw = 0f, pitch = 0f))
+        val mob = MobSpawner.createMob(session, MobKind.RANGED, 3.5f, 2.5f, arenaRoom)
+        session.mobs.add(mob)
+
+        CombatSystem.tick(session, deltaMs = 50, playerAttacking = true)
+        repeat(40) {
+            CombatSystem.tick(session, deltaMs = 50, playerAttacking = false)
+        }
+
+        assertEquals(CombatConstants.RANGED_MOB_HP, mob.hp)
     }
 
     @Test

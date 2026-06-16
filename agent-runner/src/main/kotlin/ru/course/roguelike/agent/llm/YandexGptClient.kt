@@ -99,7 +99,7 @@ class YandexGptClient(
         if (!args.containsKey("sessionId")) {
             args["sessionId"] = json.parseToJsonElement("\"$sessionId\"")
         }
-        return ToolCallDecision(tool, args.mapValues { it.value })
+        return ToolCallDecision(tool = tool, arguments = args.mapValues { it.value })
     }
 
     companion object {

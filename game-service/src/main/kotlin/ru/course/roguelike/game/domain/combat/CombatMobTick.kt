@@ -5,8 +5,10 @@ import ru.course.roguelike.game.domain.ai.MobIntent
 import ru.course.roguelike.game.domain.ai.distanceTo
 import ru.course.roguelike.game.domain.event.GameEvent
 import ru.course.roguelike.game.domain.session.GameSession
+import ru.course.roguelike.game.domain.session.MobPlayerDamage
 import ru.course.roguelike.shared.engine.EntityCollision
 import ru.course.roguelike.shared.engine.TileMap
+import ru.course.roguelike.shared.model.CombatConstants
 
 internal object CombatMobTick {
     private data class MobTickContext(
@@ -130,9 +132,7 @@ internal object CombatMobTick {
         events: MutableList<GameEvent>,
     ) {
         if (distance <= mob.attackRange && mob.attackCooldownMs <= 0) {
-            val before = session.playerHp
-            session.playerHp = (before - mob.attackDamage).coerceAtLeast(0)
-            events.add(GameEvent.PlayerDamaged(before - session.playerHp, session.playerHp))
+            MobPlayerDamage.apply(session, CombatConstants.MELEE_MOB_PLAYER_DAMAGE, events)
             mob.attackCooldownMs = mob.attackCooldownTotalMs
         }
     }
