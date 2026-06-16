@@ -1,7 +1,6 @@
 package ru.course.roguelike.policy
 
 import kotlinx.serialization.json.JsonElement
-import ru.course.roguelike.agent.mcp.AgentMcpTools
 import ru.course.roguelike.agent.mcp.McpClient
 import ru.course.roguelike.agent.mcp.McpToolResult
 import ru.course.roguelike.game.application.GameEngine
@@ -45,8 +44,6 @@ internal class InProcessPolicyMcpClient(
             isError = response.isError,
         )
     }
-
-    override suspend fun getTools() = AgentMcpTools.forGameAgent()
 
     override fun close() = Unit
 }

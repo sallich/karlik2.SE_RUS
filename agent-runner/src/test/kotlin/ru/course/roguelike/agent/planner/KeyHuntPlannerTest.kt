@@ -23,20 +23,14 @@ class KeyHuntPlannerTest {
     @Test
     fun `planner returns a tool call`() {
         val planner = KeyHuntPlanner()
-        val decisions =
-            planner.plan(
-                ru.course.roguelike.agent.TestSnapshots
-                    .simpleRoom(),
-                "session-1",
-            )
-        val decision = decisions.first()
+        val decision = planner.plan(
+            ru.course.roguelike.agent.TestSnapshots.simpleRoom(),
+            "session-1",
+        )
         assertNotNull(decision.tool)
     }
 
-    private fun openRoomTiles(
-        width: Int,
-        height: Int,
-    ): List<TileType> =
+    private fun openRoomTiles(width: Int, height: Int): List<TileType> =
         buildList {
             repeat(width * height) { idx ->
                 val x = idx % width
