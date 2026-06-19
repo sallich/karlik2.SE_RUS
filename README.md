@@ -14,7 +14,13 @@ docker compose up
 
 Поднимаются `game-service` (:8080), `mcp-server` (:8081), `agent-runner` (:8082). Играть руками: `./gradlew :game-client:run` (WASD, мышь, Esc).
 
-Профиль `policy-agent` добавляет второй агент на :8083. Профиль `llm` — Ollama в Docker.
+Профиль `policy-agent` добавляет второй агент на :8083 (для eval). Профиль `llm` — Ollama в Docker.
+
+Полный стек для сравнения агентов с Ollama:
+
+```bash
+docker compose --profile policy-agent --profile llm up
+```
 
 ## Архитектура
 
@@ -145,7 +151,24 @@ Tracker: http://localhost:8083/api/v1/policy-agent/tracker
 | **agent-runner** (step) | 8082 | LLM на каждом шаге (tool call) |
 | **policy-agent-runner** (DSL) | 8083 | LLM на старте + async replan; micro — код |
 
-Оба агента играют через один MCP на **одинаковых сидах** (`seed` в `game_new_session`). Для eval: одинаковый `seed`, `maxSteps`, N прогонов; метрики — % побед, шаги, токены (из логов LLM), HP в финале.
+Оба агента играют через один MCP на **одинаковых сидах** (`seed` в `game_new_session`).
+
+**Eval-скрипт** (ТЗ 4.4): ≥5 прогонов на агента, метрики в `eval/results.md`.
+
+```bash
+# Быстрый baseline без Docker (heuristic):
+./gradlew :eval:run --args="--runs 5 --seeds 41,42,43,44,45"
+
+# Против Docker (оба агента + опционально Ollama):
+docker compose --profile policy-agent --profile llm up -d
+./scripts/run-eval.sh
+
+# Только policy-agent на Ollama (для hw2, step-agent — у коллеги):
+docker compose --profile policy-agent --profile llm up -d
+./scripts/run-eval-policy.sh
+```
+
+Отчёт: [eval/results.md](eval/results.md), логи: `eval/logs/`.
 
 ## Модули
 
@@ -262,3 +285,4 @@ GitHub Actions (`.github/workflows/ci.yml`): на push/PR в `main`/`master` —
 - [docs/policy-agent.md](docs/policy-agent.md) — policy DSL agent
 - [docs/architecture.md](docs/architecture.md) — сервисы и деплой
 - [docs/mcp-contract.json](docs/mcp-contract.json) — MCP контракт
+- [eval/results.md](eval/results.md) — сравнение агентов (hw2 eval)

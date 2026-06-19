@@ -9,6 +9,7 @@ import ru.course.roguelike.mcp.protocol.McpToolRegistry
 import ru.course.roguelike.shared.dto.GameSnapshot
 import ru.course.roguelike.shared.dto.InputSyncRequest
 import ru.course.roguelike.shared.dto.PlayerActionResponse
+import ru.course.roguelike.shared.mcp.McpTool
 
 internal object PolicyIntegrationStack {
     data class Running(val registry: McpToolRegistry)
@@ -44,6 +45,15 @@ internal class InProcessPolicyMcpClient(
             isError = response.isError,
         )
     }
+
+    override suspend fun getTools(): List<McpTool> =
+        registry.descriptors().map { descriptor ->
+            McpTool(
+                name = descriptor.name,
+                description = descriptor.description,
+                inputSchema = descriptor.inputSchema,
+            )
+        }
 
     override fun close() = Unit
 }

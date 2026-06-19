@@ -568,14 +568,7 @@ class PolicyContext(
         }
     }
 
-    /** Periodic replan only after the LLM's commit window — not on a fixed tick mid-objective. */
-    private fun shouldPeriodicReplan(snapshot: GameSnapshot): Boolean {
-        val obj = activeObjective ?: return true
-        val elapsed = stepIndex - objectiveStartStep
-        if (elapsed < obj.commitSteps && isObjectiveValid(snapshot)) return false
-        return true
-    }
-
+    /** Periodic replan every [replanEverySteps] micro-steps — independent of objective commit window. */
     fun recordMacroDecision(reason: ReplanReason, source: String, policy: AgentPolicy) {
         macroDecisions.add(MacroDecisionRecorder.record(stepIndex, reason, source, policy))
     }
@@ -600,7 +593,8 @@ class PolicyContext(
 
     fun shouldReplan(snapshot: GameSnapshot, isInitial: Boolean): ReplanReason? {
         if (isInitial) return ReplanReason.INITIAL
-        if (pendingReplanReason != null) return null
+        // Only block while a sync loop-escape replan is in flight (same turn).
+        if (pendingReplanReason == ReplanReason.LOOP_ESCAPE) return null
         return listOfNotNull(
             ReplanReason.ACTION_ERROR.takeIf { lastActionError },
             ReplanReason.LOOP_ESCAPE.takeIf { needsLoopEscape() },
@@ -644,8 +638,7 @@ class PolicyContext(
             ReplanReason.ROOM_TIMER_CHANGE.takeIf { roomJustCleared },
             ReplanReason.INTERVAL.takeIf {
                 !seekRoomExit &&
-                    microStepsSinceReplan >= replanEverySteps &&
-                    shouldPeriodicReplan(snapshot)
+                    microStepsSinceReplan >= replanEverySteps
             },
         ).firstOrNull()
     }
@@ -676,9 +669,6 @@ class PolicyContext(
         }
         if (reason == ReplanReason.OBJECTIVE_DONE) {
             lastObjectiveReplanStep = stepIndex
-            // Release the finished objective so the interpreter falls back to reactive rules until the
-            // LLM commits the next goal — and so this trigger does not re-fire while the LLM thinks.
-            activeObjective = null
         }
         replanLog.add("step=$stepIndex scheduled=${reason.name.lowercase()}")
     }
@@ -693,6 +683,11 @@ class PolicyContext(
             roomExitStuckStreak = 0
         }
         replanLog.add("step=$stepIndex applied=${reason.name.lowercase()}")
+    }
+
+    /** Async replan was discarded (stale) or failed — allow new triggers. */
+    fun cancelPendingReplan() {
+        pendingReplanReason = null
     }
 
     fun initRunVariation(labyrinthSeed: Long, nonce: Long = System.nanoTime()) {
@@ -765,9 +760,9 @@ class PolicyContext(
 
     companion object {
         const val DEFAULT_STUCK_THRESHOLD = 3
-        const val DEFAULT_REPLAN_INTERVAL = 40
-        const val DEFAULT_STUCK_REPLAN_COOLDOWN = 15
-        const val DEFAULT_NO_PROGRESS_STEPS = 25
+        const val DEFAULT_REPLAN_INTERVAL = 15
+        const val DEFAULT_STUCK_REPLAN_COOLDOWN = 8
+        const val DEFAULT_NO_PROGRESS_STEPS = 15
         private const val MAX_TRAIL = 12
         private const val MAX_VISITED_TRAIL = 24
         private const val PING_PONG_WINDOW = 6

@@ -19,4 +19,6 @@ data class AgentRunResponse(
     val finalPhase: String? = null,
     val success: Boolean = false,
     val toolCallLog: List<String> = emptyList(),
+    val finalHp: Int? = null,
+    val tokensUsed: Int = 0,
 )

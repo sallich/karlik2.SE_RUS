@@ -68,7 +68,7 @@ class AgentRunnerMobClient(
             )
 
         private fun defaultClient(): HttpClient {
-            val timeoutMs = System.getenv("MOB_DECIDE_TIMEOUT_MS")?.toLongOrNull() ?: 60_000L
+            val timeoutMs = System.getenv("MOB_DECIDE_TIMEOUT_MS")?.toLongOrNull() ?: 8_000L
             return HttpClient(CIO) {
                 install(HttpTimeout) {
                     requestTimeoutMillis = timeoutMs
