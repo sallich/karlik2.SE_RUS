@@ -15,12 +15,6 @@ import kotlin.math.floor
 import kotlin.math.hypot
 import kotlin.math.min
 
-data class ToolCallDecision(
-    val id: String? = null,
-    val tool: String,
-    val arguments: Map<String, kotlinx.serialization.json.JsonElement>,
-)
-
 class KeyHuntPlanner {
 
     fun plan(

@@ -2,6 +2,8 @@ package ru.course.roguelike.game.domain.ai
 
 import io.mockk.coEvery
 import io.mockk.mockk
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -37,9 +39,12 @@ class LlmGuardBehaviorTest {
     }
 
     @Test
-    fun `uses LLM intent when agent-runner responds`() {
+    fun `uses cached LLM intent after async refresh`() = runBlocking {
         val mobClient = mockk<AgentRunnerMobClient>()
-        coEvery { mobClient.decide(any()) } returns MobIntent.KitePlayer
+        coEvery { mobClient.decide(any()) } coAnswers {
+            delay(20)
+            MobIntent.KitePlayer
+        }
         val behavior = LlmGuardBehavior(mobClient)
         val mob = MobEntity.LlmGuardMob(
             id = 2L,
@@ -55,6 +60,8 @@ class LlmGuardBehaviorTest {
             distanceToPlayer = 3f,
             playerHp = 80,
         )
+        assertEquals(MobIntent.ShootPlayer, behavior.decide(context))
+        delay(100)
         assertEquals(MobIntent.KitePlayer, behavior.decide(context))
     }
 

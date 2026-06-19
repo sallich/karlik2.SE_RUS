@@ -11,11 +11,18 @@ import ru.course.roguelike.agent.UserMessage
 import ru.course.roguelike.agent.config.AgentConfig
 import ru.course.roguelike.shared.mcp.McpTool
 
+private fun AgentConfig.forMobDecide(): AgentConfig = copy(
+    llmRequestTimeoutMs = mobLlmRequestTimeoutMs,
+    ollamaNumPredict = mobOllamaNumPredict,
+    ollamaNumCtx = mobOllamaNumCtx,
+)
+
 class MobDecisionService(
-    private val config: AgentConfig,
-    private val llm: AgentDecisionClient = LlmClientFactory().create(config, HeuristicDecisionClient()),
+    config: AgentConfig,
+    private val llm: AgentDecisionClient = LlmClientFactory().create(config.forMobDecide(), HeuristicDecisionClient()),
     private val fallback: HeuristicDecisionClient = HeuristicDecisionClient(),
 ) {
+    private val config = config.forMobDecide()
     private val budget = config.maxMobToolCalls
     private var steps = 0
     private val log = LoggerFactory.getLogger(MobDecisionService::class.java)

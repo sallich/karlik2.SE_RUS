@@ -92,6 +92,7 @@ class AsyncPolicyPlanner(
                 pending.scheduledSituation,
                 context.lastObservation?.situation,
             )
+            context.cancelPendingReplan()
             return null
         }
         if (queue.isNotEmpty()) {
@@ -100,11 +101,23 @@ class AsyncPolicyPlanner(
         return pending
     }
 
+    /** Start the next queued replan when the LLM worker is idle (drains backlog after slow Ollama). */
+    fun tryDrainQueue(
+        snapshot: GameSnapshot,
+        context: PolicyContext,
+        current: AgentPolicy,
+    ): ReplanReason? {
+        if (inFlight?.isActive == true) return null
+        val next = dequeue() ?: return null
+        return if (tryStart(next, snapshot, context, current)) next else null
+    }
+
     suspend fun awaitInFlight() {
         inFlight?.await()
     }
 
     private fun isStale(pending: PendingReplan, context: PolicyContext): Boolean {
+        if (pending.reason in STRATEGIC_REPLAN_REASONS) return false
         val age = context.stepIndex - pending.scheduledStep
         val currentSituation = context.lastObservation?.situation
         return age > staleReplanMaxSteps &&
@@ -134,3 +147,19 @@ private fun priority(reason: ReplanReason): Int = when (reason) {
     ReplanReason.INTERVAL -> 10
     ReplanReason.INITIAL -> 11
 }
+
+/** Macro replans from Ollama — keep even if micro-steps outran LLM latency (CPU eval). */
+private val STRATEGIC_REPLAN_REASONS = setOf(
+    ReplanReason.ACTION_ERROR,
+    ReplanReason.INITIAL,
+    ReplanReason.LOOP_ESCAPE,
+    ReplanReason.COMBAT_STALEMATE,
+    ReplanReason.STUCK,
+    ReplanReason.DOOR_STUCK,
+    ReplanReason.NO_PROGRESS,
+    ReplanReason.PHASE_CHANGE,
+    ReplanReason.KEY_COLLECTED,
+    ReplanReason.OBJECTIVE_DONE,
+    ReplanReason.ROOM_TIMER_CHANGE,
+    ReplanReason.INTERVAL,
+)

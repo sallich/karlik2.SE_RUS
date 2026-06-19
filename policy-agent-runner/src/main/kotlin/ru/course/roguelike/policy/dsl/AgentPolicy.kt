@@ -41,9 +41,9 @@ object ObjectiveKinds {
     const val EXPLORE = "explore"
     const val CLEAR_ROOM = "clear_room"
 
-    const val DEFAULT_COMMIT_STEPS = 20
+    const val DEFAULT_COMMIT_STEPS = 12
     const val MIN_COMMIT_STEPS = 5
-    const val MAX_COMMIT_STEPS = 60
+    const val MAX_COMMIT_STEPS = 25
 
     val ALL: Set<String> = setOf(ENTER_DOOR, REACH_KEY, REACH_EXIT, EXPLORE, CLEAR_ROOM)
 

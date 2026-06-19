@@ -20,10 +20,10 @@ object PolicyPromptBuilder {
         AgentPolicy JSON v4 (full) OR delta patch.
 
         THE KEY DECISION is `objective` — a single committed sub-goal YOU choose. The agent commits to it
-        for `commitSteps` (5..60) and only asks you again when it is reached/invalid/expired. This is how
+        for `commitSteps` (5..25, prefer 8..15) and only asks you again when it is reached/invalid/expired or on periodic replan. Shorter commits = more frequent strategic decisions.
         YOU drive the playthrough; coded planners only execute your goal; reflex rules handle combat/reload/door-E.
 
-        objective: {"kind":"enter_door|reach_key|reach_exit|explore|clear_room","target":"x,y","commitSteps":20}
+        objective: {"kind":"enter_door|reach_key|reach_exit|explore|clear_room","target":"x,y","commitSteps":12}
           - target MUST be a concrete cell copied from the brief:
               enter_door  → a coord from knownDoors=(x,y,kind)
               reach_exit  → knownExitGate=(x,y)
@@ -75,7 +75,7 @@ object PolicyPromptBuilder {
         - Reply with ONE raw JSON object only — no markdown, no ```json fences, no prose before/after.
         - `objective` is MANDATORY on initial policy and on replans that change strategy.
         - Minimal valid example:
-          {"version":4,"phase":"EXPLORATION","objective":{"kind":"explore","target":"7,3","commitSteps":20},"params":{"exploreMode":"frontier","unstuckMode":"retreat","doorAggression":"normal","combatStyle":"kite","keyPriority":"doors_first","riskLevel":"balanced"},"rules":[],"notes":"Commit to frontier 7,3 first."}
+          {"version":4,"phase":"EXPLORATION","objective":{"kind":"explore","target":"7,3","commitSteps":12},"params":{"exploreMode":"frontier","unstuckMode":"retreat","doorAggression":"normal","combatStyle":"kite","keyPriority":"doors_first","riskLevel":"balanced"},"rules":[],"notes":"Commit to frontier 7,3 first."}
     """.trimIndent()
 
     fun systemPrompt(): String = """
@@ -117,7 +117,7 @@ object PolicyPromptBuilder {
 
             Decide the next strategy yourself from the facts above. Return delta JSON:
             {"version":4,"objective":{...},"patch":[...],"params":{...},"notes":"why you changed strategy"}.
-            Set a fresh `objective` with concrete `target` from the brief. Pick your own `commitSteps` (5..60)
+            Set a fresh `objective` with concrete `target` from the brief. Pick `commitSteps` 8..15 (max 25)
             for how long the agent should follow this plan before asking you again.
             ALWAYS set `notes` — one sentence for the human observer.
         """.trimIndent()
@@ -136,7 +136,7 @@ object PolicyPromptBuilder {
             Do not default to the same params every time.
 
             Output AgentPolicy JSON v4 with objective (required `target`) + params + `commitSteps` + notes.
-            You choose commitSteps (5..60): how many steps to execute this plan before the next replan.
+            You choose commitSteps (8..15 typical, max 25): how many steps before the next replan.
             Enable at_door_* rules. Keep needs_room_exit after combat.
 
             CRITICAL: include `"objective":{"kind":"...","target":"x,y","commitSteps":N}` — runs abort without it.
@@ -165,7 +165,7 @@ object PolicyPromptBuilder {
             $preview
 
             Fix and reply with ONE raw JSON object (no markdown fences, no explanation text).
-            REQUIRED: `"objective":{"kind":"explore|enter_door|reach_key|reach_exit|clear_room","target":"x,y","commitSteps":20}`
+            REQUIRED: `"objective":{"kind":"explore|enter_door|reach_key|reach_exit|clear_room","target":"x,y","commitSteps":12}`
             where target is copied from knownDoors or frontierTargets in the original brief.
             Include version=4, params, notes (one sentence), and rules or empty rules array.
         """.trimIndent()

@@ -164,6 +164,7 @@ class PolicyAgentLoop(
             budget = budget,
             steps = steps,
             finalPhase = finalPhase,
+            finalHp = currentSnapshot.player.hp,
             toolLog = toolLog,
             context = context,
             policy = policy,
@@ -235,6 +236,13 @@ class PolicyAgentLoop(
         context: PolicyContext,
         policy: AgentPolicy,
     ): Pair<AgentPolicy, Int> {
+        if (!asyncPlanner.isBusy) {
+            asyncPlanner.tryDrainQueue(snapshot, context, policy)?.let { reason ->
+                context.onReplanScheduled(reason)
+                log.info("Drained replan queue reason={} step={}", reason, context.stepIndex)
+                return policy to 0
+            }
+        }
         val reason = context.shouldReplan(snapshot, isInitial = false) ?: return policy to 0
         if (context.isUrgentReplan(reason)) {
             context.onReplanScheduled(reason)
@@ -262,7 +270,9 @@ class PolicyAgentLoop(
         }
         if (asyncPlanner.tryStartReplan(snapshot, context, policy, reason)) {
             context.onReplanScheduled(reason)
-            log.debug("Async replan scheduled at step={} reason={}", context.stepIndex, reason)
+            log.info("Async replan scheduled step={} reason={}", context.stepIndex, reason)
+        } else {
+            log.debug("Async replan queued step={} reason={} (LLM busy)", context.stepIndex, reason)
         }
         return policy to 0
     }
@@ -333,6 +343,7 @@ class PolicyAgentLoop(
         val budget: Int,
         val steps: Int,
         val finalPhase: String,
+        val finalHp: Int?,
         val toolLog: List<String>,
         val context: PolicyContext,
         val policy: AgentPolicy,
@@ -358,6 +369,8 @@ class PolicyAgentLoop(
                 macroDecisions = context.macroDecisions.toList(),
                 finalPolicy = policy,
                 policyTokensApprox = policyTokens,
+                tokensUsed = policyTokens,
+                finalHp = finalHp,
                 stuckEvents = context.stuckEventCount,
                 knowledgeCellsKnown = context.knowledge.knownCells.size,
             )
@@ -374,4 +387,6 @@ private fun PolicyRunResponse.toAgentRunResponse() = AgentRunResponse(
     finalPhase = finalPhase,
     success = success,
     toolCallLog = toolCallLog,
+    finalHp = finalHp,
+    tokensUsed = tokensUsed,
 )

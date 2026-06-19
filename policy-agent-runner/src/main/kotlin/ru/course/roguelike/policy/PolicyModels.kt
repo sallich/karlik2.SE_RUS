@@ -50,6 +50,8 @@ data class PolicyRunResponse(
     val macroDecisions: List<MacroDecision> = emptyList(),
     val finalPolicy: AgentPolicy? = null,
     val policyTokensApprox: Int = 0,
+    val tokensUsed: Int = 0,
+    val finalHp: Int? = null,
     val stuckEvents: Int = 0,
     val knowledgeCellsKnown: Int = 0,
 )

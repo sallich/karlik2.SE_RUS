@@ -66,6 +66,8 @@ class AgentLoop(
                 finalPhase = outcome.finalPhase,
                 success = success,
                 toolCallLog = toolLog.toList(),
+                finalHp = outcome.finalHp,
+                tokensUsed = estimateConversationTokens(conversation),
             )
         } finally {
             mcp.close()
@@ -83,6 +85,7 @@ class AgentLoop(
     ): StepOutcome {
         var steps = 0
         var finalPhase = SessionPhase.EXPLORATION.name
+        var finalHp: Int? = null
 
         val tools = getTools(mcp)
         log.debug("Tools: {}", tools)
@@ -104,9 +107,10 @@ class AgentLoop(
         conversation.add(SystemMessage(buildSystemPromptInLoop(sessionId)))
 
         while (steps < budget) {
-            val snapshot = observe(mcp, sessionId, toolLog) ?: return StepOutcome(steps, finalPhase)
+            val snapshot = observe(mcp, sessionId, toolLog) ?: return StepOutcome(steps, finalPhase, finalHp)
             finalPhase = snapshot.phase
-            if (isTerminalPhase(snapshot.phase)) return StepOutcome(steps, finalPhase)
+            finalHp = snapshot.agent?.hp ?: snapshot.player.hp
+            if (isTerminalPhase(snapshot.phase)) return StepOutcome(steps, finalPhase, finalHp)
 
             calibrateIfNeeded(mcp, sessionId, snapshot, toolLog)
 
@@ -124,9 +128,10 @@ class AgentLoop(
 
             steps += outcome.stepsUsed
             finalPhase = outcome.snapshot.phase
-            if (outcome.shouldStop) return StepOutcome(steps, finalPhase)
+            finalHp = outcome.snapshot.agent?.hp ?: outcome.snapshot.player.hp
+            if (outcome.shouldStop) return StepOutcome(steps, finalPhase, finalHp)
         }
-        return StepOutcome(steps, finalPhase)
+        return StepOutcome(steps, finalPhase, finalHp)
     }
 
     private suspend fun getTools(mcp: McpClient): List<McpTool> {
@@ -168,6 +173,7 @@ class AgentLoop(
     private data class StepOutcome(
         val steps: Int,
         val finalPhase: String,
+        val finalHp: Int? = null,
     )
 
     private suspend fun createSession(
@@ -224,4 +230,19 @@ class AgentLoop(
         val result = mcp.callTool("game_sync", args)
         log.debug("game_sync -> error=${result.isError}")
     }
+}
+
+private fun estimateConversationTokens(messages: List<LLMMessage>): Int {
+    var chars = 0
+    for (msg in messages) {
+        chars += msg.text?.length ?: 0
+        msg.toolCallList?.toolCalls?.forEach { call ->
+            chars += call.functionCall.name.length
+            chars += call.functionCall.arguments.toString().length
+        }
+        msg.toolResultList?.toolResults?.forEach { result ->
+            chars += result.functionResult.content.length
+        }
+    }
+    return chars / 4
 }
