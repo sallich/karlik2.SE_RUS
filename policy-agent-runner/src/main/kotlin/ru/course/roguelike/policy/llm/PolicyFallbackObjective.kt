@@ -22,14 +22,14 @@ object PolicyFallbackObjective {
             return PolicyObjective(
                 kind = ObjectiveKinds.ENTER_DOOR,
                 target = "${door.x.toInt()},${door.y.toInt()}",
-                commitSteps = 25,
+                commitSteps = ObjectiveKinds.MAX_COMMIT_STEPS,
             )
         }
         snapshot.exitGate?.takeIf { snapshot.keysCollected >= snapshot.keysRequired }?.let { exit ->
             return PolicyObjective(
                 kind = ObjectiveKinds.REACH_EXIT,
                 target = "${exit.x},${exit.y}",
-                commitSteps = 30,
+                commitSteps = ObjectiveKinds.MAX_COMMIT_STEPS,
             )
         }
         return PolicyObjective(

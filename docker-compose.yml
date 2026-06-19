@@ -9,6 +9,8 @@ services:
     environment:
       PORT: "8080"
       AGENT_RUNNER_URL: http://agent-runner:8082
+      MOB_DECIDE_TIMEOUT_MS: ${MOB_DECIDE_TIMEOUT_MS:-8000}
+      LLM_GUARD_DECISION_INTERVAL_MS: ${LLM_GUARD_DECISION_INTERVAL_MS:-6000}
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
       interval: 5s
@@ -67,7 +69,6 @@ services:
       OLLAMA_FALLBACK_MODEL: ${OLLAMA_FALLBACK_MODEL:-qwen2.5:1.5b}
 
   agent-runner:
-    profiles: [step-agent]
     build:
       context: .
       dockerfile: docker/Dockerfile
@@ -90,6 +91,9 @@ services:
       LLM_MAX_HISTORY_MESSAGES: ${LLM_MAX_HISTORY_MESSAGES:-16}
       OLLAMA_NUM_CTX: ${OLLAMA_NUM_CTX:-8192}
       OLLAMA_NUM_PREDICT: ${OLLAMA_NUM_PREDICT:-256}
+      MOB_LLM_REQUEST_TIMEOUT_MS: ${MOB_LLM_REQUEST_TIMEOUT_MS:-12000}
+      MOB_OLLAMA_NUM_PREDICT: ${MOB_OLLAMA_NUM_PREDICT:-64}
+      MOB_OLLAMA_NUM_CTX: ${MOB_OLLAMA_NUM_CTX:-2048}
       USE_HEURISTIC_FALLBACK: ${USE_HEURISTIC_FALLBACK:-false}
       MCP_TRANSPORT: stdio
       MCP_SERVER_COMMAND: "/opt/mcp-server/bin/mcp-server stdio"
@@ -110,9 +114,8 @@ services:
       retries: 5
       start_period: 20s
 
+  # Второй агент для сравнения (eval):
   #   docker compose --profile policy-agent up
-  # Step-agent (пошаговый LLM) — только с --profile step-agent:
-  #   docker compose --profile step-agent up
   policy-agent-runner:
     profiles: [policy-agent]
     build:
@@ -140,9 +143,9 @@ services:
       OLLAMA_NUM_PREDICT: ${POLICY_OLLAMA_NUM_PREDICT:-${OLLAMA_NUM_PREDICT:-512}}
       USE_HEURISTIC_FALLBACK: ${USE_HEURISTIC_FALLBACK:-false}
       POLICY_STUCK_THRESHOLD: ${POLICY_STUCK_THRESHOLD:-3}
-      POLICY_REPLAN_EVERY_STEPS: ${POLICY_REPLAN_EVERY_STEPS:-25}
-      POLICY_STUCK_REPLAN_COOLDOWN: ${POLICY_STUCK_REPLAN_COOLDOWN:-15}
-      POLICY_NO_PROGRESS_STEPS: ${POLICY_NO_PROGRESS_STEPS:-25}
+      POLICY_REPLAN_EVERY_STEPS: ${POLICY_REPLAN_EVERY_STEPS:-15}
+      POLICY_STUCK_REPLAN_COOLDOWN: ${POLICY_STUCK_REPLAN_COOLDOWN:-8}
+      POLICY_NO_PROGRESS_STEPS: ${POLICY_NO_PROGRESS_STEPS:-15}
       POLICY_COMBAT_STALL_STEPS: ${POLICY_COMBAT_STALL_STEPS:-35}
       POLICY_MACRO_CACHE: ${POLICY_MACRO_CACHE:-false}
       POLICY_LLM_INITIAL_TEMPERATURE: ${POLICY_LLM_INITIAL_TEMPERATURE:-0.75}

@@ -18,6 +18,11 @@ data class AgentConfig(
     val llmMaxHistoryMessages: Int = 16,
     val ollamaNumCtx: Int = 8192,
     val ollamaNumPredict: Int = 256,
+    /** Таймаут LLM только для /mob/decide (короче, чем у step-agent). */
+    val mobLlmRequestTimeoutMs: Long = 12_000L,
+    /** Лимит токенов для mob_action — одно поле intent, не нужен длинный ответ. */
+    val mobOllamaNumPredict: Int = 64,
+    val mobOllamaNumCtx: Int = 2048,
     val maxMobToolCalls: Int = 30,
     val allowedTools: Set<String> = setOf("game_act"),
 ) {
@@ -52,6 +57,9 @@ data class AgentConfig(
                 llmMaxHistoryMessages = env("LLM_MAX_HISTORY_MESSAGES")?.toIntOrNull() ?: 16,
                 ollamaNumCtx = env("OLLAMA_NUM_CTX")?.toIntOrNull() ?: 8192,
                 ollamaNumPredict = env("OLLAMA_NUM_PREDICT")?.toIntOrNull() ?: 256,
+                mobLlmRequestTimeoutMs = env("MOB_LLM_REQUEST_TIMEOUT_MS")?.toLongOrNull() ?: 12_000L,
+                mobOllamaNumPredict = env("MOB_OLLAMA_NUM_PREDICT")?.toIntOrNull() ?: 64,
+                mobOllamaNumCtx = env("MOB_OLLAMA_NUM_CTX")?.toIntOrNull() ?: 2048,
                 maxMobToolCalls = env("MOB_MAX_TOOL_CALLS")?.toIntOrNull() ?: 30,
             )
         }

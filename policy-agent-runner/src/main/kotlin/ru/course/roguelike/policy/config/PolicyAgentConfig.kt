@@ -53,9 +53,9 @@ data class PolicyAgentConfig(
                     ?: env("AGENT_MAX_TOOL_CALLS")?.toIntOrNull()
                     ?: DEFAULT_MAX_TOOL_CALLS,
                 stuckThreshold = env("POLICY_STUCK_THRESHOLD")?.toIntOrNull() ?: 3,
-                replanEverySteps = env("POLICY_REPLAN_EVERY_STEPS")?.toIntOrNull() ?: 25,
-                stuckReplanCooldown = env("POLICY_STUCK_REPLAN_COOLDOWN")?.toIntOrNull() ?: 15,
-                noProgressSteps = env("POLICY_NO_PROGRESS_STEPS")?.toIntOrNull() ?: 25,
+                replanEverySteps = env("POLICY_REPLAN_EVERY_STEPS")?.toIntOrNull() ?: 15,
+                stuckReplanCooldown = env("POLICY_STUCK_REPLAN_COOLDOWN")?.toIntOrNull() ?: 8,
+                noProgressSteps = env("POLICY_NO_PROGRESS_STEPS")?.toIntOrNull() ?: 15,
                 macroCacheEnabled = env("POLICY_MACRO_CACHE")?.toBooleanStrictOrNull() ?: false,
                 initialTemplateOnly = env("POLICY_INITIAL_TEMPLATE_ONLY")?.toBooleanStrictOrNull() ?: false,
                 staleReplanMaxSteps = env("POLICY_STALE_REPLAN_STEPS")?.toIntOrNull() ?: 12,
