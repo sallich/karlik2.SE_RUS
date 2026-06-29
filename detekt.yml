@@ -1,0 +1,22 @@
+build:
+  maxIssues: 0
+
+config:
+  validation: true
+
+style:
+  MagicNumber:
+    active: false
+  MaxLineLength:
+    maxLineLength: 120
+  ReturnCount:
+    max: 4
+
+complexity:
+  LongParameterList:
+    functionThreshold: 8
+    constructorThreshold: 9
+
+naming:
+  FunctionNaming:
+    functionPattern: '[a-z][a-zA-Z0-9]*'

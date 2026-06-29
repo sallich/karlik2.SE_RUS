@@ -1,0 +1,208 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Roguelike MCP Contract",
+  "description": "Контракт MCP-сервера для LLM-агентов. game-service не экспонируется агенту напрямую.",
+  "protocol": "MCP over stdio (JSON-RPC 2.0)",
+  "server": {
+    "name": "roguelike-mcp-server",
+    "version": "0.2.0"
+  },
+  "transport": {
+    "primary": "stdio",
+    "httpBridge": {
+      "listTools": "GET /mcp/tools",
+      "callTool": "POST /mcp/tools/call",
+      "jsonRpc": "POST /mcp/jsonrpc"
+    }
+  },
+  "tools": [
+    {
+      "name": "game_new_session",
+      "description": "Create a new roguelike session with optional deterministic seed.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "seed": { "type": "integer", "description": "Optional RNG seed." },
+          "twoLevel": { "type": "boolean", "description": "Two-level map (default false for agents)." }
+        },
+        "additionalProperties": false
+      },
+      "exampleResponse": {
+        "sessionId": "abc-123",
+        "seed": 42,
+        "phase": "EXPLORATION",
+        "width": 32,
+        "height": 32,
+        "tiles": ["FLOOR", "WALL"],
+        "player": { "pose": { "x": 2.5, "y": 2.5, "yaw": 0, "pitch": 0 }, "hp": 100, "maxHp": 100 },
+        "keysCollected": 0,
+        "keysRequired": 3
+      }
+    },
+    {
+      "name": "game_observe",
+      "description": "Return full GameSnapshot: map tiles, player pose, keys, mobs, phase.",
+      "inputSchema": {
+        "type": "object",
+        "required": ["sessionId"],
+        "properties": {
+          "sessionId": { "type": "string" }
+        },
+        "additionalProperties": false
+      },
+      "exampleResponse": {
+        "sessionId": "abc-123",
+        "phase": "EXPLORATION",
+        "keysCollected": 1,
+        "keysRequired": 3,
+        "exitGate": { "x": 28, "y": 15 }
+      }
+    },
+    {
+      "name": "game_act",
+      "description": "Apply a discrete agent action.",
+      "inputSchema": {
+        "type": "object",
+        "required": ["sessionId", "action"],
+        "properties": {
+          "sessionId": { "type": "string" },
+          "action": {
+            "type": "string",
+            "enum": [
+              "move_forward", "turn_left", "turn_right", "interact", "wait",
+              "move_north", "move_south", "move_east", "move_west"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "exampleResponse": {
+        "sessionId": "abc-123",
+        "accepted": true,
+        "phase": "EXPLORATION"
+      }
+    },
+    {
+      "name": "game_sync",
+      "description": "Apply held FPS input for deltaMs (movement, yawDelta, interact, attack).",
+      "inputSchema": {
+        "type": "object",
+        "required": ["sessionId"],
+        "properties": {
+          "sessionId": { "type": "string" },
+          "forward": { "type": "boolean" },
+          "backward": { "type": "boolean" },
+          "strafeLeft": { "type": "boolean" },
+          "strafeRight": { "type": "boolean" },
+          "turnLeft": { "type": "boolean" },
+          "turnRight": { "type": "boolean" },
+          "yawDelta": { "type": "number" },
+          "interact": { "type": "boolean" },
+          "attack": { "type": "boolean" },
+          "deltaMs": { "type": "integer" }
+        },
+        "additionalProperties": false
+      },
+      "exampleResponse": {
+        "sessionId": "abc-123",
+        "accepted": true,
+        "pose": { "x": 2.5, "y": 3.1, "yaw": 1.57, "pitch": 0 }
+      }
+    },
+    {
+      "name": "game_session_summary",
+      "description": "Compact session state: phase, hp, keys progress, player cell, exit gate.",
+      "inputSchema": {
+        "type": "object",
+        "required": ["sessionId"],
+        "properties": {
+          "sessionId": { "type": "string" }
+        },
+        "additionalProperties": false
+      },
+      "exampleResponse": {
+        "phase": "EXPLORATION",
+        "hp": 100,
+        "keysCollected": 2,
+        "keysRequired": 3,
+        "playerCell": { "x": 5, "y": 8 },
+        "exitGate": { "x": 28, "y": 15 },
+        "remainingKeys": [{ "x": 12, "y": 4 }]
+      }
+    },
+    {
+      "name": "game_list_actions",
+      "description": "List all valid action strings for game_act.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false
+      },
+      "exampleResponse": {
+        "actions": ["move_forward", "turn_left", "turn_right", "interact", "wait", "move_north", "move_south", "move_east", "move_west"]
+      }
+    }
+  ],
+  "jsonRpcExamples": {
+    "toolsList": {
+      "request": { "jsonrpc": "2.0", "id": 1, "method": "tools/list" },
+      "response": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": {
+          "tools": [
+            { "name": "game_new_session" },
+            { "name": "game_observe" },
+            { "name": "game_act" },
+            { "name": "game_sync" },
+            { "name": "game_session_summary" },
+            { "name": "game_list_actions" }
+          ]
+        }
+      }
+    },
+    "toolsCall": {
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "tools/call",
+        "params": {
+          "name": "game_new_session",
+          "arguments": { "seed": 42, "twoLevel": false }
+        }
+      },
+      "response": {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "result": {
+          "content": [{ "type": "text", "text": "{\"sessionId\":\"...\",\"seed\":42}" }],
+          "isError": false
+        }
+      }
+    },
+    "invalidAction": {
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 3,
+        "method": "tools/call",
+        "params": {
+          "name": "game_act",
+          "arguments": { "sessionId": "abc", "action": "fly" }
+        }
+      },
+      "response": {
+        "jsonrpc": "2.0",
+        "id": 3,
+        "result": {
+          "content": [{ "type": "text", "text": "Invalid action 'fly'. Use game_list_actions for allowed values." }],
+          "isError": true
+        }
+      }
+    }
+  },
+  "agentRunnerConstraints": [
+    "No direct HTTP access to game-service from agent-runner",
+    "All game interaction via MCP tools only",
+    "LLM API keys only in agent-runner environment",
+    "LLM_PROVIDER=yandex|heuristic switches cloud vs rule-based planner"
+  ]
+}

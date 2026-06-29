@@ -1,0 +1,17 @@
+# Optional GPU overlay for Ollama (Docker Desktop + NVIDIA driver on Windows).
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.gpu.yml --profile llm up -d
+#
+# Requires GPU visible to Docker (NOT just nvidia runtime installed).
+# Common WSL failure:
+#   nvidia-container-cli: WSL environment detected but no adapters were found
+# → use CPU compose (no this file) OR Ollama on Windows host (see README / .env.example).
+#
+# ollama-pull does not need GPU — only the serve container.
+
+services:
+  ollama:
+    gpus: all
+    environment:
+      NVIDIA_VISIBLE_DEVICES: all
+      OLLAMA_NUM_GPU: ${OLLAMA_NUM_GPU:-99}

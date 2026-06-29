@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Policy Agent Tracker</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --panel: #1a1d27;
+      --text: #e8eaef;
+      --muted: #9aa3b2;
+      --accent: #5b9cff;
+      --ok: #3ecf8e;
+      --warn: #f5a623;
+      --err: #ff6b6b;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    header {
+      padding: 12px 16px;
+      background: var(--panel);
+      border-bottom: 1px solid #2a2f3d;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      justify-content: space-between;
+    }
+    h1 { margin: 0; font-size: 16px; font-weight: 600; }
+    .badges { display: flex; flex-wrap: wrap; gap: 8px; }
+    .badge {
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: #252a38;
+      font-size: 12px;
+    }
+    .badge.running { background: #1e3a2f; color: var(--ok); }
+    .badge.stopped { background: #3a2525; color: var(--muted); }
+    .badge.warn { background: #3a3020; color: var(--warn); }
+    main {
+      display: grid;
+      grid-template-columns: 1fr 280px;
+      gap: 12px;
+      padding: 12px;
+      height: calc(100vh - 56px);
+    }
+    @media (max-width: 900px) {
+      main { grid-template-columns: 1fr; height: auto; }
+    }
+    #mapWrap {
+      background: var(--panel);
+      border-radius: 8px;
+      overflow: auto;
+      position: relative;
+      border: 1px solid #2a2f3d;
+    }
+    canvas { display: block; image-rendering: pixelated; }
+    aside {
+      background: var(--panel);
+      border-radius: 8px;
+      border: 1px solid #2a2f3d;
+      padding: 12px;
+      overflow: auto;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+    aside h2 { margin: 0 0 8px; font-size: 13px; color: var(--accent); }
+    aside section { margin-bottom: 14px; }
+    .legend span { display: inline-block; margin: 2px 8px 2px 0; }
+    .swatch {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      margin-right: 4px;
+      vertical-align: middle;
+      border-radius: 2px;
+    }
+    #llmStatus.ok { color: var(--ok); }
+    #llmStatus.bad { color: var(--err); }
+    a { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Policy Agent Map Tracker</h1>
+    <div class="badges">
+      <span id="runBadge" class="badge stopped">idle</span>
+      <span id="stepBadge" class="badge">step —</span>
+      <span id="posBadge" class="badge">pos —</span>
+      <span id="keysBadge" class="badge">keys —</span>
+    </div>
+  </header>
+  <main>
+    <div id="mapWrap">
+      <canvas id="map"></canvas>
+    </div>
+    <aside>
+      <section>
+        <h2>LLM / Ollama</h2>
+        <div id="llmStatus">checking…</div>
+      </section>
+      <section>
+        <h2>Last action</h2>
+        <div id="actionInfo">—</div>
+      </section>
+      <section>
+        <h2>Session</h2>
+        <div id="sessionInfo">—</div>
+      </section>
+      <section>
+        <h2>Debug</h2>
+        <div id="debugInfo" style="color:#c8d0e0;font-size:11px">—</div>
+      </section>
+      <section>
+        <h2>Legend</h2>
+        <div class="legend">
+          <span><i class="swatch" style="background:#e8eaef"></i>@ player</span>
+          <span><i class="swatch" style="background:#5b9cff"></i>trail</span>
+          <span><i class="swatch" style="background:#3a3f4d"></i># wall</span>
+          <span><i class="swatch" style="background:#5c6478"></i>. floor</span>
+          <span><i class="swatch" style="background:#e04040"></i>L lava (20 HP/s)</span>
+          <span><i class="swatch" style="background:#ff44cc"></i>= door SEAL</span>
+          <span><i class="swatch" style="background:#e03030"></i>D door marker</span>
+          <span><i class="swatch" style="background:#c9a227"></i>C column</span>
+          <span><i class="swatch" style="background:#00e5ff"></i>^ lift</span>
+          <span><i class="swatch" style="background:#ffd700"></i>K key</span>
+          <span><i class="swatch" style="background:#3ecf8e"></i>E exit</span>
+          <span><i class="swatch" style="background:#ff6b6b"></i>M melee</span>
+          <span><i class="swatch" style="background:#ff9f43"></i>R ranged</span>
+          <span><i class="swatch" style="background:#bb4444"></i>G guard</span>
+          <span><i class="swatch" style="background:#00bfff"></i>P pistol</span>
+          <span><i class="swatch" style="background:#ff6600"></i>W shotgun</span>
+          <span><i class="swatch" style="background:#cc3333"></i>H health</span>
+          <span><i class="swatch" style="background:#66cc66"></i>X XP</span>
+          <span><i class="swatch" style="background:#88aaff"></i>a/b ammo</span>
+        </div>
+        <p style="color:var(--muted);margin:8px 0 0">
+          Overlay: <span style="color:#3ecf8e">■</span> frozen room
+          <span style="color:#f5a623">■</span> exit goal
+          <span style="color:#78b4ff">■</span> nav goal
+          <span style="color:#78b4ff">■</span> frontier
+          <span style="color:#e04040">■</span> lava
+          <span style="color:#ff6b6b">■</span> move target
+          <span style="color:#fff">○</span> facing
+        </p>
+      </section>
+      <section>
+        <h2>How to use</h2>
+        <p>1. Open this page before starting the agent.</p>
+        <p>2. In another terminal:</p>
+        <pre>curl -X POST localhost:8082/api/v1/agent/run \
+  -H 'Content-Type: application/json' \
+  -d '{"seed":42,"maxSteps":100}'</pre>
+        <p>Map updates live while the run is in progress.</p>
+      </section>
+    </aside>
+  </main>
+  <script>
+    const COLORS = {
+      '#': '#3a3f4d', '.': '#5c6478', 'L': '#e04040',
+      '=': '#ff44cc', 'd': '#ff8888',
+      'D': '#e03030', 'K': '#ffd700', 'E': '#3ecf8e',
+      'M': '#ff6b6b', 'R': '#ff9f43', 'G': '#b44', '@': '#5b9cff',
+      'C': '#c9a227',
+      '^': '#00e5ff',
+      'P': '#00bfff', 'W': '#ff6600', 'H': '#cc3333', 'X': '#66cc66',
+      'a': '#88aaff', 'b': '#aa88ff',
+    };
+    const HIGHLIGHT = {
+      frozen: 'rgba(62,207,142,0.35)',
+      exit_goal: 'rgba(245,166,35,0.55)',
+      nav_goal: 'rgba(120,180,255,0.65)',
+      frontier: 'rgba(120,180,255,0.45)',
+      lava: 'rgba(224,64,64,0.55)',
+      target: 'rgba(255,107,107,0.6)',
+      aim: 'rgba(255,255,255,0.25)',
+    };
+    const canvas = document.getElementById('map');
+    const ctx = canvas.getContext('2d');
+    let cellPx = 10;
+    let lastState = null;
+
+    function colorFor(ch) {
+      return COLORS[ch] || '#888';
+    }
+
+    function draw(state) {
+      if (!state || !state.map) {
+        canvas.width = 400;
+        canvas.height = 120;
+        ctx.fillStyle = '#1a1d27';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#9aa3b2';
+        ctx.font = '14px monospace';
+        ctx.fillText(state?.running ? 'Waiting for map…' : 'No active run. Start agent via POST /run', 16, 48);
+        return;
+      }
+      const { width: w, height: h, cells } = state.map;
+      canvas.width = w * cellPx;
+      canvas.height = h * cellPx;
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const ch = cells[y * w + x];
+          ctx.fillStyle = colorFor(ch);
+          ctx.fillRect(x * cellPx, y * cellPx, cellPx, cellPx);
+        }
+      }
+      if (state.highlights) {
+        state.highlights.forEach(h => {
+          ctx.fillStyle = HIGHLIGHT[h.kind] || 'rgba(255,255,255,0.2)';
+          ctx.fillRect(h.x * cellPx, h.y * cellPx, cellPx, cellPx);
+          if (h.kind === 'aim') {
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(h.x * cellPx + 1, h.y * cellPx + 1, cellPx - 2, cellPx - 2);
+          }
+        });
+      }
+      const TOP_LAYER = new Set(['#','=','d','D','C','^','L','E','K','M','R','G','P','W','H','X','a','b']);
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const ch = cells[y * w + x];
+          if (!TOP_LAYER.has(ch)) continue;
+          ctx.fillStyle = colorFor(ch);
+          ctx.fillRect(x * cellPx, y * cellPx, cellPx, cellPx);
+          if (cellPx >= 14) {
+            ctx.fillStyle = ch === '^' ? '#003344' : '#000';
+            ctx.font = `bold ${Math.floor(cellPx * 0.65)}px monospace`;
+            ctx.fillText(ch, x * cellPx + 1, y * cellPx + cellPx - 2);
+          }
+        }
+      }
+      if (state.trail && state.trail.length > 1) {
+        ctx.strokeStyle = 'rgba(91,156,255,0.55)';
+        ctx.lineWidth = Math.max(2, cellPx / 5);
+        ctx.beginPath();
+        state.trail.forEach((p, i) => {
+          const cx = p.x * cellPx + cellPx / 2;
+          const cy = p.y * cellPx + cellPx / 2;
+          if (i === 0) ctx.moveTo(cx, cy); else ctx.lineTo(cx, cy);
+        });
+        ctx.stroke();
+      }
+      const px = state.playerX * cellPx + cellPx / 2;
+      const py = state.playerY * cellPx + cellPx / 2;
+      const yaw = state.playerYaw || 0;
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(px, py, cellPx * 0.35, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#0f1117';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(px, py);
+      ctx.lineTo(px + Math.cos(yaw) * cellPx * 0.9, py + Math.sin(yaw) * cellPx * 0.9);
+      ctx.stroke();
+    }
+
+    function updateUi(state) {
+      lastState = state;
+      const runBadge = document.getElementById('runBadge');
+      runBadge.textContent = state.running ? 'running' : (state.status || 'idle');
+      runBadge.className = 'badge ' + (state.running ? 'running' : 'stopped');
+
+      document.getElementById('stepBadge').textContent =
+        `step ${state.step} · ${state.phase || '—'}`;
+      document.getElementById('posBadge').textContent =
+        `pos (${state.playerX?.toFixed(2)}, ${state.playerY?.toFixed(2)})`;
+      document.getElementById('keysBadge').textContent =
+        `keys ${state.keysCollected}/${state.keysRequired} · hp ${state.hp}`;
+
+      const act = [state.lastTool, state.lastAction, state.lastSource].filter(Boolean).join(' · ');
+      document.getElementById('actionInfo').textContent = act || '—';
+      if (state.roomTimerMs != null) {
+        document.getElementById('actionInfo').textContent += ` · roomTimer ${state.roomTimerMs}ms`;
+      }
+
+      document.getElementById('sessionInfo').innerHTML = [
+        state.sessionId ? `session: <code>${state.sessionId.slice(0, 8)}…</code>` : '',
+        state.seed != null ? `seed: ${state.seed}` : '',
+        state.mobCount != null ? `mobs on level: ${state.mobCount}` : '',
+        state.replanCount > 0 ? `replans: ${state.replanCount}` : '',
+        state.message ? `msg: ${state.message}` : '',
+      ].filter(Boolean).join('<br>') || '—';
+
+      const dbg = document.getElementById('debugInfo');
+      if (state.debugLines && state.debugLines.length) {
+        dbg.innerHTML = state.debugLines.map(l => `<div>${l}</div>`).join('');
+      } else {
+        dbg.textContent = '—';
+      }
+
+      draw(state);
+    }
+
+    async function pollLive() {
+      try {
+        const r = await fetch('/api/v1/policy-agent/live');
+        if (r.ok) updateUi(await r.json());
+      } catch (e) { /* ignore */ }
+    }
+
+    async function pollLlm() {
+      const el = document.getElementById('llmStatus');
+      try {
+        const r = await fetch('/api/v1/policy-agent/llm/health');
+        const data = await r.json();
+        el.className = data.reachable && data.modelAvailable ? 'ok' : 'bad';
+        el.innerHTML = [
+          `provider: <b>${data.provider}</b>`,
+          data.ollamaBaseUrl ? `url: ${data.ollamaBaseUrl}` : '',
+          data.configuredModel ? `model: ${data.configuredModel} ${data.modelAvailable ? '✓' : '✗'}` : '',
+          data.configuredFallback ? `fallback: ${data.configuredFallback} ${data.fallbackAvailable ? '✓' : '✗'}` : '',
+          data.error ? `<span style="color:#ff6b6b">${data.error}</span>` : '',
+          data.hint || '',
+        ].filter(Boolean).join('<br>');
+      } catch (e) {
+        el.className = 'bad';
+        el.textContent = 'Cannot reach policy-agent-runner';
+      }
+    }
+
+    pollLive();
+    pollLlm();
+    setInterval(pollLive, 400);
+    setInterval(pollLlm, 8000);
+    window.addEventListener('wheel', (e) => {
+      if (e.ctrlKey) {
+        e.preventDefault();
+        cellPx = Math.min(24, Math.max(4, cellPx + (e.deltaY < 0 ? 1 : -1)));
+        if (lastState) draw(lastState);
+      }
+    }, { passive: false });
+  </script>
+</body>
+</html>
